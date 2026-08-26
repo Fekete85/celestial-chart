@@ -261,25 +261,27 @@ bitre azonos képet ad. Csak innentől értelmes a régi és az új összevetés
 
 Az eredmény (eltérő pixelek aránya, `d3v3-*` vs `d3v7-*`):
 
-| nézet | eltérő pixel | max eltérés | |
-|---|---:|---:|---|
-| aitoff, teljes égbolt | 0,073% | 71 | élsimítás |
-| mollweide, teljes égbolt | 0,061% | 72 | élsimítás |
-| mercator, teljes égbolt | 0,038% | 71 | élsimítás |
-| stereographic, északi sark | 0,231% | 162 | élsimítás |
-| airy, alaphelyzet | 0,110% | 206 | élsimítás |
-| **orthographic, Nagy Medve** | **68,1%** | 226 | **Tejút-inverzió, lásd lentebb** |
+| nézet | eltérő pixel | max eltérés |
+|---|---:|---:|
+| mercator, teljes égbolt | 0,038% | 71 |
+| mollweide, teljes égbolt | 0,061% | 72 |
+| aitoff, teljes égbolt | 0,073% | 71 |
+| airy, alaphelyzet | 0,110% | 206 |
+| stereographic, északi sark | 0,231% | 162 |
+| orthographic, Nagy Medve | 0,702% | 226 |
 
-Öt nézetben az eltérés néhány száz pixel a csillagok és a feliratok peremén —
-a szubpixeles élsimítás szintje. A hatodik a Tejút-réteg ismert regressziója.
+Mind a hat nézetben az eltérés néhány száz–néhány ezer pixel a csillagok és a
+feliratok peremén — a szubpixeles élsimítás szintje. (A Tejút-inverzió javítása
+előtt az orthographic nézet **68,1%** volt; lásd lentebb.)
 
 ---
 
 ## 7. Nyitott kérdések
 
-### A Tejút kitöltése bizonyos tájolásoknál invertálódik
+### A Tejút kitöltése egy vizsgált tájolásnál invertálódik
 
-**Ez az egyetlen ismert vizuális regresszió.** 14 tájolásra megmérve
+**Ez az egyetlen ismert vizuális regresszió**, és a négy talált esetből három
+javítva. 14 tájolásra megmérve
 (orthographic, csak a Tejút-réteg, a korongon belüli világos pixelek aránya):
 
 | középpont | v3 | v7 | |
@@ -315,9 +317,54 @@ A szerző maga is tudott a jelenségről: a `getMwbackground()` kommentje szerin
 az a réteg azért van, hogy „megakadályozza a teljes térkép beszürkülését
 bizonyos tájolásokban".
 
-Érdemi javítás a Tejút-adat gyűrűszerkezetének rendbetétele lenne (a különálló
-foltokat külön poligonokba, a lyukakat a saját poligonjukba), nem a rajzoló
-foltozása. Ez adatmunka, nem migráció — külön lépés.
+#### A javítás: területmegmaradás
+
+A forgatás területtartó. Ha tehát a **forgatott** poligon gömbi területe eltér az
+eredetiétől, valami elromlott a forgatás közben. Mérve `[180,55]`-nél:
+
+```
+mw0   : eredeti 0,069π   forgatott 4,070π   különbség +4,001π
+mwbg0 : eredeti 3,931π   forgatott −0,070π  különbség −4,001π
+mw1..4: a különbség 0,01π alatt
+```
+
+A különbség **pontosan egy teljes gömb** — ez annak a jele, hogy a forgatás után
+az egyik gyűrű pólust kerül meg, és a körüljárás összege egy fordulattal
+eltolódik. Ilyenkor a megfordított gyűrűkkel rajzolunk (`celestial.js`,
+`korulfordult()` / `helyesIranyu()`).
+
+A döntés topologikus, ezért elég minden 20. pontot megnézni: a mért eltérés így
+is 4,00π, a költség viszont 6,7 ms helyett **0,4 ms**.
+
+Eredmény: a 14 vizsgált tájolásból **13 megegyezik a v3-mal**, a `[180,45]`,
+`[180,55]` és `[0,−45]` esetek megjavultak.
+
+#### Ami megmaradt: `[270,45]`
+
+Itt a terület **nem** ugrik (a különbség 0,001π), a kitöltés mégis fordított
+(v3 19%, v7 72%). Egy második mérés megmutatja, miért nehéz:
+
+| | vetített előjeles terület | pixelben mért kitöltés |
+|---|---:|---:|
+| `[180,55]` (a javított eset) | 0,871 | 0,837 |
+| `[270,45]` (a megmaradt eset) | 0,472 | **0,726** |
+
+A kettőnek egyeznie kellene. Hogy nem egyezik, azt jelenti, hogy a kirajzolt
+útvonal **önátfedő**: a nem-nulla körüljárási szabály többet tölt ki, mint az
+előjeles terület. Ez arra utal, hogy a d3-geo vágása ebben a tájolásban hibás
+útvonalat állít elő, nem csak fordított irányút — ezért nem segít a gyűrűk
+megfordítása sem.
+
+Teljes detektor létezik: a kirajzolt útvonalon `context.isPointInPath()` a
+középpontban, összevetve a `d3.geoContains()` ítéletével (ez utóbbi megbízható —
+`[180,55]`-nél helyesen mondja, hogy a középpont a poligonon kívül van, miközben
+a `geoPath` kitölti). Csakhogy a `geoContains` a teljes felbontású poligonon
+**4,3 ms**, ami képkockánként túl drága, ritkított poligonon pedig a
+határközeli pontoknál megbízhatatlan.
+
+Az érdemi javítás ezért a Tejút-adat gyűrűszerkezetének rendbetétele lenne (a
+különálló foltokat külön poligonokba, a lyukakat a saját poligonjukba), nem a
+rajzoló további foltozása. Ez adatmunka, nem migráció — külön lépés.
 - **`cassini` és `quincuncial`** — a `config.js` felsorolja őket, de a
   `d3.geo.projection` **pinelt upstream buildjében sincsenek benne**: az
   upstream is `TypeError`-t dob rájuk. Nem migrációs regresszió, hanem meglévő

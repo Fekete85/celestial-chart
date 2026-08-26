@@ -116,9 +116,12 @@ Az 1–4. lépés elkészült. Az eredmény és a közben talált hibák: [`docs
 A vetítési kimenet **bitre azonos** a D3 v3-as verzióval. Három pontban a régi kód NaN-t adott
 (a vetítés antipódusa), az új definiált értéket — ez javulás.
 
-A migráció közben **hét hiba** került elő, amiből ötöt a numerikus háló nem is fogott volna meg
-(színek, események, betöltési lánc, SVG-export), mert az csak a geometriát méri. Egy ismert vizuális
-regresszió maradt: a Tejút kitöltése négy vizsgált tájolásból négynél invertálódik — részletes
+A migráció közben **nyolc hiba** került elő, amiből hatot a numerikus háló nem is fogott volna meg
+(színek, események, ablakátméretezés, betöltési lánc, SVG-export), mert az csak a geometriát méri.
+Egyik sem dobott kivételt — mind kézi végigpróbálásból jött elő.
+
+Vizuálisan hat nézetben mérve az eltérés **0,04–0,70%** a csillagok és feliratok peremén, azaz
+élsimítás. Egy tájolásnál (a 14 vizsgáltból) marad ismert eltérés a Tejút kitöltésében — részletes
 diagnózis a naplóban.
 
 Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.md`](docs/02-migracio.md) ·
