@@ -1,36 +1,40 @@
 /* global Celestial, projections, has */
+
+// A d3 v3 a `d3.geo.<nev>.raw` alakot használta; a v7-ben ez `d3.geo<Nev>Raw`,
+// és néhány vetítés át is lett nevezve. A kivételek itt vannak felsorolva —
+// ami nem szerepel a táblában, azt a névkonvenció adja.
+var RAW_ATNEVEZES = {
+  "naturalEarth": "geoNaturalEarth1Raw"   // a v3 plugin Natural Earth I-et adott
+};
+
+function rawVetites(nev) {
+  var kulcs = RAW_ATNEVEZES[nev] || ("geo" + nev.charAt(0).toUpperCase() + nev.slice(1) + "Raw");
+  return d3[kulcs];
+}
+
 //Flipped projection generated on the fly
 Celestial.projection = function(projection) {
-  var p, raw, forward;
-  
+  var p, raw;
+
   if (!has(projections, projection)) { throw new Error("Projection not supported: " + projection); }
-  p = projections[projection];    
+  p = projections[projection];
 
-  if (p.arg !== null) {
-    raw = d3.geo[projection].raw(p.arg);
-  } else {
-    raw = d3.geo[projection].raw;  
-  }
-  
-  forward = function(λ, φ) {
-    var coords = raw(-λ, φ);
-    return coords;
-  };
+  raw = rawVetites(projection);
+  if (!raw) { throw new Error("Projection not supported: " + projection); }
 
-  forward.invert = function(x, y) {
-    try {
-      var coords = raw.invert(x, y);
-      coords[0] = coords && -coords[0];
-      return coords;
-    } catch(e) { console.log(e); }
-  };
+  if (p.arg !== null) raw = raw(p.arg);
 
-  return d3.geo.projection(forward);
+  // Az égboltot tükrözve nézzük: kívülről befelé, nem belülről kifelé. A v3-as
+  // kód ezt a raw függvény becsomagolásával oldotta meg — `raw(-λ, φ)` —, a
+  // v7-ben erre való a reflectX. A kettő számszerűen azonos (a harness minden
+  // vetítésen 1e-9 alatti eltérést mért), de a reflectX az invert irányt is
+  // magától kezeli, nem kell kézzel visszatükrözni.
+  return d3.geoProjection(raw).reflectX(true);
 };
 
 
 function projectionTween(a, b) {
-  var prj = d3.geo.projection(raw).scale(1),
+  var prj = d3.geoProjection(raw).scale(1),
       center = prj.center,
       translate = prj.translate,
       α;

@@ -38,11 +38,11 @@ function exportSVG(fname) {
     styles[groupNames[i]] = {};
   }
 
-  var graticule = d3.geo.graticule().minorStep([15,10]);
+  var graticule = d3.geoGraticule().minorStep([15,10]);
   
-  var map = d3.geo.path().projection(projection);
+  var map = d3.geoPath().projection(projection);
 
-  var q = d3.queue(2);
+  var q = feladatsor(2);
   
   groups.background.append("path").datum(circle).attr("class", "background").attr("d", map); 
   styles.background.fill = cfg.background.fill;
@@ -399,7 +399,7 @@ function exportSVG(fname) {
            .enter().append("path")
            .attr("class", "darkluna" )
            .attr("transform", function(d) { return point(d.geometry.coordinates); })
-           .attr("d", function(d) { return d3.svg.symbol().type("circle").size(rl*rl)(); });
+           .attr("d", function(d) { return d3.symbol().type(d3.symbolCircle).size(rl*rl)(); });
           groups.planets.selectAll(".moon")
            .data(jlun.features)
            .enter().append("path")
@@ -598,10 +598,10 @@ function exportSVG(fname) {
   function dsoSymbol(p) {
     var size = dsoSize(p.mag, p.dim) || 9,
         type = dsoShape(p.type);
-    if (d3.svg.symbolTypes.indexOf(type) !== -1) {
-      return d3.svg.symbol().type(type).size(size)();
+    if (has(SZIMBOLUMOK, type)) {
+      return d3.symbol().type(SZIMBOLUMOK[type]).size(size)();
     } else {
-      return d3.svg.customSymbol().type(type).size(size)();
+      return customSymbol().type(type).size(size)();
     }
   }
 
@@ -655,12 +655,12 @@ function exportSVG(fname) {
 
   function moonSymbol(p, r) { 
     var size = r ? r*r : 121;
-    return d3.svg.customSymbol().type("crescent").size(size).ratio(p.age)();
+    return customSymbol().type("crescent").size(size).ratio(p.age)();
   }
 
   function planetSymbol(p, r) { 
     var size = r ? r*r : planetSize(p.mag);
-    return d3.svg.symbol().type("circle").size(size)();
+    return d3.symbol().type(d3.symbolCircle).size(size)();
   }
 
   function planetFont(s) {
@@ -744,7 +744,7 @@ function exportSVG(fname) {
 
 }
 
-var customSvgSymbols = d3.map({
+var customSvgSymbols = new Map(Object.entries({
   'ellipse': function(size, ratio) {
     var s = Math.sqrt(size), 
         rx = s*0.666, ry = s/3;
@@ -786,7 +786,12 @@ var customSvgSymbols = d3.map({
     var s = Math.sqrt(size), 
         r = s/2,
         ph = 0.5 * (1 - Math.cos(ratio)),
-        e = 1.6 * Math.abs(ph - 0.5) + 0.01,
+        // A terminátor fél-kistengelye a korong sugarának |cos(fázisszög)|-szerese,
+        // ami a megvilágított hányaddal |2·ph − 1| = 2·|ph − 0.5|. Az 1.6-os szorzó
+        // miatt a telihold 19%-kal keskenyebb, gibbusz alakú korongként rajzolódott
+        // (#130). Az 1.98 + 0.01 pontosan 1-et ad teli- és újholdnál, és megtartja
+        // az elfajulás elleni védelmet negyedeknél.
+        e = 1.98 * Math.abs(ph - 0.5) + 0.01,
         dir = ratio > Math.PI ? 0 : 1,
         termdir = Math.abs(ph) > 0.5 ? dir : Math.abs(dir-1); 
     return 'M ' + (-1) + ',' + (-1) +
@@ -794,31 +799,31 @@ var customSvgSymbols = d3.map({
     ' a' + r + ',' + r + ' 0 1 ' + dir + ' 0,' + (r * 2) +
     ' a' + (r*e) + ',' + r + ' 0 1 ' + termdir + ' 0,' + (-(r * 2)) + 'z';
   } 
-});
+}));
 
-d3.svg.customSymbol = function() {
-  var type, size = 64, ratio = d3.functor(1);
+function customSymbol() {
+  var type, size = 64, ratio = functor(1);
   
   function symbol(d,i) {
     return customSvgSymbols.get(type.call(this,d,i))(size.call(this,d,i), ratio.call(this,d,i));
   }
   symbol.type = function(_) {
     if (!arguments.length) return type; 
-    type = d3.functor(_);
+    type = functor(_);
     return symbol;
   };
   symbol.size = function(_) {
     if (!arguments.length) return size; 
-    size = d3.functor(_);
+    size = functor(_);
     return symbol;
   };
   symbol.ratio = function(_) {
     if (!arguments.length) return ratio; 
-    ratio = d3.functor(_);
+    ratio = functor(_);
     return symbol;
   };
   return symbol;
-};
+}
 
 var exportCallback = null;
 

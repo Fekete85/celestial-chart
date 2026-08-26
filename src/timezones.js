@@ -2,7 +2,7 @@
 function timezones() {
   var cfg = settings.set(),
        world, timezone;
-  d3.json(cfg.datapath + "timezones.json", function(error, json) {
+  loadJson(cfg.datapath + "timezones.json", function(error, json) {
     world = topojson.feature(json, json.objects.timezones);
     
     Celestial.container.selectAll(".timezones")

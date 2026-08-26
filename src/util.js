@@ -12,6 +12,19 @@ function isNumber(n) { return n !== null && !isNaN(parseFloat(n)) && isFinite(n)
 function isArray(o) { return o !== null && Object.prototype.toString.call(o) === "[object Array]"; }
 function isObject(o) { var type = typeof o;  return type === 'function' || type === 'object' && !!o; }
 function isFunction(o) { return typeof o == 'function' || false; }
+// A d3.functor a v4-ben megszűnt. Egyetlen dolgot csinált: ami nem függvény,
+// abból konstans függvényt gyártott.
+function functor(o) { return isFunction(o) ? o : function() { return o; }; }
+
+// A d3.json a v5 óta Promise-t ad vissza, nem callbacket hív. A hívási helyek
+// szerkezetét megtartjuk — a régi (error, json) alak marad —, mert így a
+// betöltési logika változatlan, és a D3-csere hatása elkülöníthető marad.
+function loadJson(url, callback) {
+  return d3.json(url).then(
+    function(json) { callback(null, json); },
+    function(error) { callback(error || new Error("betöltés sikertelen: " + url)); }
+  );
+}
 function isValidDate(d) { return d && d instanceof Date && !isNaN(d); }
 function fileExists(url) {
   var http = new XMLHttpRequest();
