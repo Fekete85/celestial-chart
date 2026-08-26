@@ -150,6 +150,15 @@ kód a raw függvényt csomagolta be (`raw(-λ, φ)`); a v7-ben erre való a
 maximális eltérés 1e-9 px alatt —, de a `reflectX` az invert irányt is magától
 kezeli, nem kell kézzel visszatükrözni.
 
+### Két vetítés pótolva
+
+A `hatano` és a `wagner7` a v3-as pluginban megvolt, a `d3-geo-projection`
+v4-ben viszont nincs kiadott `raw` függvényük. A képleteket szó szerint
+átvettük a v3-as forrásból, és a `test/vetitesek.teszt.mjs` a **pinelt v3-as
+buildből kimért 162 pontos táblához** méri őket, 1e-10 tűréssel — a `mercator`
+kontrollként ugyanabban a tesztben. A teszt akkor is szól, ha egy jövőbeli
+d3-geo-projection pótolja őket, hogy a saját másolat elhagyható legyen.
+
 ### A zoom-plugin
 
 Jason Davies `d3.geo.zoom`-ja `d3.behavior.zoom`-ra, `d3.event`-re és
@@ -295,10 +304,12 @@ bizonyos tájolásokban".
 Érdemi javítás a Tejút-adat gyűrűszerkezetének rendbetétele lenne (a különálló
 foltokat külön poligonokba, a lyukakat a saját poligonjukba), nem a rajzoló
 foltozása. Ez adatmunka, nem migráció — külön lépés.
-- **`cassini`, `hatano`, `quincuncial`, `wagner7`** — a `d3-geo-projection` v4-ben
-  nincs kiadott `raw` függvényük. A 69 konfigurált vetítésből 65 működik; ez a
-  négy jelenleg `Projection not supported` hibát ad. Egyik sincs a háló 25-ös
-  halmazában, de a hiba így is regresszió az upstreamhez képest.
+- **`cassini` és `quincuncial`** — a `config.js` felsorolja őket, de a
+  `d3.geo.projection` **pinelt upstream buildjében sincsenek benne**: az
+  upstream is `TypeError`-t dob rájuk. Nem migrációs regresszió, hanem meglévő
+  hiba; a `quincuncial` a plugin forrásában sem szerepel (csak
+  `peirceQuincuncial`), a `cassini` pedig csak a nem-minifikált változatban.
+  A 69 konfigurált vetítésből **67 működik — pontosan annyi, mint az upstreamben**.
 - **`Celestial.ha()`** (`horizontal.js`) — nincs hívója a forrásban, és a
   `if (ha < 180) ha = ha + 360;` sora gyanús (`ha < 0` lenne a szokásos).
   Holt kód, nem nyúltunk hozzá.
@@ -317,3 +328,5 @@ foltozása. Ez adatmunka, nem migráció — külön lépés.
 | 4 | `d3.geo.*` → `d3-geo` + `d3-geo-projection` | **kész**, 25/25 bitre azonos |
 | 5 | ES-modulok, tree-shaking | nincs elkezdve |
 | 6 | `form.js` / `svg.js` — migrálás vagy elhagyás | migrálva, működik |
+
+Vetítések: **67/69 működik, ugyanannyi, mint az upstreamben.** Tesztek: 44, mind zöld.
