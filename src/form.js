@@ -360,7 +360,7 @@ function form(cfg) {
   }
     
   function getFilename(ext) {
-    var dateFormat = d3.time.format("%Y%m%dT%H%M%S%Z"),
+    var dateFormat = d3.timeFormat("%Y%m%dT%H%M%S%Z"),
         filename = "d3-celestial",
         dt = Celestial.date();
     if (dt) filename += dateFormat(dt);

@@ -21,7 +21,7 @@ function exportSVG(fname) {
   if (proj.clip) {
     projection.clipAngle(90);
   }
-  circle = d3.geo.circle().angle([179.95]).origin(center);
+  circle = d3.geoCircle().radius(179.95).center(center);
 
   svg.attr("width", m.width).attr("height", m.height);
   // .attr("viewBox", " 0 0 " + (m.width) + " " + (m.height));
@@ -38,7 +38,7 @@ function exportSVG(fname) {
     styles[groupNames[i]] = {};
   }
 
-  var graticule = d3.geoGraticule().minorStep([15,10]);
+  var graticule = d3.geoGraticule().stepMinor([15,10]);
   
   var map = d3.geoPath().projection(projection);
 
@@ -84,7 +84,7 @@ function exportSVG(fname) {
     if (has(cfg.lines, key) && key != "graticule" && cfg.lines[key].show !== false) { 
       id = "planes" + key;
       groups[id].append("path")
-         .datum(d3.geo.circle().angle([90]).origin(poles[key]) )
+         .datum(d3.geoCircle().radius(90).center(poles[key]) )
          .attr("class", id)
          .attr("d", map);
       styles[id] = svgStyle(cfg.lines[key]);
@@ -448,9 +448,9 @@ function exportSVG(fname) {
       if (sol) {
         var up = Celestial.zenith(),
             solpos = sol.ephemeris.pos,
-            dist = d3.geo.distance(up, solpos),
+            dist = d3.geoDistance(up, solpos),
             pt = projection(solpos),
-            daylight = d3.geo.circle().angle([179.95]).origin(solpos);
+            daylight = d3.geoCircle().radius(179.95).center(solpos);
 
         groups.daylight.append("path").datum(daylight)
          .attr("class", "daylight")
@@ -472,7 +472,7 @@ function exportSVG(fname) {
 
   if ((cfg.location || cfg.formFields.location) && cfg.horizon.show && !proj.clip) {
     q.defer(function(callback) {
-      var horizon = d3.geo.circle().angle([90]).origin(Celestial.nadir());
+      var horizon = d3.geoCircle().radius(90).center(Celestial.nadir());
      
       groups.horizon.append("path").datum(horizon)
        .attr("class", "horizon")
@@ -496,7 +496,7 @@ function exportSVG(fname) {
   // Helper functions
   
   function clip(coords) {
-    return proj.clip && d3.geo.distance(center, coords) > halfπ ? 0 : 1;
+    return proj.clip && d3.geoDistance(center, coords) > halfπ ? 0 : 1;
   }
 
   function point(coords) {
@@ -598,8 +598,9 @@ function exportSVG(fname) {
   function dsoSymbol(p) {
     var size = dsoSize(p.mag, p.dim) || 9,
         type = dsoShape(p.type);
-    if (has(SZIMBOLUMOK, type)) {
-      return d3.symbol().type(SZIMBOLUMOK[type]).size(size)();
+    var beepitett = szimbolumTipus(type);
+    if (beepitett) {
+      return d3.symbol().type(beepitett).size(size)();
     } else {
       return customSymbol().type(type).size(size)();
     }
@@ -800,6 +801,23 @@ var customSvgSymbols = new Map(Object.entries({
     ' a' + (r*e) + ',' + r + ' 0 1 ' + termdir + ' 0,' + (-(r * 2)) + 'z';
   } 
 }));
+
+// A v3-ban a szimbólum típusa szöveg volt ("circle"), a v7-ben objektum.
+// Függvényben oldjuk fel, nem modulszintű táblában: így az svg.js betöltéskor
+// nem hivatkozik a d3-ra, és Node-ból is tesztelhető marad.
+function szimbolumTipus(nev) {
+  switch (nev) {
+    case "circle": return d3.symbolCircle;
+    case "cross": return d3.symbolCross;
+    case "diamond": return d3.symbolDiamond;
+    case "square": return d3.symbolSquare;
+    case "star": return d3.symbolStar;
+    case "wye": return d3.symbolWye;
+    // A v3 külön ismerte a lefelé mutató háromszöget, a v7 nem.
+    case "triangle": case "triangle-up": case "triangle-down": return d3.symbolTriangle;
+    default: return null;
+  }
+}
 
 function customSymbol() {
   var type, size = 64, ratio = functor(1);

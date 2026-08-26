@@ -1,12 +1,13 @@
 /* global dateDiff, $, $form, px, testNumber, isNumber, parentElement */
 var datetimepicker = function(cfg, callback) {
   var date = new Date(), 
-      tzFormat = d3.time.format("%Z"),
+      tzFormat = d3.timeFormat("%Z"),
       tz = [{"−12:00":-720}, {"−11:00":-660}, {"−10:00":-600}, {"−09:30":-570}, {"−09:00":-540}, {"−08:00":-480}, {"−07:00":-420}, {"−06:00":-360}, {"−05:00":-300}, {"−04:30":-270}, {"−04:00":-240}, {"−03:30":-210}, {"−03:00":-180}, {"−02:30":-150}, {"−02:00":-120}, {"−01:00":-60}, {"±00:00":0}, {"+01:00":60}, {"+02:00":120}, {"+03:00":180}, {"+03:30":210}, {"+04:00":240}, {"+04:30":270}, {"+05:00":300}, {"+05:30":330}, {"+05:45":345}, {"+06:00":360}, {"+06:30":390}, {"+07:00":420}, {"+08:00":480}, {"+08:30":510}, {"+08:45":525}, {"+09:00":540}, {"+09:30":570}, {"+10:00":600}, {"+10:30":630}, {"+11:00":660}, {"+12:00":720}, {"+12:45":765}, {"+13:00":780}, {"+14:00":840}],
       months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
       days = ["Su", "M", "Tu", "W", "Th", "F", "Sa"],
       years = getYears(date),
-      dateFormat = d3.time.format("%Y-%m-%d"),
+      dateFormat = d3.timeFormat("%Y-%m-%d"),
+      dateParse = d3.timeParse("%Y-%m-%d"),
       dtrange = cfg.daterange || [];
     
   var picker = d3.select(parentElement + " ~ #celestial-form").append("div").attr("id", "celestial-date");
@@ -34,11 +35,11 @@ var datetimepicker = function(cfg, callback) {
     while (nd.firstChild) nd.removeChild(nd.firstChild);
     
     for (var i=0; i<7; i++) {
-      cal.append("div").classed({"date": true, "weekday": true}).html(days[i]);
+      osztalyoz(cal.append("div"), {"date": true, "weekday": true}).html(days[i]);
     }
     for (i=0; i<42; i++) {
       var curmon = curdt.getMonth(), curday = curdt.getDay(), curid = dateFormat(curdt);
-      cal.append("div").classed({
+      osztalyoz(cal.append("div"), {
         "date": true, 
         "grey": curmon !== mo,
         "weekend": curmon === mo && (curday === 0 || curday === 6),
@@ -207,7 +208,7 @@ var datetimepicker = function(cfg, callback) {
         s = $form("sec").value, tz = $form("tz").value;
         
     if (this.id && this.id.search(/^\d/) !== -1) {
-      date = dateFormat.parse(this.id); 
+      date = dateParse(this.id); 
     }
     fillYrSel();
     

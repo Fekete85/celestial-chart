@@ -19,6 +19,43 @@ function functor(o) { return isFunction(o) ? o : function() { return o; }; }
 // A d3.json a v5 óta Promise-t ad vissza, nem callbacket hív. A hívási helyek
 // szerkezetét megtartjuk — a régi (error, json) alak marad —, mert így a
 // betöltési logika változatlan, és a D3-csere hatása elkülöníthető marad.
+// A d3-queue külön csomag volt, a v5 óta nincs karbantartva. A könyvtár a
+// felületéből ennyit használ: defer(fn) a feladat felvételére, await(cb) a
+// végére. A defer-ek mind szinkronban, az await előtt futnak le.
+// A v3-as selection.classed({nev: logikai, ...}) alak a v4-ben megszűnt;
+// a v7 csak classed(nevek, logikai) párost ismer.
+function osztalyoz(sel, obj) {
+  for (var k in obj) { if (has(obj, k)) sel.classed(k, obj[k]); }
+  return sel;
+}
+
+function feladatsor(parhuzamos) {
+  var feladatok = [], fut = 0, kovetkezo = 0, hiba = null, kesz = null;
+
+  function inditsUjat() {
+    while (!hiba && fut < parhuzamos && kovetkezo < feladatok.length) {
+      fut++;
+      feladatok[kovetkezo++](function (e) {
+        fut--;
+        if (e && !hiba) { hiba = e; return kesz(hiba); }
+        if (hiba) return;
+        if (fut === 0 && kovetkezo === feladatok.length) return kesz(null);
+        inditsUjat();
+      });
+    }
+  }
+
+  return {
+    defer: function (fn) { feladatok.push(fn); return this; },
+    await: function (cb) {
+      kesz = cb;
+      if (!feladatok.length) cb(null);
+      else inditsUjat();
+      return this;
+    }
+  };
+}
+
 function loadJson(url, callback) {
   return d3.json(url).then(
     function(json) { callback(null, json); },

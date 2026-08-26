@@ -12,12 +12,14 @@ import { fileURLToPath } from "node:url";
 
 const GYOKER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export function betolt(fajlok, kiadott = []) {
+export function betolt(fajlok, kiadott = [], globalisok = {}) {
   const kod = fajlok
     .map(f => fs.readFileSync(path.join(GYOKER, f), "utf8").replace(/\/\* global.*/g, ""))
     .join("\n");
 
-  const ctx = vm.createContext({ console, Math, Date, JSON, Object, Array, String, Number, isNaN, parseInt, parseFloat });
+  const ctx = vm.createContext(Object.assign(
+    { console, Math, Date, JSON, Object, Array, String, Number, isNaN, parseInt, parseFloat, Map, Set },
+    globalisok));
   vm.runInContext(
     "var Celestial = { version: 'teszt', container: null, data: [] };\n" +
     kod + "\n" +

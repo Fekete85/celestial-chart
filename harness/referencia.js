@@ -110,6 +110,11 @@
       interactive: false,
       form: false,
       controls: false,
+      // Enélkül a Celestial.rotate() csak elindít egy d3-átmenetet, és a
+      // szinkron mérés a forgatás ELŐTTI állapotot rögzíti — mind a négy
+      // forgatás ugyanazt a koordinátát adná. (Az első háló pontosan így
+      // volt hibás; az alábbi önellenőrzés fogja ki, ha visszatér.)
+      disableAnimations: true,
       datapath: "./data/",         // a display() akkor is betölt, ha minden réteg rejtett
       stars: { show: false, data: "stars.6.json" },
       dsos: { show: false },
@@ -161,6 +166,24 @@
       }
     }
 
+    // A forgatásoknak is meg kell mozdítaniuk a pixeleket. Ha egy vetítésen
+    // belül két forgatás azonos koordinátákat ad, akkor a forgatás nem történt
+    // meg, és a háló a látszat ellenére egyetlen állapotot mér.
+    var forgatasUtkozesek = [];
+    for (var m = 0; m < referencia.vetitesek.length; m++) {
+      var vv = referencia.vetitesek[m], latott = {};
+      for (var f = 0; f < vv.rotations.length; f++) {
+        var koord = JSON.stringify((vv.rotations[f].points || []).map(function (pp) {
+          return Array.isArray(pp) ? [pp[0], pp[1]] : pp;   // a clip-jelző nélkül
+        }));
+        if (latott[koord] !== undefined) {
+          forgatasUtkozesek.push(vv.projection + ": fgt" + latott[koord] + " == fgt" + f);
+        } else {
+          latott[koord] = f;
+        }
+      }
+    }
+
     // A pontoknak valóban különbözniük kell egymástól egy vetítésen belül is.
     var elsoVetites = referencia.vetitesek[0];
     var egyediPontok = new Set(
@@ -173,8 +196,10 @@
       ossz_pont: sikeres * FORGATASOK.length * PONTOK.length,
       self_check: {
         azonos_kimenetu_vetitesek: utkozesek,
+        azonos_kimenetu_forgatasok: forgatasUtkozesek,
         egyedi_pont_az_elso_vetitesben: egyediPontok + "/" + PONTOK.length,
-        rendben: utkozesek.length === 0 && egyediPontok > PONTOK.length * 0.5
+        rendben: utkozesek.length === 0 && forgatasUtkozesek.length === 0 &&
+                 egyediPontok > PONTOK.length * 0.5
       }
     };
 

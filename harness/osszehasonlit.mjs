@@ -19,12 +19,20 @@ function betolt(ut) {
   return JSON.parse(fs.readFileSync(ut, "utf8"));
 }
 
+/* Egy mért pont akkor érvényes, ha tényleges koordinátát tartalmaz. A generátor
+ * NaN-t is rögzíthet — a JSON ilyenkor [null, null, jelző] alakot ad —, ez a
+ * régi kód definiálatlan viselkedése, nem koordináta. */
+function ervenyes(p) {
+  return Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "number";
+}
+
 /* Egy vetítés egy forgatásának összevetése. */
 function forgatastOsszevet(a, b) {
   const e = {
     pontok: 0,
-    szerkezeti: [],   // null/„hiba"/hiányzó eltérés — ez mindig súlyos
+    szerkezeti: [],   // hiányzó vagy visszalépő pont — ez mindig súlyos
     clipping: 0,      // a láthatósági jelző eltér
+    javult: 0,        // a régi NaN-t adott, az új definiált értéket
     tavolsagok: []
   };
   const pa = a.points || [], pb = b.points || [];
@@ -35,10 +43,23 @@ function forgatastOsszevet(a, b) {
   for (let i = 0; i < pa.length; i++) {
     const x = pa[i], y = pb[i];
     e.pontok++;
-    if (x === null || y === null || x === "hiba" || y === "hiba") {
+    const xe = ervenyes(x), ye = ervenyes(y);
+
+    if (!xe && !ye) {
+      // Mindkettő definiálatlan: csak akkor gond, ha másképp az.
       if (JSON.stringify(x) !== JSON.stringify(y)) {
         e.szerkezeti.push(`#${i}: ${JSON.stringify(x)} vs ${JSON.stringify(y)}`);
       }
+      continue;
+    }
+    if (!xe && ye) {
+      // A régi NaN-t vagy semmit adott, az új számot: nincs mihez képest romlani.
+      e.javult++;
+      continue;
+    }
+    if (xe && !ye) {
+      // Volt koordináta, most nincs — ez viszont visszalépés.
+      e.szerkezeti.push(`#${i}: ${JSON.stringify(x)} -> ${JSON.stringify(y)}`);
       continue;
     }
     if (x[2] !== y[2]) e.clipping++;
@@ -64,7 +85,7 @@ export function osszehasonlit(refA, refB, tures = TURES_ALAP) {
   for (const [nev, va] of aTerkep) {
     const vb = bTerkep.get(nev);
     if (!vb) continue;
-    const sor = { vetites: nev, pontok: 0, clipping: 0, szerkezeti: [], tavolsagok: [] };
+    const sor = { vetites: nev, pontok: 0, clipping: 0, javult: 0, szerkezeti: [], tavolsagok: [] };
     const n = Math.min(va.rotations.length, vb.rotations.length);
     if (va.rotations.length !== vb.rotations.length) {
       sor.szerkezeti.push(`forgatásszám ${va.rotations.length} vs ${vb.rotations.length}`);
@@ -73,6 +94,7 @@ export function osszehasonlit(refA, refB, tures = TURES_ALAP) {
       const e = forgatastOsszevet(va.rotations[r], vb.rotations[r]);
       sor.pontok += e.pontok;
       sor.clipping += e.clipping;
+      sor.javult += e.javult;
       for (const sz of e.szerkezeti) sor.szerkezeti.push(`fgt${r} ${sz}`);
       sor.tavolsagok.push(...e.tavolsagok);
     }
@@ -98,13 +120,13 @@ export function osszehasonlit(refA, refB, tures = TURES_ALAP) {
 function kiir(er) {
   const sz = n => n.toFixed(3).padStart(9);
   console.log(`tűrés: ${er.tures} px\n`);
-  console.log("vetítés                pont    max      átlag      p99   clip  szerkezeti");
-  console.log("-".repeat(78));
+  console.log("vetítés                pont    max      átlag      p99   clip  javult  szerk");
+  console.log("-".repeat(80));
   for (const s of er.sorok) {
     const jel = s.rendben ? " " : "✗";
     console.log(
       `${jel} ${s.vetites.padEnd(20)} ${String(s.pontok).padStart(5)} ` +
-      `${sz(s.max)} ${sz(s.atlag)} ${sz(s.p99)} ${String(s.clipping).padStart(6)}   ${s.szerkezeti.length}`
+      `${sz(s.max)} ${sz(s.atlag)} ${sz(s.p99)} ${String(s.clipping).padStart(6)} ${String(s.javult).padStart(7)} ${String(s.szerkezeti.length).padStart(6)}`
     );
   }
   if (er.hianyzo_vetitesek.length) console.log("\nHIÁNYZÓ vetítés az újban:", er.hianyzo_vetitesek.join(", "));
@@ -116,6 +138,9 @@ function kiir(er) {
     }
   }
   const rossz = er.sorok.filter(s => !s.rendben);
+  const javult = er.sorok.reduce((n, s) => n + s.javult, 0);
+  if (javult) console.log(`\n${javult} pontban a régi kód NaN-t adott, az új definiált értéket — ` +
+                          `ez nem regresszió (lásd docs/04-migracio-naplo.md).`);
   console.log("\n" + (er.rendben
     ? `RENDBEN — mind a ${er.sorok.length} vetítés a tűrésen belül.`
     : `ELTÉRÉS — ${rossz.length}/${er.sorok.length} vetítés kilóg: ${rossz.map(s => s.vetites).join(", ")}`));
@@ -164,6 +189,19 @@ function onteszt(ut) {
   const rot = nullazott.vetitesek[7].rotations[0];
   rot.points[rot.points.findIndex(x => Array.isArray(x))] = null;
   allit("pont → null: kiüt nagy tűréssel is", !osszehasonlit(ref, nullazott, 1000).rendben);
+
+  // A régi NaN-ja (JSON-ban [null, null, jelző]) helyén az új szám: javulás.
+  const regiNaN = JSON.parse(JSON.stringify(ref));
+  const ri = regiNaN.vetitesek[9].rotations[0];
+  const idx = ri.points.findIndex(x => Array.isArray(x));
+  const eredeti = ri.points[idx];
+  ri.points[idx] = [null, null, eredeti[2]];
+  const ej = osszehasonlit(regiNaN, ref);
+  allit("régi NaN → új szám: nem bukik el", ej.rendben);
+  allit("régi NaN → új szám: javultként számolva", ej.sorok.some(s => s.javult === 1));
+
+  // Fordítva viszont igen: volt koordináta, most NaN.
+  allit("régi szám → új NaN: kiüt", !osszehasonlit(ref, regiNaN, 1000).rendben);
 
   console.log(bukas === 0 ? "\nÖNTESZT RENDBEN" : `\nÖNTESZT BUKÁS: ${bukas}`);
   return bukas === 0;

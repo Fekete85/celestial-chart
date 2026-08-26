@@ -78,7 +78,7 @@ Celestial.display = function(config) {
   var context = canvas.node().getContext("2d");  
   context.setTransform(pixelRatio,0,0,pixelRatio,0,0);
 
-  var graticule = d3.geoGraticule().minorStep([15,10]);
+  var graticule = d3.geoGraticule().stepMinor([15,10]);
   
   map = d3.geoPath().projection(mapProjection).context(context);
    
@@ -125,8 +125,8 @@ Celestial.display = function(config) {
     container.append("path").datum(circle).attr("class", "horizon");
     container.append("path").datum(daylight).attr("class", "daylight");
     //Celestial planes
-    if (cfg.transform === "equatorial") graticule.minorStep([15,10]);
-    else  graticule.minorStep([10,10]);
+    if (cfg.transform === "equatorial") graticule.stepMinor([15,10]);
+    else  graticule.stepMinor([10,10]);
     for (var key in cfg.lines) {
       if (!has(cfg.lines, key)) continue;
       if (key === "graticule") {

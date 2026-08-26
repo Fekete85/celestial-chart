@@ -3,7 +3,9 @@
 var geoInfo = null;
 
 function geo(cfg) {
-  var dtFormat = d3.time.format("%Y-%m-%d %H:%M:%S"),
+  var dtFormat = d3.timeFormat("%Y-%m-%d %H:%M:%S"),
+      // a v3 formázója maga tudott visszafelé is; a v7-ben külön függvény
+      dtParse = d3.timeParse("%Y-%m-%d %H:%M:%S"),
       zenith = [0,0],
       geopos = [0,0], 
       date = new Date(),
@@ -100,8 +102,8 @@ function geo(cfg) {
   showAdvanced(config.advanced);
   
 
-  d3.select(document).on("mousedown", function () { 
-    if (!hasParent(d3.event.target, "celestial-date") && dtpick.isVisible()) dtpick.hide(); 
+  d3.select(document).on("mousedown", function (esemeny) { 
+    if (!hasParent(esemeny.target, "celestial-date") && dtpick.isVisible()) dtpick.hide(); 
   });
   
   function now() {
@@ -170,7 +172,7 @@ function geo(cfg) {
     //Get current configuration
     Object.assign(config, settings.set());
 
-    date = dtFormat.parse($form("datetime").value.slice(0,-6));
+    date = dtParse($form("datetime").value.slice(0,-6));
 
     //Celestial.apply(config);
 
