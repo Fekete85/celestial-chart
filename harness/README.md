@@ -16,12 +16,17 @@ Az oldal lefuttatja a mérést, és felkínálja a `referencia-d3v3.json` letöl
 
 **Böngészőben fut, nem Node-ban** — a d3-celestial DOM-ot és canvas-t igényel.
 
-A mérés lefutott, az eredmény a repóban van (`referencia-d3v3.json`, 712 KB):
+A mérés lefutott. Két referencia van a repóban:
 
-```
-25/25 vetítés, 41 300 mért pont, D3 3.5.17
-self_check: azonos kimenetű vetítés 0, egyedi pont az első vetítésben 412/413 — rendben
-0 null, 0 hibás pont
+| | |
+|---|---|
+| `referencia-d3v3.json` | a pinelt upstream (D3 3.5.17) — `referencia.html` |
+| `referencia-d3v7.json` | a migrált build (D3 7.9.0) — `referencia-uj.html` |
+
+Összevetve: **25/25 vetítés, max eltérés 0.000 px** — a vetítési kimenet bitre azonos.
+
+```bash
+node osszehasonlit.mjs referencia-d3v3.json referencia-d3v7.json
 ```
 
 ## Mit mér
@@ -42,11 +47,21 @@ A háló csak akkor ér valamit, ha bizonyíthatóan **mér is valamit**. A gene
 
 - **nincs két azonos kimenetű vetítés** — ha lenne, az azt jelentené, hogy a vetítésváltás nem
   történt meg, és a referencia némán értéktelen
+- **egy vetítésen belül nincs két azonos kimenetű forgatás** — ugyanez a forgatásokra
 - **a pontok többsége egyedi** az első vetítésen belül
 
-> Ez nem elméleti óvatosság: a harness első verziója `Celestial.apply({projection})`-t hívt, amit az
-> API nem támogat (a `projection` újratöltést igényel). Így mind a 25 vetítés ugyanazt a kimenetet
-> adta volna. Az önellenőrzés fogta ki.
+> Ez nem elméleti óvatosság, és kétszer is bizonyított:
+>
+> 1. A harness első verziója `Celestial.apply({projection})`-t hívott, amit az API nem támogat (a
+>    `projection` újratöltést igényel). Így mind a 25 vetítés ugyanazt a kimenetet adta volna. Az
+>    önellenőrzés fogta ki.
+> 2. A második verzióban a **négy forgatás** adott azonos koordinátákat: a `Celestial.rotate()`
+>    d3-átmenetet indít, a szinkron mérés tehát a forgatás előtti állapotot rögzítette. Ezt már nem
+>    fogta ki az önellenőrzés, mert csak a vetítésekre nézett. Azóta `disableAnimations: true`, és a
+>    forgatás-ellenőrzés is bekerült.
+>
+> Az önellenőrzés arra véd, amire megírták. Érdemes minden tengelyre kiterjeszteni, amit a háló az
+> állítása szerint mér.
 
 ## Vizuális alapállapot
 
@@ -60,7 +75,28 @@ python3 -m http.server 8877
 # a vetítés váltása a konzolból: valt("orthographic", [180, 55])
 ```
 
-A rögzített képek a [`docs/kepek/`](../docs/kepek/) mappában:
+A vetítés és a középpont az URL hash-éből jön, hogy oldalbetöltésenként **pontosan egy** `display()`
+fusson:
+
+```
+#airy                                          alaphelyzet
+#orthographic,180,55                           vetítés + középpont
+#orthographic,180,55|{"mw":{"show":false}}     plusz konfigurációs felülbírálás
+```
+
+Ez nem kényelmi kérdés. A rögzítés eleinte nem volt reprodukálható — ugyanaz a verzió önmagához
+mérve 3–6%-os pixeleltérést adott. Három ok, mind a könyvtár állapotkezeléséből:
+
+| ok | ellenszer |
+|---|---|
+| az első `display()` a `location.js` `geo()`-ján át az **aktuális időből** származtat középpontot | `follow: "center"`, `location: false` |
+| animált átmenet közben fényképeztünk | `disableAnimations: true` |
+| a második `display()` más állapotot hagy maga után, mint az első (#96/#131) | oldalanként egy `display()` |
+
+Ezek után a zajszint **pontosan nulla**: ugyanaz a verzió kétszer futtatva bitre azonos képet ad.
+Az összevetéshez a `kepdiff.html` van, ami két PNG-t pixelenként hasonlít össze.
+
+A rögzített képek a [`docs/kepek/`](../docs/kepek/) mappában, `d3v3-` és `d3v7-` előtaggal:
 
 | Kép | Mit ellenőriz |
 |---|---|
@@ -91,9 +127,13 @@ Eredmény: az eredeti kód a horizont fölötti pontok **50%-át** rosszul adja 
 | | |
 |---|---|
 | `referencia.html` + `referencia.js` | a generátor |
+| `referencia-uj.html` | ugyanaz a generátor a migrált buildre |
 | `referencia-d3v3.json` | **a rögzített referencia** — ehhez méri magát a migrált verzió (712 KB) |
+| `referencia-d3v7.json` | a migrált build kimenete |
 | `referencia-minta.json` | a formátum bemutatása, olvasható méretben |
-| `vizualis.html` | a vizuális alapállapot oldala |
+| `osszehasonlit.mjs` | a két referencia diffje (`--onteszt` a saját érvényességére) |
+| `vizualis.html` / `vizualis-uj.html` | a vizuális összevetés oldalai |
+| `kepdiff.html` | két PNG pixelenkénti összevetése |
 | `issue-148-ellenorzes.mjs` | a #148 numerikus vizsgálata (Node) |
 | `vendor/` | a vizsgált verzió pinelt másolata — hogy a referencia reprodukálható legyen |
 | `data/` | minimális adatkészlet (a `display()` akkor is betölt, ha minden réteg rejtett) |

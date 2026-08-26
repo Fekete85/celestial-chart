@@ -57,8 +57,14 @@ rögzíthető. A [`harness/`](harness/) mappában **működő referencia-generá
 Rögzíti a vetített pixelkoordinátákat **és a clipping állapotát** is. A migrált verziónak — adott
 tűréssel — ugyanezt kell adnia.
 
-**A mérés lefutott**: `harness/referencia-d3v3.json` (D3 3.5.17, 25/25 vetítés, 41 300 pont,
-0 hibás, önellenőrzés rendben). Innentől bármihez hozzá lehet nyúlni.
+**A mérés lefutott** — és a háló maga is javításra szorult. Az első változat a négy forgatásra
+*ugyanazt* a koordinátát mérte: a `Celestial.rotate()` d3-átmenetet indít, a szinkron mérés tehát a
+forgatás előtti állapotot rögzítette. Csak a láthatósági jelző különbözött, ezért nem tűnt fel.
+`disableAnimations: true`, és az önellenőrzés kiegészítve: *egy vetítésen belül két forgatás nem
+adhat azonos koordinátákat*.
+
+> Ugyanaz a hibaosztály, amit a háló első verziójánál is az önellenőrzés fogott ki — csak egy másik
+> tengelyen. Az önellenőrzés arra véd, amire megírták.
 
 > A harness első verziója **hibás volt**: a `Celestial.apply()`-jal váltott vetítést, amit az API nem
 > támogat (`projection` újratöltést igényel), így minden vetítés ugyanazt a kimenetet adta volna. Egy
@@ -94,10 +100,26 @@ Az első két lépésnek **önmagában is van értéke**, függetlenül attól, 
 |---|---|---|---|
 | 1 | **Matematikai hibák javítása** (#148, #130 holdfázis, #157 interpoláció) | D3-mentes fájlok, round-trip teszttel bizonyítható | alacsony |
 | 2 | ~~**Referencia-háló rögzítése** a jelenlegi verzióra~~ **kész** | Ezután bármihez hozzá lehet nyúlni félelem nélkül | nincs |
-| 3 | Mechanikus D3-csere: `d3.functor`, `d3.json` promisifikálás, `d3.event` | Gépies, a háló azonnal visszajelez | alacsony |
-| 4 | `d3.geo.*` → `d3-geo` + `d3-geo-projection` | **Ez az érdemi rész**, vetítésenként mérve | **magas** |
+| 3 | ~~Mechanikus D3-csere~~ **kész** | Gépies, a háló azonnal visszajelez | alacsony |
+| 4 | ~~`d3.geo.*` → `d3-geo` + `d3-geo-projection`~~ **kész** | **Ez az érdemi rész**, vetítésenként mérve | **magas** |
 | 5 | ES-modulok, tree-shaking | Ez oldja meg a #86, #81, #115, #141 issue-kat | közepes |
-| 6 | `form.js` / `svg.js` — migrálás vagy elhagyás | Külön döntés, nem blokkoló | – |
+| 6 | ~~`form.js` / `svg.js`~~ **migrálva, működik** | Külön döntés, nem blokkoló | – |
+
+Az 1–4. lépés elkészült. Az eredmény és a közben talált hibák: [`docs/04-migracio-naplo.md`](docs/04-migracio-naplo.md).
+
+### A migráció mérlege
+
+```
+41 300 mért pont — 25/25 vetítés max eltérés 0.000 px, 0 clipping-eltérés
+```
+
+A vetítési kimenet **bitre azonos** a D3 v3-as verzióval. Három pontban a régi kód NaN-t adott
+(a vetítés antipódusa), az új definiált értéket — ez javulás.
+
+A migráció közben **hét hiba** került elő, amiből ötöt a numerikus háló nem is fogott volna meg
+(színek, események, betöltési lánc, SVG-export), mert az csak a geometriát méri. Egy ismert vizuális
+regresszió maradt: a Tejút kitöltése négy vizsgált tájolásból négynél invertálódik — részletes
+diagnózis a naplóban.
 
 Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.md`](docs/02-migracio.md) ·
 [`docs/03-issuek.md`](docs/03-issuek.md)
@@ -117,10 +139,15 @@ A vetítések **vizuális** helyességét. A háló számokat hasonlít össze; 
 ahogy kell, azt **meg kell nézni**. A migráció minden fázisa után kell egy emberi pillantás — ezt
 semmilyen automatizmus nem váltja ki.
 
-Amit tehettünk: rögzítettük, hogy *most* hogy néz ki. A [`docs/kepek/`](docs/kepek/) mappában hat kép
-van a jelenlegi verzióról (`harness/vizualis.html`), köztük a félteke-vágást és a Nagy Göncölt mutató
-orthographic nézet. A migráció után ugyanezeket kell újra elkészíteni és egymás mellé tenni — az
-összevetés marad emberi feladat, de már van mihez hasonlítani.
+Amit tehettünk: rögzítettük, hogy *most* hogy néz ki, és megismételtük a migrált verzióval. A
+[`docs/kepek/`](docs/kepek/) mappában hat-hat kép van (`d3v3-*` / `d3v7-*`), köztük a félteke-vágást
+és a Nagy Göncölt mutató orthographic nézet.
+
+A rögzítés eleinte **nem volt reprodukálható** — ugyanaz a verzió önmagához mérve 3–6%-os
+pixeleltérést adott. Három ok, mind a könyvtár állapotkezeléséből: az első `display()` az aktuális
+időből számol középpontot, az animált átmenet közben fényképeztünk, és a második `display()` más
+állapotot hagy maga után, mint az első. Ezek kikapcsolása után a zajszint **pontosan nulla** — csak
+innentől jelent bármit a régi és az új összevetése.
 
 ## Licenc
 
