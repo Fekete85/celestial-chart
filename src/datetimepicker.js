@@ -180,7 +180,8 @@ var datetimepicker = function(cfg, callback) {
       date.setTime(dt.valueOf());
       select("tz", tz);
       set();
-      d3.select(parentElement + " ~ #celestial-form").select("#celestial-date").style({"top": px(top), "left": px(left), "opacity": 1});  
+      stilusok(d3.select(parentElement + " ~ #celestial-form").select("#celestial-date"),
+               {"top": px(top), "left": px(left), "opacity": 1});  
       d3.select(parentElement + " ~ #celestial-form").select("#datepick").classed("active", true);
     } else {
       vanish();

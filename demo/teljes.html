@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>d3-celestial — teljes felület (D3 v7)</title>
+<link rel="stylesheet" href="../celestial.css">
+<style>body { font: 14px sans-serif; margin: 12px; } #naplo { font: 12px monospace; white-space: pre-wrap; background:#f4f4f4; padding:8px; margin-top:8px; }</style>
+</head>
+<body>
+<div id="celestial-form"></div>
+<div id="celestial-map"></div>
+<div id="naplo"></div>
+
+<script src="../vendor/d3.min.js"></script>
+<script src="../vendor/d3-geo-projection.min.js"></script>
+<script src="../vendor/topojson.min.js"></script>
+<script src="../build/celestial.js"></script>
+<script>
+/* Az interaktív felület füstpróbája: zoom, űrlap, helymeghatározás,
+ * dátumválasztó, SVG-export. Ezeket a referencia-háló nem méri — ott
+ * interactive:false, form:false —, tehát külön kell megnézni őket. */
+window.__hibak = [];
+window.onerror = function (uz, f, s, o, e) { window.__hibak.push(String(uz) + " @" + s); };
+var eredetiHiba = console.error;
+console.error = function () { window.__hibak.push([].join.call(arguments, " ")); eredetiHiba.apply(console, arguments); };
+
+Celestial.display({
+  container: "celestial-map",
+  width: 700,
+  projection: "airy",
+  transform: "equatorial",
+  datapath: "../upstream/data/",
+  interactive: true,
+  form: true,
+  controls: true,
+  location: true,
+  formFields: { location: true, general: true, stars: true, dsos: true, constellations: true, lines: true, other: true, download: true },
+  planets: { show: true },
+  stars: { limit: 6 },
+  mw: { show: true }
+});
+</script>
+</body>
+</html>

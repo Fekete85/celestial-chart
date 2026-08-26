@@ -34,7 +34,8 @@ function exportSVG(fname) {
 
   for (var i=0; i<groupNames.length; i++) {
      // inkscape:groupmode="layer", inkscape:label="Ebene 1" 
-    groups[groupNames[i]] = svg.append('g').attr({"id": groupNames[i], ":inkscape:groupmode": "layer", ":inkscape:label": groupNames[i]});
+    groups[groupNames[i]] = attrok(svg.append('g'),
+      {"id": groupNames[i], ":inkscape:groupmode": "layer", ":inkscape:label": groupNames[i]});
     styles[groupNames[i]] = {};
   }
 
@@ -64,7 +65,7 @@ function exportSVG(fname) {
         .enter().append("text")
         .attr("transform", function(d, i) { return point(d.geometry.coordinates); })
         .text( function(d) { return d.properties.value; } )
-        .attr({dy: ".5em", dx: "-.75em", class: "gridvaluesLon"});
+        .call(function (v) { attrok(v, {dy: ".5em", dx: "-.75em", "class": "gridvaluesLon"}); });
       styles.gridvaluesLon = svgTextStyle(cfg.lines.graticule.lon); 
     }
     if (has(cfg.lines.graticule, "lat") && cfg.lines.graticule.lat.pos.length > 0) {
@@ -74,7 +75,7 @@ function exportSVG(fname) {
         .enter().append("text")
         .attr("transform", function(d, i) { return point(d.geometry.coordinates); })
         .text( function(d) { return d.properties.value; } )
-        .attr({dy: "-.5em", dx: "-.75em", class: "gridvaluesLat"});
+        .call(function (v) { attrok(v, {dy: "-.5em", dx: "-.75em", "class": "gridvaluesLat"}); });
        styles.gridvaluesLat = svgTextStyle(cfg.lines.graticule.lat); 
     }
   }
@@ -94,7 +95,7 @@ function exportSVG(fname) {
   //Milky way outline
   if (cfg.mw.show) {
     q.defer(function(callback) { 
-      d3.json(path + "mw.json", function(error, json) {
+      loadJson(path + "mw.json", function(error, json) {
         if (error) callback(error);
         var mw = getData(json, cfg.transform);
         var mw_back = getMwbackground(mw);
@@ -123,7 +124,7 @@ function exportSVG(fname) {
   //Constellation boundaries
   if (cfg.constellations.bounds) { 
     q.defer(function(callback) { 
-      d3.json(path + filename("constellations", "borders"), function(error, json) {
+      loadJson(path + filename("constellations", "borders"), function(error, json) {
         if (error) callback(error);
 
         var conb = getData(json, cfg.transform);
@@ -152,7 +153,7 @@ function exportSVG(fname) {
   //Constellation lines
   if (cfg.constellations.lines) { 
     q.defer(function(callback) { 
-      d3.json(path + filename("constellations", "lines"), function(error, json) {
+      loadJson(path + filename("constellations", "lines"), function(error, json) {
         if (error) callback(error);
 
         var conl = getData(json, cfg.transform);
@@ -199,7 +200,7 @@ function exportSVG(fname) {
   //Constellation names or designation
   if (cfg.constellations.names) { 
     q.defer(function(callback) { 
-      d3.json(path + filename("constellations"), function(error, json) {
+      loadJson(path + filename("constellations"), function(error, json) {
         if (error) callback(error);
 
         var conn = getData(json, cfg.transform);
@@ -232,7 +233,7 @@ function exportSVG(fname) {
   //Stars
   if (cfg.stars.show) { 
     q.defer(function(callback) { 
-      d3.json(path +  cfg.stars.data, function(error, json) {
+      loadJson(path +  cfg.stars.data, function(error, json) {
         if (error) callback(error);
 
         var cons = getData(json, cfg.transform);
@@ -248,8 +249,12 @@ function exportSVG(fname) {
           }));
 
         styles.stars = svgStyle(cfg.stars.style);
-        var range = bvcolor.domain();
-        for (i=Round(range[1],1); i<=Round(range[0],1); i+=0.1) {
+        // A tartomány iránya a skála felépítésétől függ (a v3-ban csökkenő volt,
+        // a v7-ben növekvőnek kell lennie) — a ciklus ne múljon ezen.
+        var range = bvcolor.domain(),
+            bvMin = Math.min(range[0], range[1]),
+            bvMax = Math.max(range[0], range[1]);
+        for (i=Round(bvMin,1); i<=Round(bvMax,1); i+=0.1) {
           styles["stars" + Math.round(i*10).toString()] = {"fill": bvcolor(i)};
         }
           
@@ -261,7 +266,7 @@ function exportSVG(fname) {
             .enter().append("text")
             .attr("transform", function(d) { return point(d.geometry.coordinates); })
             .text( function(d) { return starDesignation(d.id); })
-            .attr({dy: ".85em", dx: ".35em", class: "starDesignations"});
+            .call(function (v) { attrok(v, {dy: ".85em", dx: ".35em", "class": "starDesignations"}); });
           styles.starDesignations = svgTextStyle(cfg.stars.designationStyle);
         }
         if (cfg.stars.propername) { 
@@ -272,7 +277,7 @@ function exportSVG(fname) {
             .enter().append("text")
             .attr("transform", function(d) { return point(d.geometry.coordinates); })
             .text( function(d) { return starPropername(d.id); })
-            .attr({dy: "-.5em", dx: "-.35em", class: "starNames"});
+            .call(function (v) { attrok(v, {dy: "-.5em", dx: "-.35em", "class": "starNames"}); });
 
           styles.starNames = svgTextStyle(cfg.stars.propernameStyle);
         }
@@ -284,7 +289,7 @@ function exportSVG(fname) {
   //Deep space objects
   if (cfg.dsos.show) { 
     q.defer(function(callback) { 
-      d3.json(path +  cfg.dsos.data, function(error, json) {
+      loadJson(path +  cfg.dsos.data, function(error, json) {
         if (error) callback(error);
 
         var cond = getData(json, cfg.transform);
@@ -328,7 +333,7 @@ function exportSVG(fname) {
             .attr("class", function(d) { return "dsoNames " + d.properties.type; })
             .attr("transform", function(d) { return point(d.geometry.coordinates); })
             .text( function(d) { return dsoName(d); })
-            .attr({dy: "-.5em", dx: ".35em"});
+            .call(function (v) { attrok(v, {dy: "-.5em", dx: ".35em"}); });
                
           styles.dsoNames = {"fill-opacity": cfg.dsos.style.opacity,
                     "font": cfg.dsos.nameStyle.font,
@@ -380,7 +385,7 @@ function exportSVG(fname) {
          .attr("transform", function(d) { return point(d.geometry.coordinates); })
          .text( function(d) { return d.properties.symbol; })
          .attr("class", function(d) { return "planets " + d.id; })
-         .attr({dy: ".35em"});
+         .call(function (v) { attrok(v, {dy: ".35em"}); });
       }
       // Special case for Moon crescent
       if (jlun.features.length > 0) {
@@ -391,7 +396,7 @@ function exportSVG(fname) {
            .attr("transform", function(d) { return point(d.geometry.coordinates); })
            .text( function(d) { return d.properties.symbol; })
            .attr("class", function(d) { return "planets " + d.id; })
-           .attr({dy: ".35em"});
+           .call(function (v) { attrok(v, {dy: ".35em"}); });
         } else {
           var rl = has(cfg.planets.symbols.lun, "size") ? (cfg.planets.symbols.lun.size - 1) * adapt : 11 * adapt; 
           groups.planets.selectAll(".dmoon")
@@ -424,7 +429,7 @@ function exportSVG(fname) {
          .enter().append("text")
          .attr("transform", function(d) { return point(d.geometry.coordinates); })
          .text( function(d) { return d.properties.name; })
-         .attr({dy: ".85em", dx: "-.35em"})
+         .call(function (v) { attrok(v, {dy: ".85em", dx: "-.35em"}); })
          .attr("class", function(d) { return "planetNames " + d.id; });
         if (jlun.features.length > 0) {
           groups.planetNames.selectAll(".moonname")
@@ -432,7 +437,7 @@ function exportSVG(fname) {
            .enter().append("text")
            .attr("transform", function(d) { return point(d.geometry.coordinates); })
            .text( function(d) { return d.properties.name; })
-           .attr({dy: ".85em", dx: "-.35em"})
+           .call(function (v) { attrok(v, {dy: ".85em", dx: "-.35em"}); })
            .attr("class", function(d) { return "planetNames " + d.id; });
         }
       }

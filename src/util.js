@@ -29,6 +29,20 @@ function osztalyoz(sel, obj) {
   return sel;
 }
 
+// Ugyanez az attr és a style objektum-alakjára: a v3 elfogadott egy egész
+// tulajdonságtömböt, a v4+ csak (nev, ertek) párt. Ha ez kezeletlen marad, a
+// hívás GETTERKÉNT fut le, és a lánc következő tagja már nem szelekción dolgozik
+// — némán, kivétel nélkül, egészen az első használatig.
+function attrok(sel, obj) {
+  for (var k in obj) { if (has(obj, k)) sel.attr(k, obj[k]); }
+  return sel;
+}
+
+function stilusok(sel, obj) {
+  for (var k in obj) { if (has(obj, k)) sel.style(k, obj[k]); }
+  return sel;
+}
+
 function feladatsor(parhuzamos) {
   var feladatok = [], fut = 0, kovetkezo = 0, hiba = null, kesz = null;
 
