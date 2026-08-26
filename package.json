@@ -7,7 +7,10 @@
   "scripts": {
     "teszt": "node --test test/*.teszt.mjs",
     "epit": "node epit.mjs",
-    "hasonlit": "node harness/osszehasonlit.mjs"
+    "hasonlit": "node harness/osszehasonlit.mjs harness/referencia-d3v3.json harness/referencia-d3v7.json",
+    "onteszt": "node harness/osszehasonlit.mjs --onteszt harness/referencia-d3v3.json",
+    "ellenoriz": "npm run epit && npm run teszt && npm run onteszt && npm run hasonlit",
+    "szerver": "python3 -m http.server 8877"
   },
   "dependencies": {
     "d3": "^7.9.0",

@@ -124,6 +124,24 @@ diagnózis a naplóban.
 Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.md`](docs/02-migracio.md) ·
 [`docs/03-issuek.md`](docs/03-issuek.md)
 
+## Ellenőrzés
+
+```bash
+npm install
+npm run ellenoriz     # build + 44 teszt + a háló öntesztje + a két referencia diffje
+```
+
+Böngészős ellenőrzéshez:
+
+```bash
+npm run szerver
+# http://127.0.0.1:8877/harness/referencia.html      a pinelt v3 mérése
+# http://127.0.0.1:8877/harness/referencia-uj.html   a migrált build mérése
+# http://127.0.0.1:8877/harness/vizualis.html#orthographic,180,55       régi kép
+# http://127.0.0.1:8877/harness/vizualis-uj.html#orthographic,180,55    új kép
+# http://127.0.0.1:8877/demo/teljes.html             teljes felület: űrlap, zoom, SVG-export
+```
+
 ## Mit old meg a modernizáció, és mit nem
 
 **Megoldja** (7 issue egy csapásra): #147 (D3-frissítés), #141 (ES-modul), #86 (React), #81 (Node),
