@@ -16,6 +16,14 @@ Az oldal lefuttatja a mérést, és felkínálja a `referencia-d3v3.json` letöl
 
 **Böngészőben fut, nem Node-ban** — a d3-celestial DOM-ot és canvas-t igényel.
 
+A mérés lefutott, az eredmény a repóban van (`referencia-d3v3.json`, 712 KB):
+
+```
+25/25 vetítés, 41 300 mért pont, D3 3.5.17
+self_check: azonos kimenetű vetítés 0, egyedi pont az első vetítésben 412/413 — rendben
+0 null, 0 hibás pont
+```
+
 ## Mit mér
 
 | | |
@@ -40,6 +48,32 @@ A háló csak akkor ér valamit, ha bizonyíthatóan **mér is valamit**. A gene
 > API nem támogat (a `projection` újratöltést igényel). Így mind a 25 vetítés ugyanazt a kimenetet
 > adta volna. Az önellenőrzés fogta ki.
 
+## Vizuális alapállapot
+
+A háló számokat hasonlít össze. Hogy a Nagy Medve *úgy néz-e ki, ahogy kell*, azt meg kell nézni —
+ehhez van a `vizualis.html`, ami a generátorral ellentétben minden réteget megjelenít
+(csillagok m≤6, csillagképnevek és -vonalak, Tejút, ekliptika, koordinátaháló).
+
+```bash
+python3 -m http.server 8877
+# http://127.0.0.1:8877/vizualis.html
+# a vetítés váltása a konzolból: valt("orthographic", [180, 55])
+```
+
+A rögzített képek a [`docs/kepek/`](../docs/kepek/) mappában:
+
+| Kép | Mit ellenőriz |
+|---|---|
+| `d3v3-aitoff-teljes-eg.png` | teljes égbolt, Tejút-sáv és ekliptika elhelyezkedése |
+| `d3v3-mollweide-teljes-eg.png` | másik teljes-égbolt vetítés, összevetésre |
+| `d3v3-mercator-teljes-eg.png` | téglalap alakú vetítés, pólusok felé nyúlás |
+| `d3v3-orthographic-nagymedve.png` | **félteke-vágás** + felismerhető alakzat (Nagy Göncöl, Cassiopeia W-je) |
+| `d3v3-stereographic-eszaki-sark.png` | pólusra centrált nézet |
+| `d3v3-airy-alap.png` | a generátor alapértelmezett vetítése |
+
+A migráció minden fázisa után ugyanezekkel a beállításokkal kell újra lefényképezni, és a két
+képsort egymás mellé tenni. Ezt semmilyen automatizmus nem váltja ki.
+
 ## Az #148 issue ellenőrzése
 
 ```bash
@@ -57,7 +91,9 @@ Eredmény: az eredeti kód a horizont fölötti pontok **50%-át** rosszul adja 
 | | |
 |---|---|
 | `referencia.html` + `referencia.js` | a generátor |
-| `referencia-minta.json` | a formátum bemutatása (a teljes ~712 KB) |
+| `referencia-d3v3.json` | **a rögzített referencia** — ehhez méri magát a migrált verzió (712 KB) |
+| `referencia-minta.json` | a formátum bemutatása, olvasható méretben |
+| `vizualis.html` | a vizuális alapállapot oldala |
 | `issue-148-ellenorzes.mjs` | a #148 numerikus vizsgálata (Node) |
 | `vendor/` | a vizsgált verzió pinelt másolata — hogy a referencia reprodukálható legyen |
 | `data/` | minimális adatkészlet (a `display()` akkor is betölt, ha minden réteg rejtett) |

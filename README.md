@@ -57,6 +57,9 @@ rögzíthető. A [`harness/`](harness/) mappában **működő referencia-generá
 Rögzíti a vetített pixelkoordinátákat **és a clipping állapotát** is. A migrált verziónak — adott
 tűréssel — ugyanezt kell adnia.
 
+**A mérés lefutott**: `harness/referencia-d3v3.json` (D3 3.5.17, 25/25 vetítés, 41 300 pont,
+0 hibás, önellenőrzés rendben). Innentől bármihez hozzá lehet nyúlni.
+
 > A harness első verziója **hibás volt**: a `Celestial.apply()`-jal váltott vetítést, amit az API nem
 > támogat (`projection` újratöltést igényel), így minden vetítés ugyanazt a kimenetet adta volna. Egy
 > beépített **önellenőrzés** fogta ki: ha két különböző vetítés azonos kimenetet ad, a referencia
@@ -90,7 +93,7 @@ Az első két lépésnek **önmagában is van értéke**, függetlenül attól, 
 | # | Lépés | Miért ez a sorrend | Kockázat |
 |---|---|---|---|
 | 1 | **Matematikai hibák javítása** (#148, #130 holdfázis, #157 interpoláció) | D3-mentes fájlok, round-trip teszttel bizonyítható | alacsony |
-| 2 | **Referencia-háló rögzítése** a jelenlegi verzióra | Ezután bármihez hozzá lehet nyúlni félelem nélkül | nincs |
+| 2 | ~~**Referencia-háló rögzítése** a jelenlegi verzióra~~ **kész** | Ezután bármihez hozzá lehet nyúlni félelem nélkül | nincs |
 | 3 | Mechanikus D3-csere: `d3.functor`, `d3.json` promisifikálás, `d3.event` | Gépies, a háló azonnal visszajelez | alacsony |
 | 4 | `d3.geo.*` → `d3-geo` + `d3-geo-projection` | **Ez az érdemi rész**, vetítésenként mérve | **magas** |
 | 5 | ES-modulok, tree-shaking | Ez oldja meg a #86, #81, #115, #141 issue-kat | közepes |
@@ -113,6 +116,11 @@ globális állapot problémája, amit egy osztály-alapú átírás szüntet meg
 A vetítések **vizuális** helyességét. A háló számokat hasonlít össze; hogy a Nagy Medve úgy néz-e ki,
 ahogy kell, azt **meg kell nézni**. A migráció minden fázisa után kell egy emberi pillantás — ezt
 semmilyen automatizmus nem váltja ki.
+
+Amit tehettünk: rögzítettük, hogy *most* hogy néz ki. A [`docs/kepek/`](docs/kepek/) mappában hat kép
+van a jelenlegi verzióról (`harness/vizualis.html`), köztük a félteke-vágást és a Nagy Göncölt mutató
+orthographic nézet. A migráció után ugyanezeket kell újra elkészíteni és egymás mellé tenni — az
+összevetés marad emberi feladat, de már van mihez hasonlítani.
 
 ## Licenc
 

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>d3-celestial — vizuális alapállapot</title>
+<style>
+  body { margin: 0; background: #000; }
+  #celestial-map { width: 800px; height: 800px; }
+</style>
+</head>
+<body>
+<div id="celestial-map"></div>
+
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/d3.geo.projection.min.js"></script>
+<script src="vendor/topojson.min.js"></script>
+<script src="vendor/celestial.min.js"></script>
+<script>
+/* Vizuális alapállapot: a referencia-háló számokat rögzít, ez képet.
+ * A migráció után ugyanezekkel a beállításokkal kell újra lefényképezni. */
+var ALAP = {
+  container: "celestial-map",
+  width: 800,
+  transform: "equatorial",
+  interactive: false,
+  form: false,
+  controls: false,
+  datapath: "./data/",
+  stars: { show: true, limit: 6, colors: true, size: 7, names: false, designation: false },
+  dsos: { show: true, limit: 6, names: false },
+  planets: { show: false },
+  constellations: { names: true, namesType: "iau", lines: true, bounds: false,
+                    linestyle: { stroke: "#cccccc", width: 1, opacity: 0.6 } },
+  mw: { show: true },
+  lines: { graticule: { show: true, stroke: "#cccccc", width: 0.6, opacity: 0.5 } },
+  horizon: { show: false },
+  daylight: { show: false },
+  background: { fill: "#000000", stroke: "#000000" }
+};
+
+window.kesz = false;
+window.valt = function (projekcio, kozeppont) {
+  window.kesz = false;
+  var c = {};
+  for (var k in ALAP) { c[k] = ALAP[k]; }
+  c.projection = projekcio;
+  c.center = kozeppont || null;
+  c.callback = function () { window.kesz = true; };
+  Celestial.display(c);
+};
+window.addEventListener("load", function () { window.valt("aitoff"); });
+</script>
+</body>
+</html>
