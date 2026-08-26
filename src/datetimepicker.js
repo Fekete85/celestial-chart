@@ -199,7 +199,7 @@ var datetimepicker = function(cfg, callback) {
   
   function vanish() {
     d3.select(parentElement + " ~ #celestial-form").select("#celestial-date").style("opacity", 0);
-    d3.select("#error").style( {top:"-9999px", left:"-9999px", opacity:0} ); 
+    stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0}); 
     d3.select(parentElement + " ~ #celestial-form").select("#datepick").classed("active", false);
     setTimeout(function () { $form("celestial-date").style.top = px(-9999); }, 600);    
   }

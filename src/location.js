@@ -297,7 +297,7 @@ function geo(cfg) {
   };
 
   if (has(config, "formFields") && (config.location === true || config.formFields.location === true)) {
-    d3.select(parentElement + " ~ #celestial-form").select("#location").style( {"display": "inline-block"} );
+    stilusok(d3.select(parentElement + " ~ #celestial-form").select("#location"), {"display": "inline-block"});
   }
   //only if appropriate
   if (isValidLocation(geopos) && (config.location === true || config.formFields.location === true) && config.follow === "zenith")

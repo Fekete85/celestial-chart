@@ -141,6 +141,7 @@ javítás előtt is így volt; külön teszt dokumentálja.
 | `d3.behavior.zoom`, `d3.mouse`, `d3.event` | `d3.zoom`, `d3.pointer`, a listener első paramétere |
 | `selection[0].length` | `selection.empty()` |
 | `selection.classed({...})`, `.attr({...})`, `.style({...})` | `osztalyoz()`, `attrok()`, `stilusok()` |
+| a listener `(datum, index)`-et kapott | `(esemény, datum)` — a paraméter nélküli kezelőket nem érinti, a `resize(set)`-et igen |
 
 ### A vetítések tükrözése
 
@@ -216,7 +217,14 @@ felületről semmit nem mond. Külön megnézve (`demo/teljes.html`) négy hiba 
    A v7-ben a második paraméter `fetch`-opció, nem callback — a betöltési
    callbackek sosem futottak le, és az SVG-export némán soha nem készült el.
 
-4. **A `bvcolor` skála.** A v3-as `quantize` kezelte a csökkenő tartományt, a v4+
+4. **Az ablakátméretezés visszaállította a nagyítást.** A `resize(set)` védőága —
+   „ha a szélesség nem változott és nincs kényszerítés, ne csinálj semmit" — a
+   v7-ben soha nem lépett életbe, mert a listener első paramétere ott az
+   eseményobjektum (a v3-ban a datum, azaz `undefined`). Így minden `resize`
+   esemény újraszámolta a léptéket, és a `zoom.scale(...)` elvette a felhasználó
+   nagyítását. A listener most nem adja tovább az eseményt.
+
+5. **A `bvcolor` skála.** A v3-as `quantize` kezelte a csökkenő tartományt, a v4+
    a küszöbökre `bisect`-et használ, ami csak növekvő sorrendben helyes: a
    `[3.347, -0.335]` tartománnyal **minden csillag pirosra váltott**. Ez a
    térképen azonnal látszott — a referencia-háló viszont nem mér színt, tehát
@@ -224,6 +232,12 @@ felületről semmit nem mond. Külön megnézve (`demo/teljes.html`) négy hiba 
 
 > Tanulság: a numerikus háló a geometriát védi, semmi mást. A színek, az
 > események, a betöltési lánc és az export mind a hálón kívül vannak.
+
+Közös vonásuk, hogy **egyik sem dob kivételt**. A v3-as objektum-alakú `attr`
+getterként fut le, a `d3.json` második paramétere `fetch`-opcióvá válik, az
+eseményparaméter jelentése megváltozik, a `quantize` fordított tartománya értelmes
+színt ad — csak rosszat. Egy `grep` a `d3.` előtagra ezekből egyet sem talál meg;
+mindegyik kézi végigpróbálásból jött elő.
 
 ---
 

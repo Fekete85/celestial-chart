@@ -601,7 +601,7 @@ function fldEnable(d, off) {
 // Error notification
 function popError(nd, err) {
   var p = findPos(nd);
-  d3.select("#error").html(err).style( {top:px(p[1] + nd.offsetHeight + 1), left:px(p[0]), opacity:1} );
+  stilusok(d3.select("#error").html(err), {top:px(p[1] + nd.offsetHeight + 1), left:px(p[0]), opacity:1});
   nd.focus();
 }
 
@@ -618,7 +618,7 @@ function testNumber(node) {
     v = parseFloat(v);
     if (v < node.min || v > node.max ) { popError(node, node.title + " must be between " + (node.min + adj) + " and " + (+node.max - adj)); return false; }
   }
-  d3.select("#error").style( {top:"-9999px", left:"-9999px", opacity:0} ); 
+  stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0}); 
   return true; 
 }
 
@@ -634,7 +634,7 @@ function testColor(node) {
     if (v === "") return true;
     if (v.search(/^#[0-9A-F]{6}$/i) === -1) { popError(node, node.title + ": not a color value"); return false; }
   }
-  d3.select("#error").style( {top:"-9999px", left:"-9999px", opacity:0} );
+  stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0});
   return true;
 }
 
@@ -727,7 +727,7 @@ function setVisibility(cfg, which) {
    var vis, fld;
    if (!has(cfg, "formFields")) return;
    if (which && has(cfg.formFields, which)) {
-     d3.select(parentElement + " ~ #celestial-form").select("#" + which).style( {"display": "none"} );
+     stilusok(d3.select(parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
      return;
    }
    // Special case for backward compatibility
@@ -736,7 +736,7 @@ function setVisibility(cfg, which) {
      for (fld in cfg.formFields) {
       if (!has(cfg.formFields, fld)) continue;
        if (fld === "location") continue;
-       d3.select(parentElement + " ~ #celestial-form").select("#" + fld).style( {"display": "none"} );     
+       stilusok(d3.select(parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
      }
      return;
    }
@@ -747,7 +747,7 @@ function setVisibility(cfg, which) {
      if (!has(cfg.formFields, fld)) continue;
      if (fld === "location") continue;
      vis = cfg.formFields[fld] === false ? "none" : "block";
-     d3.select(parentElement + " ~ #celestial-form").select("#" + fld).style( {"display": vis} );     
+     stilusok(d3.select(parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
    }
    
 }

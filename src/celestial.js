@@ -95,7 +95,11 @@ Celestial.display = function(config) {
 
   setClip(projectionSetting.clip);
 
-  d3.select(window).on('resize', resize);
+  // A v7-ben a listener első paramétere az eseményobjektum, a v3-ban a datum
+  // (itt undefined) volt. Közvetlenül átadva a resize(set) „nem változott,
+  // ne csinálj semmit" védőága soha nem lépne életbe, és minden átméretezési
+  // esemény visszaállítaná a felhasználó nagyítását.
+  d3.select(window).on('resize', function () { resize(); });
 
   if (cfg.interactive === true && cfg.controls === true && $("celestial-zoomin") === null) {
     d3.select(parentElement).append("input").attr("type", "button").attr("id", "celestial-zoomin").attr("value", "\u002b").on("click", function () { zoomBy(1.25); return false; });
