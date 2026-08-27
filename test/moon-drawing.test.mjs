@@ -1,13 +1,13 @@
-/* A Hold terminátorának geometriája — a #130 bejelentés látható tünete.
+/* Geometry of the Moon's terminator — the visible symptom of report #130.
  *
- * A fázisszámítás (moon.js) helyes; a rajzoló viszont a terminátor-ellipszist
- * túl keskenyre veszi. A geometria zárt alakban ismert: a korongra vetített
- * terminátor fél-kistengelye a korong sugarának |cos(fázisszög)|-szerese, ami
- * a megvilágított hányaddal kifejezve |2·ph − 1|. Ez tehát mérhető, nem
- * ízlés kérdése.
+ * The phase computation (moon.js) is correct; the renderer, however, draws the
+ * terminator ellipse too narrow. The geometry is known in closed form: the
+ * semi-minor axis of the terminator projected onto the disc is |cos(phase
+ * angle)| times the radius of the disc, which — expressed with the illuminated
+ * fraction — is |2·ph − 1|. So this is measurable, not a matter of taste.
  *
- * Mindkét rajzolót a valódi forrásból teszteljük: az SVG a visszaadott
- * útvonalból, a canvas egy rögzítő ctx-pótlékon keresztül.
+ * We test both renderers against the real source: the SVG one through the path
+ * it returns, the canvas one through a recording ctx stand-in.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -16,27 +16,27 @@ import { Canvas } from "../src/canvas.js";
 
 
 
-const TOLERANCE = 0.02;   // a kódban lévő +0.01 elfajulás-védelem miatt
+const TOLERANCE = 0.02;   // because of the +0.01 degeneracy guard in the code
 
-// A megvilágított hányad a kor (fázisszög) függvényében — ugyanaz a képlet,
-// amit a moon.js is használ, és amit a rajzolók bemenetként kapnak.
+// The illuminated fraction as a function of the age (phase angle) — the same
+// formula moon.js uses, and the one the renderers receive as their input.
 const litFraction = ag => 0.5 * (1 - Math.cos(ag));
 const expectedE = ag => Math.abs(2 * litFraction(ag) - 1);
 
 const AGES = [0, 0.5, 1.0, Math.PI / 2, 2.0, 2.6, Math.PI, 3.7, 4.5, 3 * Math.PI / 2, 5.5, 6.0];
 
-/* Az SVG-útvonal két ellipszisívet tartalmaz: az elsőt a korong pereme
- * (r,r), a másodikat a terminátor (r·e, r). A kettő hányadosa az e. */
+/* The SVG path contains two elliptical arcs: the first is the rim of the disc
+ * (r,r), the second the terminator (r·e, r). Their ratio is e. */
 function svgAxis(ag, size_) {
   const d = customSvgSymbols.get("crescent")(size_, ag);
   const arcs = [...d.matchAll(/a([\d.eE+-]+),([\d.eE+-]+)\s/g)].map(m => [+m[1], +m[2]]);
-  assert.equal(arcs.length, 2, "két ellipszisívet vártunk: " + d);
+  assert.equal(arcs.length, 2, "two elliptical arcs expected: " + d);
   const r = arcs[0][0], rx = arcs[1][0];
-  assert.ok(Math.abs(arcs[0][1] - r) < 1e-9, "a korong íve nem kör: " + d);
+  assert.ok(Math.abs(arcs[0][1] - r) < 1e-9, "the arc of the disc is not a circle: " + d);
   return rx / r;
 }
 
-/* A canvas-rajzoló a ctx.scale(e, 1) hívással nyomja össze a terminátort. */
+/* The canvas renderer squeezes the terminator with the ctx.scale(e, 1) call. */
 function canvasAxis(ag, size_) {
   let e = null;
   const ctx = {
@@ -46,54 +46,54 @@ function canvasAxis(ag, size_) {
     scale(x) { e = x; }
   };
   Canvas.symbol().type("crescent").size(size_).age(ag).position([0, 0])(ctx);
-  assert.ok(e !== null, "a rajzoló nem hívott scale()-t");
+  assert.ok(e !== null, "the renderer did not call scale()");
   return e;
 }
 
-test("SVG: a terminátor-ellipszis a fázisnak megfelelő szélességű", () => {
+test("SVG: the terminator ellipse is as wide as the phase requires", () => {
   const bad = [];
   for (const ag of AGES) {
     const got = svgAxis(ag, 100), expected = expectedE(ag);
     if (Math.abs(got - expected) > TOLERANCE) {
-      bad.push(`kor ${ag.toFixed(2)} rad (megvilágítottság ${litFraction(ag).toFixed(2)}): ` +
-                   `e=${got.toFixed(3)}, várt ${expected.toFixed(3)}`);
+      bad.push(`age ${ag.toFixed(2)} rad (illuminated fraction ${litFraction(ag).toFixed(2)}): ` +
+                   `e=${got.toFixed(3)}, expected ${expected.toFixed(3)}`);
     }
   }
   assert.deepEqual(bad, []);
 });
 
-test("canvas: ugyanaz a geometria, mint az SVG-ben", () => {
+test("canvas: the same geometry as in the SVG", () => {
   const bad = [];
   for (const ag of AGES) {
     const got = canvasAxis(ag, 100), expected = expectedE(ag);
     if (Math.abs(got - expected) > TOLERANCE) {
-      bad.push(`kor ${ag.toFixed(2)} rad: e=${got.toFixed(3)}, várt ${expected.toFixed(3)}`);
+      bad.push(`age ${ag.toFixed(2)} rad: e=${got.toFixed(3)}, expected ${expected.toFixed(3)}`);
     }
   }
   assert.deepEqual(bad, []);
 });
 
-test("telihold: a terminátor a korong peremén van, nem beljebb (#130)", () => {
-  // Ez a bejelentés lényege: teliholdkor gibbusz látszik telihold helyett.
-  assert.ok(Math.abs(svgAxis(Math.PI, 100) - 1) < TOLERANCE, "SVG telihold nem full korong");
-  assert.ok(Math.abs(canvasAxis(Math.PI, 100) - 1) < TOLERANCE, "canvas telihold nem full korong");
+test("full moon: the terminator sits on the rim of the disc, not further in (#130)", () => {
+  // This is what the report is about: at full moon a gibbous shape shows up instead of a full moon.
+  assert.ok(Math.abs(svgAxis(Math.PI, 100) - 1) < TOLERANCE, "the SVG full moon is not a full disc");
+  assert.ok(Math.abs(canvasAxis(Math.PI, 100) - 1) < TOLERANCE, "the canvas full moon is not a full disc");
 });
 
-test("újhold: a megvilágított rész eltűnik", () => {
+test("new moon: the illuminated part disappears", () => {
   assert.ok(Math.abs(svgAxis(0, 100) - 1) < TOLERANCE);
   assert.ok(Math.abs(canvasAxis(0, 100) - 1) < TOLERANCE);
 });
 
-test("negyed: a terminátor egyenes (elfajuló ellipszis)", () => {
+test("quarter: the terminator is a straight line (degenerate ellipse)", () => {
   for (const ag of [Math.PI / 2, 3 * Math.PI / 2]) {
-    assert.ok(svgAxis(ag, 100) < TOLERANCE, "SVG negyed e=" + svgAxis(ag, 100));
-    assert.ok(canvasAxis(ag, 100) < TOLERANCE, "canvas negyed e=" + canvasAxis(ag, 100));
+    assert.ok(svgAxis(ag, 100) < TOLERANCE, "SVG quarter e=" + svgAxis(ag, 100));
+    assert.ok(canvasAxis(ag, 100) < TOLERANCE, "canvas quarter e=" + canvasAxis(ag, 100));
   }
 });
 
-test("a két rajzoló ugyanazt az e-t adja minden fázisra", () => {
+test("the two renderers give the same e for every phase", () => {
   for (const ag of AGES) {
     assert.ok(Math.abs(svgAxis(ag, 100) - canvasAxis(ag, 100)) < 1e-9,
-      `eltérnek ${ag}-nál: ${svgAxis(ag, 100)} vs ${canvasAxis(ag, 100)}`);
+      `they differ at ${ag}: ${svgAxis(ag, 100)} vs ${canvasAxis(ag, 100)}`);
   }
 });

@@ -3,8 +3,8 @@ import * as d3 from "./d3.js";
 import { testNumber } from "./form.js";
 import { dateDiff, isNumber, classes_, px, styles_ } from "./util.js";
 
-// Dátum- és időválasztó egy térképhez. A példányt kapja, mert a mezői annak
-// az űrlapján élnek.
+// Date and time picker belonging to one map. It receives the instance because
+// its fields live on that map's settings form.
 var datetimepicker = function(sky, callback) {
   var cfg = sky.cfg;
   var $form = sky.form.$form;

@@ -1,12 +1,12 @@
-// Csak azok a D3-függvények, amiket a könyvtár ténylegesen használ.
+// Only the D3 functions the library actually uses.
 //
-// Miért így: a hívási helyek `d3.geoPath()` alakban maradnak, tehát a
-// modulosítás nem írja át a kód minden rowát — de a csomagoló mégis pontosan
-// azt húzza be, ami itt fel van sorolva, a full `d3` pkg helyett. Ezzel
-// szűnik meg a globális `d3` igénye is (upstream #134: "d3 is not defined").
+// Why this shape: the call sites stay in `d3.geoPath()` form, so modularisation
+// did not have to rewrite every line of the code — yet the bundler pulls in
+// exactly what is listed here instead of the whole `d3` package. This is also
+// what removes the need for a global `d3` (upstream #134, "d3 is not defined").
 //
-// A vetítések raw_ (raw) függvényeit NEM itt tartjuk: azokat a projection.js
-// oldja fel névből, ezért ott külön, névtérként importálódnak.
+// The projections' raw functions are deliberately NOT here: projection.js
+// resolves those by name, so it imports the two packages as namespaces.
 export { select, selectAll, pointer } from "d3-selection";
 export { json } from "d3-fetch";
 export {
@@ -23,6 +23,6 @@ export {
 export { zoom, zoomIdentity } from "d3-zoom";
 export { dispatch } from "d3-dispatch";
 
-// Mellékhatásért: a d3-transition egészíti out a selection prototípusát a
-// .transition() metódussal, amit a celestial.js animációi használnak.
+// Imported for its side effect: d3-transition is what adds the .transition()
+// method to the selection prototype, which celestial.js's animations use.
 import "d3-transition";

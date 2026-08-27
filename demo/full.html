@@ -1,29 +1,29 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — full felület (D3 v7)</title>
+<title>d3-celestial — full interface (D3 v7)</title>
 <link rel="stylesheet" href="../celestial.css">
 <style>body { font: 14px sans-serif; margin: 12px; } #naplo { font: 12px monospace; white-space: pre-wrap; background:#f4f4f4; padding:8px; margin-top:8px; }</style>
 </head>
 <body>
-<noscript>Ehhez az oldalhoz JavaScript kell.</noscript>
+<noscript>This page requires JavaScript.</noscript>
 <p id="figyelmeztetes" style="display:none; background:#fee; border:1px solid #c00; padding:10px 14px; border-radius:6px">
-  <strong>Ez az oldal HTTP-n keresztül működik, <code>file://</code>-ról nem.</strong>
-  A csillagadatokat a <code>d3.json</code> tölti be, ami a v7-ben <code>fetch</code>-et használ — azt a
-  böngésző file-protokollon blokkolja. Indítsd a repó gyökeréből:
-  <code>npm run szerver</code>, majd nyisd meg:
+  <strong>This page works over HTTP, not from <code>file://</code>.</strong>
+  The star data is loaded by <code>d3.json</code>, which in v7 uses <code>fetch</code> — and the
+  browser blocks that on the file protocol. Start it from the root of the repo:
+  <code>npm run serve</code>, then open:
   <code>http://127.0.0.1:8877/demo/full.html</code>
 </p>
 <div id="celestial-map"></div>
 <div id="naplo"></div>
 
-<!-- A build magában hordozza a D3-at: nincs szükség külön script-tagre. -->
+<!-- The build carries D3 inside it: no separate script tag is needed. -->
 <script src="../build/celestial.js"></script>
 <script>
-/* Az interaktív felület füstpróbája: zoom, űrlap, helymeghatározás,
- * dátumválasztó, SVG-export. Ezeket a reference-háló nem méri — ott
- * interactive:false, form:false —, tehát külön kell megnézni őtwo. */
+/* Smoke test of the interactive interface: zoom, settings form, location,
+ * date picker, SVG export. The reference net does not measure these — there
+ * interactive:false, form:false — so they have to be checked separately. */
 if (location.protocol === "file:") {
   document.getElementById("figyelmeztetes").style.display = "block";
 }
@@ -38,8 +38,8 @@ Celestial.display({
   width: 700,
   projection: "airy",
   transform: "equatorial",
-  // A repóban lévő minimális adatkészlet. A full (43 MB) az upstreamé; ha az
-  // is kell, állítsd át ../upstream/data/-ra.
+  // The minimal data set in the repo. The full one (43 MB) is upstream's; if you
+  // need that too, point this at ../upstream/data/.
   datapath: "../harness/data/",
   interactive: true,
   form: true,

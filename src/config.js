@@ -161,11 +161,12 @@ var settings = {
     nameStyle: { fill: "#cccccc", font: "14px 'Lucida Sans Unicode', 'DejaVu Sans', sans-serif", align: "right", baseline: "top" },
     namesType: "en"  // Language in which the name is displayed, options desig, ar, cn, en, fr, de, gr, il, in, it, jp, lat, ru, es
   },
-  // Az `base` paraméter az, ami a példányosítást lehetővé teszi: enélkül minden
-  // hívás a modulszintű globalConfig-ból indult, tehát a második térkép örökölte
-  // az elsőét (upstream #96, #131). Ha kap alapot, azt használja kiindulásnak,
-  // és nem is ír back a globálisba — így két térkép nem lát bele egymáséba.
-  // Alap nélkül a régi viselkedés marad, hogy a Celestial.settings() működjön.
+  // The `base` parameter is what makes instances possible: without it every
+  // call started from the module-level globalConfig, so a second map inherited
+  // the first one's settings (upstream #96, #131). Given a base, it starts from
+  // that and does not write back to the global either — so two maps cannot see
+  // into each other's configuration. Without a base the original behaviour
+  // stands, so that Celestial.settings() keeps working.
   set: function(cfg, base) {  // Override defaults with values of cfg
     var prop, key, config = {}, res = {};
     if (base) Object.assign(config, base);
@@ -202,9 +203,9 @@ var settings = {
   },
   applyDefaults: function(cfg, base) {
     var res = {};
-    // A láncban ez a set() eredményén hívódik, tehát `this` a már összefésült
-    // konfiguráció. Az önálló ágon innen kell folytatni — a globalConfig-ból
-    // indulva a hívó beállításai elvesznének.
+    // In the chain this is called on the result of set(), so `this` is the
+    // already-merged configuration. The standalone branch has to continue from
+    // there — starting from globalConfig would discard the caller's settings.
     Object.assign(res, base ? this : globalConfig);
     // Nothing works without these
     res.stars.size = res.stars.size || 7;  
@@ -290,12 +291,12 @@ function arrayfy(o) {
 Celestial.settings = function () { return settings; };
 
 //b-v color index to rgb color value scale
-// A v3-as quantize skála kezelte a csökkenő tartományt; a v4+ a küszöbökre
-// bisect-et használ, ami csak növekvő sorrendben helyes — a [3.347, -0.335]
-// tartománnyal minden csillag pirosra váltott. Növekvő tartomány + megfordított
-// színsor ugyanazt a leképezést adja. Az svg.js csillagszín-ciklusa a
-// domain() két végét használja, ezért ott a sorrendfüggést külön out kellett
-// venni — különben a megfordítás miatt egyszer sem futna le.
+// The v3 quantize scale coped with a descending domain; v4+ runs bisect over
+// the thresholds, which is only correct in ascending order — with the domain
+// [3.347, -0.335] every star turned red. An ascending domain with a reversed
+// range gives the same mapping. svg.js's star-colour loop uses the two ends of
+// domain(), so the order dependence had to be removed there separately —
+// otherwise the reversal would stop that loop from running at all.
 var bvcolor = d3.scaleQuantize().domain([-0.335, 3.347]) //main sequence <= 1.7
     .range([ '#ff4700', '#ff4b00', '#ff4f00', '#ff5300', '#ff5600', '#ff5900', '#ff5b00', '#ff5d00', '#ff6000', '#ff6300', '#ff6500', '#ff6700', '#ff6900', '#ff6b00', '#ff6d00', '#ff7000', '#ff7300', '#ff7500', '#ff7800', '#ff7a00', '#ff7c00', '#ff7e00', '#ff8100', '#ff8300', '#ff8506', '#ff870a', '#ff8912', '#ff8b1a', '#ff8e21', '#ff9127', '#ff932c', '#ff9631', '#ff9836', '#ff9a3c', '#ff9d3f', '#ffa148', '#ffa34b', '#ffa54f', '#ffa753', '#ffa957', '#ffab5a', '#ffad5e', '#ffb165', '#ffb269', '#ffb46b', '#ffb872', '#ffb975', '#ffbb78', '#ffbe7e', '#ffc184', '#ffc489', '#ffc78f', '#ffc892', '#ffc994', '#ffcc99', '#ffce9f', '#ffd1a3', '#ffd3a8', '#ffd5ad', '#ffd7b1', '#ffd9b6', '#ffdbba', '#ffddbe', '#ffdfc2', '#ffe1c6', '#ffe3ca', '#ffe4ce', '#ffe8d5', '#ffe9d9', '#ffebdc', '#ffece0', '#ffefe6', '#fff0e9', '#fff2ec', '#fff4f2', '#fff5f5', '#fff6f8', '#fff9fd', '#fef9ff', '#f9f6ff', '#f6f4ff', '#f3f2ff', '#eff0ff', '#ebeeff', '#e9edff', '#e6ebff', '#e3e9ff', '#e0e7ff', '#dee6ff', '#dce5ff', '#d9e3ff', '#d7e2ff', '#d3e0ff', '#c9d9ff', '#bfd3ff', '#b7ceff', '#afc9ff', '#a9c5ff', '#a4c2ff', '#9fbfff', '#9bbcff'].reverse());
  

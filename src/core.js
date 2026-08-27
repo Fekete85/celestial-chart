@@ -1,12 +1,13 @@
-// A könyvtár központi objektuma.
+// The library's central object.
 //
-// Külön modulban él, nem a celestial.js-ben, mert szinte minden modul
-// hivatkozik rá — több közülük már betöltéskor (pl. `Celestial.settings = ...`).
-// A modulgráf körkörös (celestial ↔ config ↔ form ↔ svg), és körben az számít,
-// mi értékelődik out előbb. Ez a fájl semmit nem importál, tehát mindig elsőként
-// running le, és mire bárki hozzányúl, már létezik.
+// It lives in its own module rather than in celestial.js because nearly every
+// module refers to it — several of them already at load time (for example
+// `Celestial.settings = ...`). The module graph is circular
+// (celestial <-> config <-> form <-> svg), and in a cycle what matters is which
+// module is evaluated first. This file imports nothing, so it always runs
+// first, and by the time anyone touches the object it already exists.
 export var Celestial = {
-  // A pkg verziójával kell egyeznie — teszt őrzi (test/package.test.mjs).
+  // Must match the package version — guarded by test/package.test.mjs.
   version: '0.8.0',
   container: null,
   data: []

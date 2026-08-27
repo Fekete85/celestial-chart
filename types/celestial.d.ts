@@ -1,13 +1,13 @@
-// TypeScript-típusok a d3-celestial modernizált forkjához.
+// TypeScript definitions for celestial-chart.
 //
-// A Config törzse GENERÁLT: a src/config.js baseértelmezéseiből készül, hogy a
-// ~110 beállítás ne kézi találgatásból kerüljön ide. A drift ellen teszt véd
-// (test/types.test.mjs): minden runningásidejű beállításnévnek szerepelnie kell
-// itt, és fordítva.
+// The body of Config is GENERATED from the defaults in src/config.js, so that
+// the ~110 settings do not have to be transcribed by hand. A test guards
+// against drift (test/types.test.mjs): every setting name that exists at
+// runtime must appear here, and vice versa.
 
-/** A támogatott vetítések. Kettő (`cassini`, `quincuncial`) az upstream
- *  szállított buildjében sincs benne — azok hibát dobnak. */
-export type Vetites =
+/** The supported projections. Two of them (`cassini`, `quincuncial`) are absent
+ *  from the shipped upstream build as well — those throw. */
+export type Projection =
   | "airy"
   | "aitoff"
   | "armadillo"
@@ -78,25 +78,25 @@ export type Vetites =
   | "wiechel"
   | "winkel3";
 
-/** Koordináta-rendszer, amelyben a térkép megjelenik. */
-export type Transzformacio = "equatorial" | "ecliptic" | "galactic" | "supergalactic";
+/** The coordinate system the map is drawn in. */
+export type Transform = "equatorial" | "ecliptic" | "galactic" | "supergalactic";
 
-/** Középpont: [hosszúság, szélesség] vagy [hosszúság, szélesség, tájolás].
- *  Egyenlítői rendszerben a hosszúság órában értendő, egyébként inDegrees. */
-export type Kozeppont = [number, number] | [number, number, number];
+/** Map centre: [longitude, latitude] or [longitude, latitude, orientation].
+ *  In the equatorial system the longitude is in hours, otherwise in degrees. */
+export type Center = [number, number] | [number, number, number];
 
-/** Égi koordináta inDegrees: [hosszúság, szélesség]. */
-export type Koordinata = [number, number];
+/** A celestial coordinate in degrees: [longitude, latitude]. */
+export type Coordinate = [number, number];
 
-/** Képernyő-koordináta pixelben: [x, y]. */
-export type Pont = [number, number];
+/** A screen coordinate in pixels: [x, y]. */
+export type ScreenPoint = [number, number];
 
 export interface Config {
   width?: number;
-  projection?: Vetites;
+  projection?: Projection;
   projectionRatio?: number | null;
-  transform?: Transzformacio;
-  center?: Kozeppont | null;
+  transform?: Transform;
+  center?: Center | null;
   geopos?: [number, number] | null;
   follow?: "zenith" | "center";
   orientationfixed?: boolean;
@@ -364,44 +364,44 @@ export interface Config {
     };
     namesType?: string;
   };
-  /** A megjelenítés időpontja. Nincs baseértelmezése: ilyenkor a jelen idő. */
+  /** The moment to render. No default: the current time is used. */
   date?: Date;
 }
 
-/** A térkép aktuális méretei. */
-export interface Meretek {
+/** The map's current dimensions. */
+export interface Metrics {
   width: number;
   height: number;
   margin: [number, number];
   scale: number;
 }
 
-/** Egy térkép beállító-űrlapja. Példányonként külön. */
-export interface Urlap {
-  /** Mezőreqés ezen a térképen belül. */
+/** One map's settings form. Separate per instance. */
+export interface SettingsForm {
+  /** Field lookup within this map. */
   $form(id: string): HTMLElement | null;
   enable(source: HTMLElement): void;
-  fldEnable(mezo: string, be: boolean): void;
+  fldEnable(field: string, be: boolean): void;
   listConstellations(): void;
-  setCenter(kozeppont: Kozeppont | null, transzformacio: Transzformacio): void;
+  setCenter(centerPoint: Center | null, transform_: Transform): void;
   setLimits(): void;
-  setVisibility(config: Config, melyik: string): void;
-  showAdvanced(mutasd: boolean): void;
+  setVisibility(config: Config, which_: string): void;
+  showAdvanced(visible: boolean): void;
 }
 
-/** Egy csillagkép adatai a `constellations` listából. */
-export interface Csillagkep {
+/** One constellation's data from the `constellations` list. */
+export interface Constellation {
   id: string;
   properties: Record<string, unknown>;
-  [egyeb: string]: unknown;
+  [other_: string]: unknown;
 }
 
 /**
- * Egy égtérkép-példány.
+ * One sky-map instance.
  *
- * Több független térképhez ezt kell használni, `{ standalone: true }` mellett —
- * enélkül a példány a felhalmozott globális beállításra épül, ahogy a
- * `Celestial.display()`.
+ * This is what several independent maps need, together with
+ * `{ standalone: true }` — without it the instance is built on the accumulated
+ * global settings, just as `Celestial.display()` is.
  *
  * ```ts
  * const a = new SkyMap({ container: "map-a", projection: "orthographic" }, { standalone: true });
@@ -410,61 +410,61 @@ export interface Csillagkep {
 export declare class SkyMap {
   constructor(config?: Config, options?: { standalone?: boolean });
 
-  /** A térkép érvényes konfigurációja. Rajzolás közben frissül. */
+  /** The map's effective configuration. Updated while drawing. */
   readonly cfg: Config;
-  /** A d3-geo vetítés. Vetítésváltás urlPathán új objektum. */
-  readonly mapProjection: (coord: Koordinata) => Pont | null;
-  /** A d3-geo útvonal-generátor. */
+  /** The d3-geo projection. A new object after a projection change. */
+  readonly mapProjection: (coord: Coordinate) => ScreenPoint | null;
+  /** The d3-geo path generator. */
   readonly map: unknown;
-  /** A rajzelemeket tartó `<container>` d3-szelekció. */
+  /** The d3 selection of the `<container>` element holding the drawn elements. */
   readonly container: unknown;
-  /** A szülőel CSS-szelektora, például `"#celestial-map"`. */
+  /** CSS selector of the parent element, for example `"#celestial-map"`. */
   readonly parentElement: string;
-  /** Csillag- és mélyég-nevek a betöltött adatból. */
+  /** Star and deep-sky names from the loaded data. */
   readonly starnames: Record<string, Record<string, string>>;
   readonly dsonames: Record<string, Record<string, string>>;
-  /** A térkép saját űrlapja (csak ha `form: true`). */
-  readonly form: Urlap;
+  /** This map's own settings form (only when `form: true`). */
+  readonly form: SettingsForm;
   readonly context: CanvasRenderingContext2D;
 
-  /** Látható-e a pont a jelenlegi vetítésen. */
-  clip(coord: Koordinata): 0 | 1;
-  metrics(): Meretek;
+  /** Whether the point is visible in the current projection. */
+  clip(coord: Coordinate): 0 | 1;
+  metrics(): Metrics;
   redraw(): void;
-  /** Új szélesség; érték nélkül a jelenlegit adja back. */
+  /** Set a new width; without an argument returns the current one. */
   resize(config?: { width: number } | number): number;
-  /** Beállítások alkalmazása újrarajzolással. */
+  /** Apply settings and redraw. */
   apply(config: Config): void;
-  /** Teljes újratöltés — vetítés- és koordinátarendszer-váltáshoz. */
+  /** Full reload — for changing projection or coordinate system. */
   reload(config?: Config): void;
-  /** Vetítésváltás animációval. A becsült időt adja back ms-ban. */
-  reproject(config: { projection: Vetites; projectionRatio?: number }): number;
-  /** Középpont állítása. Érték nélkül a jelenlegit adja back. */
-  rotate(config?: { center: Kozeppont }): Kozeppont | number;
-  /** Nagyítás szorzóval. Érték nélkül a jelenlegi nagyítást adja back. */
-  zoomBy(szorzo?: number): number;
-  /** SVG-export. A kész SVG-t a visszahívás kapja meg. */
+  /** Animated projection change. Returns the estimated duration in ms. */
+  reproject(config: { projection: Projection; projectionRatio?: number }): number;
+  /** Set the centre. Without an argument returns the current one. */
+  rotate(config?: { center: Center }): Center | number;
+  /** Zoom by a factor. Without an argument returns the current zoom. */
+  zoomBy(factor?: number): number;
+  /** SVG export. The finished SVG is passed to the callback. */
   exportSVG(done: (svg: string) => void): void;
 
-  animate(lepesek: Array<{ param: string; value: unknown; duration?: number; callback?: () => void }>,
-          ismetel?: boolean): void;
-  stop(torol?: boolean): void;
+  animate(steps: Array<{ param: string; value: unknown; duration?: number; callback?: () => void }>,
+          repeat?: boolean): void;
+  stop(clear?: boolean): void;
   go(index?: number): void;
 
-  color(tipus?: string): string;
-  starColor(csillag: unknown): string;
+  color(type_?: string): string;
+  starColor(star: unknown): string;
   symbol: unknown;
   dsoSymbol(dso: unknown): string;
-  setStyle(stilus: Record<string, unknown>): void;
-  setTextStyle(stilus: Record<string, unknown>): void;
-  setStyleA(rang: number, stilus: Record<string, unknown>): void;
-  setConstStyle(rang: number, font: string | string[]): void;
+  setStyle(style_: Record<string, unknown>): void;
+  setTextStyle(style_: Record<string, unknown>): void;
+  setStyleA(rank: number, style_: Record<string, unknown>): void;
+  setConstStyle(rank: number, font: string | string[]): void;
 
   /** Csak `location: true` mellett. */
-  date?(datum?: Date, tz?: number): Date;
-  dateFormat?(datum: Date, tz: number): string;
-  zenith?(): Kozeppont;
-  nadir?(): Kozeppont;
+  date?(date_?: Date, tz?: number): Date;
+  dateFormat?(date_: Date, tz: number): string;
+  zenith?(): Center;
+  nadir?(): Center;
   position?(): [number, number];
   location?(be: boolean): void;
   timezone?(): number;
@@ -472,67 +472,67 @@ export declare class SkyMap {
   dtLoc?(): unknown;
 
   showConstellation?(id: string): void;
-  setLanguage?(nyelv: string): Config;
+  setLanguage?(language: string): Config;
   updateForm?(): void;
-  /** A betöltött csillagképek. Az adatok beérkezése urlPathán áll be. */
-  constellations?: Record<string, Csillagkep>;
+  /** The loaded constellations. Set once the data has arrived. */
+  constellations?: Record<string, Constellation>;
   constellation?: string | null;
 }
 
 /**
- * A globális felület — visszafelé kompatibilis a régi használattal.
+ * The global interface — backwards compatible with the original usage.
  *
- * A `display()` létrehoz egy példányt, és annak a felületét kiteríti magára;
- * a visszaadott példányon keresztül több térkép is kezelhető.
+ * `display()` creates an instance and spreads that instance's interface onto
+ * itself; the returned instance is how several maps can be handled.
  *
- * FIGYELEM: a térkép-metódusok (`rotate`, `apply`, `zoomBy`, `redraw`, …) csak
- * az első `display()` UTÁN léteznek. A típus jelenlévőnek mutatja őtwo, mert a
- * gyakorlatban minden használat a `display()`-mark kezdődik, és opcionálisként
- * minden hívás `?.`-ot igényelne.
+ * NOTE: the map methods (`rotate`, `apply`, `zoomBy`, `redraw` and the rest)
+ * only exist AFTER the first `display()`. The types present them as always
+ * available, because in practice every use starts with `display()`, and marking
+ * them optional would force `?.` on every call.
  */
-export interface CelestialFelulet extends SkyMap {
+export interface CelestialGlobal extends SkyMap {
   readonly version: string;
   data: unknown[];
 
-  /** Térkép megjelenítése. A létrehozott példányt adja back. */
+  /** Render a map. Returns the instance it created. */
   display(config?: Config): SkyMap;
 
-  /** Az érvényes beállítások. */
+  /** The effective settings. */
   settings(): {
     set(config?: Config, base?: unknown): Config;
     applyDefaults(config?: Config, base?: unknown): Config;
     [key_: string]: unknown;
   };
-  /** A támogatott vetítések leírói. */
-  projections(): Record<Vetites, { n: string; arg: number | null; scale: number; ratio?: number; clip?: boolean }>;
-  /** Vetítés felépítése névből. */
-  projection(name_: Vetites): unknown;
+  /** Descriptors of the supported projections. */
+  projections(): Record<Projection, { n: string; arg: number | null; scale: number; ratio?: number; clip?: boolean }>;
+  /** Build a projection from its name. */
+  projection(name_: Projection): unknown;
   eulerAngles(): Record<string, [number, number, number]>;
   poles(): Record<string, [number, number]>;
   euler(): Record<string, number[]>;
 
-  /** Saját adatréteg hozzáadása. */
+  /** Add a custom data layer. */
   add(data_: { type?: string; file?: string; callback: () => void; redraw?: () => void }): void;
   remove(): void;
   clear(): void;
   addCallback(fv: () => void): void;
   runCallback(): void;
 
-  getData(json: unknown, transzformacio: Transzformacio): unknown;
-  getPlanet(id: string, datum?: Date, sky?: SkyMap): unknown;
-  /** Koordináta átszámítása egyenlítőiből a megadott rendszerbe. */
-  getPoint(coord: Koordinata, transzformacio: Transzformacio): Koordinata;
+  getData(json: unknown, transform_: Transform): unknown;
+  getPlanet(id: string, date_?: Date, sky?: SkyMap): unknown;
+  /** Convert a coordinate from equatorial to the given system. */
+  getPoint(coord: Coordinate, transform_: Transform): Coordinate;
 
-  /** Égi → horizontális koordináta. */
+  /** Celestial to horizontal coordinates. */
   horizontal: {
-    (datum: Date, coord: Koordinata, site: Koordinata): [number, number, number];
-    /** Horizontális → égi. */
-    inverse(datum: Date, horizontalis: Koordinata, site: Koordinata): [number, number, number];
+    (date_: Date, coord: Coordinate, site: Coordinate): [number, number, number];
+    /** Horizontal to celestial. */
+    inverse(date_: Date, horizontalCoord: Coordinate, site: Coordinate): [number, number, number];
   };
-  /** Óraszög inDegrees, [0, 360). */
-  ha(datum: Date, hosszusag: number, rektaszcenzio: number): number;
+  /** Hour angle in degrees, [0, 360). */
+  ha(date_: Date, longitude: number, rightAscension: number): number;
 }
 
-declare const Celestial: CelestialFelulet;
+declare const Celestial: CelestialGlobal;
 export { Celestial };
 export default Celestial;

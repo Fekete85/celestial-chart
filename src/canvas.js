@@ -107,11 +107,12 @@ Canvas.symbol = function () {
           r = s/2,
           ag = age(),
           ph = 0.5 * (1 - Math.cos(ag)),
-          // A terminátor fél-kistengelye a korong sugarának |cos(fázisszög)|-szerese,
-          // ami a megvilágított hányaddal |2·ph − 1| = 2·|ph − 0.5|. Az 1.6-os szorzó
-          // miatt a telihold 19%-kal keskenyebb, gibbusz alakú korongként rajzolódott
-          // (#130). Az 1.98 + 0.01 pontosan 1-et ad teli- és újholdnál, és megtartja
-          // az elfajulás elleni védelmet negyedeknél.
+          // The terminator's semi-minor axis is |cos(phase angle)| times the disc
+          // radius, which in terms of the illuminated fraction is
+          // |2*ph - 1| = 2*|ph - 0.5|. The factor of 1.6 drew a full moon 19% too
+          // narrow — as a gibbous disc (#130). 1.98 + 0.01 gives exactly 1 at full
+          // and new moon while keeping the guard against a degenerate ellipse at
+          // the quarters.
           e = 1.98 * Math.abs(ph - 0.5) + 0.01,
           dir = ag > Math.PI,
           termdir = Math.abs(ph) > 0.5 ? dir : !dir,

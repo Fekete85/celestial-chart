@@ -5,12 +5,13 @@ import { exportSVG } from "./svg.js";
 import { euler, transformDeg } from "./transform.js";
 import { findPos, has, isArray, isNumber, isObject, px, styles_ } from "./util.js";
 
-// Egy térkép beállító-űrlapja.
+// The settings form belonging to one map.
 //
-// A példányt kapja, nem a konfigurációt: az űrlap a térképhez tartozik, és a
-// segédfüggvényei (fldEnable, setCenter, $form, …) is ebben a lezárásban élnek.
-// Korábban modulszintű függvények voltak, egy közös "aktuális térkép" mutatón
-// át — így két interaktív térkép egy oldalon egymás mezőit írta volna.
+// It receives the instance rather than the configuration: the form belongs to
+// the map, and its helper functions (fldEnable, setCenter, $form and the rest)
+// live in this closure too. They used to be module-level functions reached
+// through a shared "current map" pointer — which meant two interactive maps on
+// one page would have written each other's fields.
 function form(sky) {
   var cfg = sky.cfg;
   var config = settings.set(cfg); 
@@ -224,10 +225,10 @@ function form(sky) {
     //var container = (config.container || "celestial-map");
     div = d3.select(sky.parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
   } else {
-    // A meglévő űrlapot outürítjük, mielőtt újraépítjük. Enélkül minden
-    // Celestial.display() hívás hozzáfűzött egy újabb full űrlapot: hat hívás
-    // urlPathán 469 mező volt 67 helyett, same id-kkel — a $("...") lekérdezések
-    // pedig mindig az elsőt találták meg. (#96, #131 tünete.)
+    // Empty the existing form before rebuilding it. Without this, every
+    // Celestial.display() call appended another complete form: after six calls
+    // there were 469 fields instead of 67, sharing ids — and the $("...")
+    // lookups always found the first one. (A symptom of #96 and #131.)
     div.selectAll("*").remove();
   }
   var ctrl = div.append("div").attr("class", "ctrl");
@@ -749,9 +750,9 @@ function form(sky) {
     if (formats_all[config.culture].indexOf(lang) !== -1) cfg = setLanguage(lang);
     return cfg;    
   };
-  // A térkép saját űrlapfelülete. Korábban ezek modulszintű függvények
-  // voltak, egy közös "aktuális térkép" mutatón át — ezért két interaktív
-  // térkép egy oldalon egymás mezőit írta volna.
+  // This map's own form interface. These used to be module-level functions
+  // reached through a shared "current map" pointer — which is why two
+  // interactive maps on one page would have written each other's fields.
   return {
     "$form": $form,
     "enable": enable,

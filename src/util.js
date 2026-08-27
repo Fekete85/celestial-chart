@@ -7,8 +7,8 @@ function sign(x) { return x ? x < 0 ? -1 : 1 : 0; }
 function pad(n) { return n < 10 ? '0' + n : n; }
 
 
-// A csupasz `hasOwnProperty` a globális objektumon keresztül oldódott fel; modulban
-// ez félrevezető, ezért explicit.
+// The bare `hasOwnProperty` resolved through the global object; in a module
+// that is misleading, so it is spelled out.
 var hasOwn = Object.prototype.hasOwnProperty;
 function has(o, key) { return o !== null && hasOwn.call(o, key); }
 function when(o, key, val) { return o !== null && hasOwn.call(o, key) ? o[key] : val; }
@@ -16,27 +16,28 @@ function isNumber(n) { return n !== null && !isNaN(parseFloat(n)) && isFinite(n)
 function isArray(o) { return o !== null && Object.prototype.toString.call(o) === "[object Array]"; }
 function isObject(o) { var type = typeof o;  return type === 'function' || type === 'object' && !!o; }
 function isFunction(o) { return typeof o == 'function' || false; }
-// A d3.functor a v4-ben megszűnt. Egyetlen dolgot csinált: ami nem függvény,
-// abból konstans függvényt gyártott.
+// d3.functor was removed in v4. It did exactly one thing: turned anything that
+// was not a function into a constant function.
 function functor(o) { return isFunction(o) ? o : function() { return o; }; }
 
-// A d3.json a v5 óta Promise-t ad back, nem callbacket hív. A hívási helyek
-// szerkezetét megtartjuk — a régi (error, json) alak marad —, mert így a
-// betöltési logika változatlan, és a D3-csere hatása elkülöníthető marad.
-// A d3-queue külön pkg volt, a v5 óta nincs karbantartva. A könyvtár a
-// felületéből ennyit használ: defer(fn) a feladat felvételére, await(cb) a
-// végére. A defer-ek all_ szinkronban, az await előtt futnak le.
-// A v3-as selection.classed({name_: logikai, ...}) alak a v4-ben megszűnt;
-// a v7 csak classed(nevek, logikai) párost ismer.
+// Since v5 d3.json returns a Promise instead of invoking a callback. The shape
+// of the call sites is preserved — the old (error, json) form stays — so that
+// the loading logic is unchanged and the effect of the D3 upgrade stays
+// separable from everything else.
+// d3-queue was a separate package, unmaintained since v5. This is all the
+// library uses of its interface: defer(fn) to enqueue a task, await(cb) for the
+// end. Every defer runs synchronously, before the await.
+// The v3 selection.classed({name: boolean, ...}) form was removed in v4;
+// v7 only understands a classed(names, boolean) pair.
 function classes_(sel, obj) {
   for (var k in obj) { if (has(obj, k)) sel.classed(k, obj[k]); }
   return sel;
 }
 
-// Ugyanez az attr és a style objektum-alakjára: a v3 elfogadott egy egész
-// tulajdonságtömböt, a v4+ csak (name_, value_) párt. Ha ez kezeletlen marad, a
-// hívás GETTERKÉNT running le, és a lánc következő tagja már nem szelekción dolgozik
-// — némán, kivétel nélkül, egészen az első használatig.
+// The same for the object form of attr and style: v3 accepted a whole property
+// map, v4+ only a (name, value) pair. Left unhandled, the call runs AS A GETTER
+// and the next link in the chain is no longer working on a selection — silently,
+// without an exception, right up to the first use.
 function attrs(sel, obj) {
   for (var k in obj) { if (has(obj, k)) sel.attr(k, obj[k]); }
   return sel;
@@ -77,7 +78,7 @@ function taskQueue(concurrency) {
 function loadJson(url, callback) {
   return d3.json(url).then(
     function(json) { callback(null, json); },
-    function(error) { callback(error || new Error("betöltés failed: " + url)); }
+    function(error) { callback(error || new Error("failed to load: " + url)); }
   );
 }
 function isValidDate(d) { return d && d instanceof Date && !isNaN(d); }
@@ -162,10 +163,11 @@ var Trig = {
   tanh: function (val) { return 2.0 / (1.0 + Math.exp(-2.0 * val)) - 1.0; },
   asinh: function (val) { return Math.log(val + Math.sqrt(val * val + 1)); },
   acosh: function (val) { return Math.log(val + Math.sqrt(val * val - 1)); },
-  // A JS `%` megtartja az osztandó előmarkét, ezért egyetlen eltolás csak akkor
-  // elég, ha a bemenet nem megy −2π (illetve −3π) alá. A közepes pályaelemek
-  // J2000-től távolodva viszont nagyra nőnek, ott a régi képlet negatív, azaz
-  // nem normált szöget adott. A kétszeres eltolás minden bemenetre helyes.
+  // The JS `%` keeps the sign of the dividend, so a single shift is only enough
+  // while the input does not go below -2*pi (respectively -3*pi). The mean
+  // orbital elements do grow large as one moves away from J2000, and there the
+  // old formula returned a negative — that is, un-normalised — angle. Shifting
+  // twice is correct for every input.
   normalize0: function(val) { return (((val + Math.PI) % (Math.PI*2)) + Math.PI*2) % (Math.PI*2) - Math.PI; },
   normalize: function(val) { return ((val % (Math.PI*2)) + Math.PI*2) % (Math.PI*2); },
 
@@ -173,12 +175,12 @@ var Trig = {
     var ϕ = p[0], θ = halfπ - p[1], r = p[2];
     return {"x": r * Math.sin(θ) * Math.cos(ϕ), "y": r * Math.sin(θ) * Math.sin(ϕ), "z": r * Math.cos(θ)};
   },
-  // FIGYELEM: az alábbi négy metódust a könyvtárban semmi nem hívja.
-  // A `spherical` ráadásul nem inverze a `cartesian`-nak: `atan` van benne
-  // `atan2` helyett (elveszti a kvadránst, és x = 0 esetén osztás nullával),
-  // a visszaadott második érték pedig pólustávolság, nem szélesség. Nem
-  // nyúltunk hozzá, mert nincs hívója — de ne épüljön rá új kód anélkül, hogy
-  // előbb helyrerakná valaki.
+  // WARNING: nothing in the library calls the following four methods.
+  // `spherical` is moreover not the inverse of `cartesian`: it uses `atan`
+  // instead of `atan2` (losing the quadrant, and dividing by zero when x = 0),
+  // and the second value it returns is a polar distance, not a latitude. Left
+  // untouched because it has no callers — but no new code should build on it
+  // until somebody puts it right.
   spherical: function(p) {
     var r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z),
         θ = Math.atan(p.y / p.x),
@@ -216,7 +218,7 @@ function longitude(point) {
     return sign(point[0]) * ((Math.abs(point[0]) +  Math.PI) % tau -  Math.PI);
 }
 
-function poligonContains(polygon, point) {
+function polygonContains(polygon, point) {
   var lambda = longitude(point),
       phi = point[1],
       sinPhi = Math.sin(phi),

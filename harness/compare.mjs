@@ -1,67 +1,69 @@
-/* Két reference-háló összehasonlítása.
+/* Comparing two reference nets.
  *
- * A háló önmagában nem véd semmitől — csak akkor, ha van mihez mérni. Ez a
- * szkript veszi a rögzített (D3 v3-as) referenciát és a migrált verzió
- * outputét, és vetítésenként megmondja, mennyit mozdultak a pixelek.
+ * The net on its own protects nothing — only if there is something to measure
+ * against. This script takes the recorded (D3 v3) reference and the output of
+ * the migrated version, and reports per projection how far the pixels moved.
  *
  *   node compare.mjs reference-d3v3.json reference-newer.json [--tolerance 0.5]
  *
- * Kilépési kód: 0 ha minden vetítés a tűrésen belül van, 1 ha nem.
+ * Exit code: 0 if every projection is within tolerance, 1 if not.
  *
- * Az önteszt (--selftest) bizonyítja, hogy az összehasonlító tényleg outüt:
- * önmagával 0 eltérés, szándékosan elrontott másolattal viszont hibát jelez.
+ * The self-test (--selftest) proves that the comparator really does catch
+ * things: against itself the difference is 0, but against a deliberately
+ * corrupted copy it reports a failure.
  */
 import fs from "node:fs";
 
-const DEFAULT_TOLERANCE = 0.5; // pixel
+const DEFAULT_TOLERANCE = 0.5; // pixels
 
 function load(urlPath) {
   return JSON.parse(fs.readFileSync(urlPath, "utf8"));
 }
 
-/* Egy mért pont akkor érvényes, ha tényleges koordinátát tartalmaz. A generátor
- * NaN-t is rögzíthet — a JSON ilyenkor [null, null, jelző] alakot ad —, ez a
- * régi kód definiálatlan viselkedése, nem koordináta. */
+/* A measured point is valid if it actually contains a coordinate. The generator
+ * may also record NaN — in JSON that comes out as [null, null, flag] — which is
+ * the undefined behaviour of the old code, not a coordinate. */
 function isValid(p) {
-  // Number.isFinite, nem `typeof === "number"`: a NaN is szám. JSON-on át
-  // null-lá alakul, a böngészőből közvetlenül viszont NaN-ként érkezik — így a
-  // forrástól függetlenül ugyanaz a döntés.
+  // Number.isFinite, not `typeof === "number"`: NaN is a number too. Through
+  // JSON it turns into null, but straight from the browser it arrives as NaN —
+  // so the decision is the same regardless of the source.
   return Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]);
 }
 
-/* Egy vetítés egy forgatásának összevetése. */
+/* Comparing one rotation of one projection. */
 function compareRotation(a, b) {
   const e = {
-    points_: 0,
-    structural: [],   // hiányzó vagy visszalépő pont — ez mindig súlyos
-    clipping: 0,      // a láthatósági jelző eltér
-    improved: 0,        // a régi NaN-t adott, az új definiált értétwo
+    points: 0,
+    structural: [],   // missing or regressed point — this is always serious
+    clipping: 0,      // the visibility flag differs
+    improved: 0,      // the old code returned NaN, the new one a defined value
     distances: []
   };
   const pa = a.points || [], pb = b.points || [];
   if (pa.length !== pb.length) {
-    e.structural.push(`ponthossz ${pa.length} vs ${pb.length}`);
+    e.structural.push(`point count ${pa.length} vs ${pb.length}`);
     return e;
   }
   for (let i = 0; i < pa.length; i++) {
     const x = pa[i], y = pb[i];
-    e.points_++;
+    e.points++;
     const xe = isValid(x), ye = isValid(y);
 
     if (!xe && !ye) {
-      // Mindkettő definiálatlan: csak akkor gond, ha másképp az.
+      // Both undefined: only a problem if they are undefined in different ways.
       if (JSON.stringify(x) !== JSON.stringify(y)) {
         e.structural.push(`#${i}: ${JSON.stringify(x)} vs ${JSON.stringify(y)}`);
       }
       continue;
     }
     if (!xe && ye) {
-      // A régi NaN-t vagy semmit adott, az új számot: nincs mihez képest romlani.
+      // The old code gave NaN or nothing, the new one gives a number: there is
+      // nothing here that could have got worse.
       e.improved++;
       continue;
     }
     if (xe && !ye) {
-      // Volt koordináta, now_ nincs — ez viszont visszalépés.
+      // There used to be a coordinate, now there is none — that is a regression.
       e.structural.push(`#${i}: ${JSON.stringify(x)} -> ${JSON.stringify(y)}`);
       continue;
     }
@@ -88,17 +90,17 @@ export function compare(refA, refB, tolerance = DEFAULT_TOLERANCE) {
   for (const [name_, va] of mapA) {
     const vb = mapB.get(name_);
     if (!vb) continue;
-    const row = { vetites: name_, points_: 0, clipping: 0, improved: 0, structural: [], distances: [] };
+    const row = { projection: name_, points: 0, clipping: 0, improved: 0, structural: [], distances: [] };
     const n = Math.min(va.rotations.length, vb.rotations.length);
     if (va.rotations.length !== vb.rotations.length) {
-      row.structural.push(`forgatásszám ${va.rotations.length} vs ${vb.rotations.length}`);
+      row.structural.push(`rotation count ${va.rotations.length} vs ${vb.rotations.length}`);
     }
     for (let r = 0; r < n; r++) {
       const e = compareRotation(va.rotations[r], vb.rotations[r]);
-      row.points_ += e.points_;
+      row.points += e.points;
       row.clipping += e.clipping;
       row.improved += e.improved;
-      for (const sz of e.structural) row.structural.push(`fgt${r} ${sz}`);
+      for (const sz of e.structural) row.structural.push(`rot${r} ${sz}`);
       row.distances.push(...e.distances);
     }
     row.distances.sort((x, y) => x - y);
@@ -122,100 +124,101 @@ export function compare(refA, refB, tolerance = DEFAULT_TOLERANCE) {
 
 function print(er) {
   const sz = n => n.toFixed(3).padStart(9);
-  console.log(`tűrés: ${er.tolerance} px\n`);
-  console.log("vetítés                pont    max      átlag      p99   clip  improved  szerk");
+  console.log(`tolerance: ${er.tolerance} px\n`);
+  console.log("projection               pts       max      mean       p99  clip improved struct");
   console.log("-".repeat(80));
   for (const s of er.rows) {
     const mark = s.ok ? " " : "✗";
     console.log(
-      `${mark} ${s.vetites.padEnd(20)} ${String(s.points_).padStart(5)} ` +
+      `${mark} ${s.projection.padEnd(20)} ${String(s.points).padStart(5)} ` +
       `${sz(s.max)} ${sz(s.mean)} ${sz(s.p99)} ${String(s.clipping).padStart(6)} ${String(s.improved).padStart(7)} ${String(s.structural.length).padStart(6)}`
     );
   }
-  if (er.missing_projections.length) console.log("\nHIÁNYZÓ vetítés az újban:", er.missing_projections.join(", "));
-  if (er.extra_projections.length) console.log("\nCsak az újban:", er.extra_projections.join(", "));
+  if (er.missing_projections.length) console.log("\nMISSING projections in the new one:", er.missing_projections.join(", "));
+  if (er.extra_projections.length) console.log("\nOnly in the new one:", er.extra_projections.join(", "));
   for (const s of er.rows) {
     if (s.structural.length) {
-      console.log(`\n${s.vetites} structural eltérések (első 5):`);
+      console.log(`\n${s.projection} structural differences (first 5):`);
       for (const x of s.structural.slice(0, 5)) console.log("  " + x);
     }
   }
   const bad = er.rows.filter(s => !s.ok);
   const improved = er.rows.reduce((n, s) => n + s.improved, 0);
-  if (improved) console.log(`\n${improved} pontban a régi kód NaN-t adott, az új definiált értétwo — ` +
-                          `ez nem regresszió (lásd docs/04-migration-log.md).`);
+  if (improved) console.log(`\nAt ${improved} points the old code returned NaN and the new one a defined value — ` +
+                          `this is not a regression (see docs/04-migration-log.md).`);
   console.log("\n" + (er.ok
-    ? `RENDBEN — all_ a ${er.rows.length} vetítés a tűrésen belül.`
-    : `ELTÉRÉS — ${bad.length}/${er.rows.length} vetítés kilóg: ${bad.map(s => s.vetites).join(", ")}`));
+    ? `OK — all ${er.rows.length} projections are within tolerance.`
+    : `DIFFERENCE — ${bad.length}/${er.rows.length} projections are out of range: ${bad.map(s => s.projection).join(", ")}`));
 }
 
-/* --- Önteszt ---
- * Egy összehasonlítót ugyanúgy validálni kell, mint a hálót magát: ha
- * mindenre azt mondaná, hogy „ok", némán értéktelen lenne. */
+/* --- Self-test ---
+ * A comparator has to be validated just like the net itself: if it said "ok" to
+ * everything, it would be silently worthless. */
 function selfTest(urlPath) {
   const ref = load(urlPath);
   let failures = 0;
   const check = (name_, cond) => {
-    console.log((cond ? "  ok   " : "  BUKÁS") + "  " + name_);
+    console.log((cond ? "  ok  " : "  FAIL") + "  " + name_);
     if (!cond) failures++;
   };
 
   const same = compare(ref, JSON.parse(JSON.stringify(ref)));
-  check("önmagával: ok", same.ok);
-  check("önmagával: max eltérés 0", same.rows.every(s => s.max === 0));
+  check("against itself: ok", same.ok);
+  check("against itself: max difference 0", same.rows.every(s => s.max === 0));
 
-  // 1 pixel elmozdítás egyetlen ponton, 0.5 px tűréssel → out kell ütnie
+  // A 1 pixel shift on a single point, with a 0.5 px tolerance → must be caught
   const shifted = JSON.parse(JSON.stringify(ref));
   const p = shifted.projections[3].rotations[1].points.find(x => Array.isArray(x));
   p[0] += 1;
   const cmp1 = compare(ref, shifted);
-  check("1 px elmozdulás: outüt", !cmp1.ok);
-  check("1 px elmozdulás: csak egy vetítésnél", cmp1.rows.filter(s => !s.ok).length === 1);
+  check("1 px shift: caught", !cmp1.ok);
+  check("1 px shift: only for one projection", cmp1.rows.filter(s => !s.ok).length === 1);
 
-  // Ugyanaz 2 px tűréssel → át kell mennie
-  check("1 px elmozdulás 2 px tűréssel: ok", compare(ref, shifted, 2).ok);
+  // The same with a 2 px tolerance → must pass
+  check("1 px shift with a 2 px tolerance: ok", compare(ref, shifted, 2).ok);
 
-  // Clipping-jelző átbillentése → tűréstől függetlenül outüt
+  // Flipping the clipping flag → caught regardless of the tolerance
   const clipped = JSON.parse(JSON.stringify(ref));
   const q = clipped.projections[5].rotations[0].points.find(x => Array.isArray(x));
   q[2] = q[2] ? 0 : 1;
-  check("clipping-váltás: outüt nagy tűréssel is", !compare(ref, clipped, 1000).ok);
+  check("clipping flip: caught even with a large tolerance", !compare(ref, clipped, 1000).ok);
 
-  // Hiányzó vetítés → outüt
+  // A missing projection → caught
   const truncated = JSON.parse(JSON.stringify(ref));
   truncated.projections.pop();
   const cmp2 = compare(ref, truncated);
-  check("hiányzó vetítés: outüt", !cmp2.ok && cmp2.missing_projections.length === 1);
+  check("missing projection: caught", !cmp2.ok && cmp2.missing_projections.length === 1);
 
-  // Szerkezeti eltérés: érvényes pontból null → outüt
+  // Structural difference: a valid point turned into null → caught
   const nulled = JSON.parse(JSON.stringify(ref));
   const rot = nulled.projections[7].rotations[0];
   rot.points[rot.points.findIndex(x => Array.isArray(x))] = null;
-  check("pont → null: outüt nagy tűréssel is", !compare(ref, nulled, 1000).ok);
+  check("point → null: caught even with a large tolerance", !compare(ref, nulled, 1000).ok);
 
-  // A régi NaN-ja (JSON-ban [null, null, jelző]) siteén az új szám: javulás.
+  // The old code's NaN (in JSON [null, null, flag]) against a number in the new
+  // one: that is an improvement.
   const oldNaN = JSON.parse(JSON.stringify(ref));
   const ri = oldNaN.projections[9].rotations[0];
   const idx = ri.points.findIndex(x => Array.isArray(x));
   const original = ri.points[idx];
   ri.points[idx] = [null, null, original[2]];
   const cmpImproved = compare(oldNaN, ref);
-  check("régi NaN → új szám: nem bukik el", cmpImproved.ok);
-  check("régi NaN → új szám: javultként számolva", cmpImproved.rows.some(s => s.improved === 1));
+  check("old NaN → new number: does not fail", cmpImproved.ok);
+  check("old NaN → new number: counted as improved", cmpImproved.rows.some(s => s.improved === 1));
 
-  // Fordítva viszont igen: volt koordináta, now_ NaN.
-  check("régi szám → új NaN: outüt", !compare(ref, oldNaN, 1000).ok);
+  // The other way round it does fail: there used to be a coordinate, now NaN.
+  check("old number → new NaN: caught", !compare(ref, oldNaN, 1000).ok);
 
-  console.log(failures === 0 ? "\nÖNTESZT RENDBEN" : `\nÖNTESZT BUKÁS: ${failures}`);
+  console.log(failures === 0 ? "\nSELF-TEST PASSED" : `\nSELF-TEST FAILED: ${failures}`);
   return failures === 0;
 }
 
-// Csak közvetlen futtatáskor lépünk a parancssori ágra: a halo.mjs importálja
-// az compare() függvényt, és ott nem szabad kilépni a folyamatból.
+// We only take the command-line branch when run directly: verify.mjs imports
+// the compare() function, and there it must not exit the process.
 const direct = import.meta.url === `file://${process.argv[1]}`;
 const argv = direct ? process.argv.slice(2) : [];
 if (!direct) {
-  // importálva: nincs teendő
+  // imported: nothing to do
 } else if (argv[0] === "--selftest") {
   process.exit(selfTest(argv[1] || "reference-d3v3.json") ? 0 : 1);
 } else if (argv.length >= 2) {
@@ -225,7 +228,7 @@ if (!direct) {
   print(er);
   process.exit(er.ok ? 0 : 1);
 } else {
-  console.log("használat: node compare.mjs <A.json> <B.json> [--tolerance px]\n" +
-              "           node compare.mjs --selftest [reference.json]");
+  console.log("usage: node compare.mjs <A.json> <B.json> [--tolerance px]\n" +
+              "       node compare.mjs --selftest [reference.json]");
   process.exit(2);
 }

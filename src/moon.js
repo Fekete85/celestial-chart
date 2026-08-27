@@ -506,9 +506,10 @@ var Moon = {
      return dat;
   },
   corr: function(dat, sol) {
-    // A perturbációkat (evekció, variáció, évi egyenlet stb.) az elements()
-    // sorfejtése már tartalmazza, és amúgy is ekliptikai hosszúságra/szélességre
-    // vonatkoznak, nem ra/dec-re. Külön hozzáadva ~1,5° rektaszcenzió-hibát okoztak.
+    // The perturbations (evection, variation, annual equation and so on) are
+    // already accounted for by the series expansion in elements(), and in any
+    // case they apply to ecliptic longitude and latitude, not to ra/dec. Added
+    // separately they produced a right ascension error of about 1.5 degrees.
 
     dat.age = Trig.normalize(dat.l - sol.l + Math.PI);
     dat.phase = 0.5 * (1 - Math.cos(dat.age));

@@ -1,22 +1,22 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — ES-modulként</title>
+<title>d3-celestial — as an ES module</title>
 <link rel="stylesheet" href="../celestial.css">
 <style>body { font: 14px sans-serif; margin: 16px } code { background:#f2f2f2; padding:1px 4px; border-radius:3px }</style>
 </head>
 <body>
-<h1>ES-modulként</h1>
+<h1>As an ES module</h1>
 <p>
-  Ez az oldal <strong>nem</strong> globális <code>Celestial</code>-t használ, hanem
-  <code>import</code>-tal tölti be a <code>build/celestial.mjs</code>-t. Ugyanez az alak megy
-  bundlerbe (webpack, Vite, Rollup) és Node-ba is — ezt oldja meg az upstream #141, #115, #86 és #81.
+  This page does <strong>not</strong> use a global <code>Celestial</code>; it loads
+  <code>build/celestial.mjs</code> with <code>import</code>. The same form works in a bundler
+  (webpack, Vite, Rollup) and in Node too — this is what upstream #141, #115, #86 and #81 are about.
 </p>
 <pre><code>import Celestial from "../build/celestial.mjs";
 Celestial.display({ container: "celestial-map", ... });</code></pre>
 <div id="celestial-map"></div>
-<p id="statusEl">Betöltés…</p>
+<p id="statusEl">Loading…</p>
 
 <script type="module">
 import Celestial from "../build/celestial.mjs";
@@ -36,9 +36,9 @@ Celestial.display({
 });
 
 document.getElementById("statusEl").textContent =
-  "Betöltve modulként. Celestial verzió: " + Celestial.version +
-  " · globális Celestial: " + (typeof window.Celestial) +
-  " · globális d3: " + (typeof window.d3);
+  "Loaded as a module. Celestial version: " + Celestial.version +
+  " · global Celestial: " + (typeof window.Celestial) +
+  " · global d3: " + (typeof window.d3);
 </script>
 </body>
 </html>

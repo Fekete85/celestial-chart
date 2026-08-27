@@ -18,26 +18,26 @@ var ANIMDISTANCE = 0.035,  // Rotation animation threshold, ~2deg in radians
     ANIMINTERVAL_P = 2500, // Projection duration in ms
     ANIMINTERVAL_Z = 1500; // Projection duration in ms
 
-// A legutóbb létrehozott térkép.
+// The most recently created map.
 //
-// A beépített űrlap, a helymeghatározás és az SVG-export ezen keresztül éri el
-// az aktuális állapotot. Egy oldalon egy űrlap van, tehát ez pontosan a régi
-// viselkedés; a térképek rajzolása viszont már példányonként külön állapoton
-// megy, és ettől lehet több független térkép egy oldalon (#96, #131).
+// Kept only for the few places that still need a "current" map. Drawing itself
+// runs entirely on per-instance state, which is what allows several independent
+// maps on one page (upstream #96, #131).
 export var current = null;
 
-// Egy égtérkép-példány.
+// One sky-map instance.
 //
-// A törzs változatlanul az original `Celestial.display` teste: az addig is
-// konstruktorként volt megírva (a végén `this.clip = ...`, `this.rotate = ...`),
-// csak `Celestial`-ként hívva — vagyis a `this` maga a globális objektum volt.
-// Ettől lett egyetlen térkép egy oldalon (upstream #96, #131). Osztályként a
-// felület ugyanaz, de minden hívás saját `this`-t kap.
+// The body is unchanged from the original `Celestial.display`: that was already
+// written as a constructor (it ends with `this.clip = ...`, `this.rotate = ...`),
+// only it was called as `Celestial.display(...)` — so `this` was the global
+// object itself. That is what limited a page to one map (upstream #96, #131).
+// As a class the interface is the same, but every call gets its own `this`.
 export class SkyMap {
-  // config: a szokásos beállítás-objektum
-  // options.standalone: ha igaz, a térkép CSAK az baseértelmezésekből és a got
-  //   configból épül, nem a felhalmozott globális beállításból — több független
-  //   térképhez ez kell. Enélkül a régi viselkedés marad.
+  // config: the usual settings object.
+  // options.standalone: when true the map is built ONLY from the defaults and
+  //   the config passed in, not from the accumulated global settings — this is
+  //   what several independent maps need. Without it the original behaviour
+  //   stands.
   constructor(config, options) {
   var animationID,
       container = null,
@@ -47,23 +47,23 @@ export class SkyMap {
       zoomextent = 10,       // Default maximum extent of zoom (max/min)
       zoomlevel = 1;         // Default zoom level, 1 = 100%
 
-  // Példány-állapot. Korábban modulszintű változók voltak, ezért osztozott
-  // rajtuk minden térkép egy oldalon.
+  // Per-instance state. These used to be module-level variables, which is why
+  // every map on a page shared them.
   var cfg, mapProjection, parentElement, zoom, map, circle, daylight,
       starnames = {}, dsonames = {};
 
   var base = (options && options.standalone) ? settings : undefined;
 
-  // Az alábbi négy változó a rajzolás közben ÚJRA ÉRTÉKET KAP (cfg = cfg.set(…),
+  // The variables below are REASSIGNED during drawing (cfg = cfg.set(...),
   // mapProjection = projectionTween(…), container = …append("container")).
-  // Egyszerű értékadással a példányon a régi érték ragadna be — a
-  // Celestial.mapProjection például egy vetítésváltás urlPathán elavult lenne.
-  // Getterrel mindig a friss belső állapot látszik.
+  // With a plain assignment the instance would keep the stale value — for
+  // example Celestial.mapProjection would be out of date after a projection
+  // change. A getter always exposes the current internal state.
   var instance = this;
 
-  // Elemkeresés a térkép saját szülőelén belül. Korábban a util.js-ben volt,
-  // egy közös "aktuális térkép" mutatón át — két térkép egymás elemeit találta
-  // volna meg.
+  // Element lookup inside this map's own parent element. This used to live in
+  // util.js, reached through a shared "current map" pointer — so two maps would
+  // have found each other's elements.
   function $(id) { return document.querySelector(parentElement + " #" + id); }
   ["cfg", "mapProjection", "container", "map", "parentElement", "starnames", "dsonames"]
     .forEach(function (name_) {
@@ -126,12 +126,12 @@ export class SkyMap {
      
   if (parentElement !== "body") parent.style.height = px(canvasheight);
   
-  // A térkép saját űrlapfelülete. Példányonként külön, hogy két interaktív
-  // térkép egy oldalon ne egymás mezőit írja.
+  // This map's own settings-form interface. One per instance, so that two
+  // interactive maps on a page do not write each other's fields.
   //
-  // Már itt létre kell jönnie: a zoom beállítása (lentebb) azonnal kivált egy
-  // redraw()-t, az pedig hívja az formApi.setCenter()-t. Maguk a mezőreqések
-  // védve vannak a hiányzó űrlap ellen, de az objektumnak léteznie kell.
+  // It has to exist this early: setting up the zoom (below) immediately triggers
+  // a redraw(), which calls formApi.setCenter(). The field lookups themselves
+  // are guarded against a missing form, but the object must be there.
   var formApi = form(this);
   this.form = formApi;
 
@@ -155,8 +155,8 @@ export class SkyMap {
   map = d3.geoPath().projection(mapProjection).context(context);
    
   //parent div with id #celestial-map or body
-  // A tárolót a SAJÁT szülőn belül keressük meg. Korábban a globális
-  // Celestial.container-t vette át, ezért egy második térkép az elsőébe
+  // Look for the container inside THIS map's parent. It used to take over the
+  // global Celestial.container, so a second map would have drawn into the
   // rajzolt volna (#96, #131).
   container = d3.select(parentElement).select("container");
   if (container.empty()) container = d3.select(parentElement).append("container");
@@ -171,10 +171,10 @@ export class SkyMap {
 
   setClip(projectionSetting.clip);
 
-  // A v7-ben a listener első paramétere az eseményobjektum, a v3-ban a datum
-  // (itt undefined) volt. Közvetlenül átadva a resize(set) „nem változott,
-  // ne csinálj semmit" védőága soha nem lépne életbe, és minden átméretezési
-  // esemény backállítaná a felhasználó nagyítását.
+  // In v7 the listener's first argument is the event object; in v3 it was the
+  // datum (undefined here). Passed straight through, the "nothing changed, do
+  // nothing" guard in resize(set) would never fire, and every resize event
+  // would reset the user's zoom level.
   d3.select(window).on('resize', function () { resize(); });
 
   if (cfg.interactive === true && cfg.controls === true && $("celestial-zoomin") === null) {
@@ -417,10 +417,11 @@ export class SkyMap {
     // Orientation interpolator
     if (o === 0) oTween = function () { return rot[2]; };
     else oTween = interpolateAngle(cFrom[2], cfg.center[2]);
-    // A Round(d,2) legfeljebb 3.14 lehet (π kerekítve), ezért a korábbi
-    // "d > 3.14" condétel soha nem fullült — a védőág pont abban az egyetlen
-    // esetben nem tüzelt, amiért megírták. A kiindulópontot bökjük meg, nem a
-    // célt: így a végpont bitre pontos marad és ismételt hívásnál sem halmozódik. (#157)
+    // Round(d, 2) can be at most 3.14 (pi rounded), so the original condition
+    // "d > 3.14" was never satisfied — the guard failed to fire in precisely the
+    // one case it was written for. Nudge the starting point rather than the
+    // target: that keeps the endpoint exact and does not accumulate over
+    // repeated calls. (upstream #157)
     if (d >= 3.14) cFrom = [cFrom[0] + 0.01, cFrom[1], cFrom[2]]; //180deg turn is ambiguous
     cfg.orientationfixed = false;  
     // Rotation interpolator
@@ -794,30 +795,32 @@ export class SkyMap {
     return projectionSetting.clip && d3.geoDistance(cfg.center, coords) > halfπ ? 0 : 1;
   }
 
-  // A d3-geo bizonyos forgatásoknál a Tejút poligonjának KOMPLEMENTERÉT tölti out:
-  // a térkép beszürkül, a Tejút feketén látszik. Jellemzően akkor, amikor a sáv a
-  // korong pereme felé kerül. A gömbi poligon belsejének eldöntése ott numerikusan
-  // törékeny — az ol1 körvonal vékony héj: 1,697π területű külső gyűrű, benne egy
-  // 1,623π-s lyuk, a kettő különbsége a 0,069π-nyi Tejút-sáv.
+  // At some rotations d3-geo fills the COMPLEMENT of the Milky Way polygon: the
+  // map greys out and the Milky Way shows black. Typically when the band moves
+  // towards the rim of the disc. Deciding the interior of a spherical polygon is
+  // numerically fragile there — the ol1 outline is a thin shell: an outer ring of
+  // area 1.697*pi containing a hole of 1.623*pi, the difference between them
+  // being the 0.069*pi Milky Way band.
   //
-  // Van viszont egy pont, amelyről biztosan tudjuk a helyes választ: a galaktikus
-  // pólus. A Tejút körvonalai a galaktikus egyenlítő körüli sávok, a pólus
-  // mindegyiken KÍVÜL esik — a komplementerükön (mwbg) pedig BELÜL. A két pólus
-  // antipodális, tehát vágott vetítésnél is pontosan az egyik látszik.
+  // There is however one point whose correct answer we know for certain: the
+  // galactic pole. The Milky Way outlines are bands around the galactic equator,
+  // so the pole lies OUTSIDE every one of them — and INSIDE their complement
+  // (mwbg). The two poles are antipodal, so with a clipped projection exactly
+  // one of them is visible.
   //
-  // A már felépített útvonalat kérdezzük meg (isPointInPath), és ha az ítélet
-  // ellentmond a tudottnak, a megfordított gyűrűkkel rajzoljuk újra.
+  // We ask the already-built path (isPointInPath), and when its verdict
+  // contradicts what we know, we redraw with the rings reversed.
   function galacticPole() {
     var p = transformDeg(poles.galactic, euler[cfg.transform]);
-    if (!clip(p)) p = [p[0] + 180, -p[1]];   // a másik pólus látszik
+    if (!clip(p)) p = [p[0] + 180, -p[1]];   // the other pole is the visible one
     return mapProjection(p);
   }
 
   function wrongWinding(expected) {
     var pt = galacticPole();
     if (!pt || !isFinite(pt[0]) || !isFinite(pt[1])) return false;
-    // Az isPointInPath eszközkoordinátában várja a pontot, a kontextuson viszont
-    // setTransform(pixelRatio, ...) van — ezért kell a szorzás.
+    // isPointInPath expects the point in device coordinates, while the context
+    // has setTransform(pixelRatio, ...) applied — hence the multiplication.
     return context.isPointInPath(pt[0] * pixelRatio, pt[1] * pixelRatio) !== expected;
   }
 
@@ -1014,10 +1017,10 @@ export class SkyMap {
     var w = 0;
     if (isNumber(cfg.width) && cfg.width > 0) w = cfg.width;
     else if (parent) w = parent.getBoundingClientRect().width - margin[0] *2;
-    // Nincs konténer-el: a térkép a body-ba kerül, tehát a body szélessége a
-    // mérvadó. Eredetileg window.getBoundingClientRect() állt itt, ami nem
-    // létező metódus — konténer és megadott szélesség nélkül a térkép meg sem
-    // jelent, kivétellel elszállt a display().
+    // No container element: the map goes into the body, so the body's width is
+    // what counts. This originally read window.getBoundingClientRect(), which is
+    // not a method that exists — with neither a container nor an explicit width
+    // the map did not render at all, display() threw.
     else w = document.body.getBoundingClientRect().width - margin[0]*2;
     //if (isNumber(cfg.background.width)) w -= cfg.background.width;
     return w;
@@ -1060,9 +1063,9 @@ export class SkyMap {
   //
   this.clip = clip;
   this.context = context;
-  // A saját térképét exportálja. Közvetlenül a modulfüggvényt hívja, nem a
-  // Celestial.exportSVG-t: a visszafelé kompatibilis felület ezt a metódust
-  // másolja magára, tehát azon keresztül önmagát hívná.
+  // Exports this map. It calls the module function directly rather than
+  // Celestial.exportSVG: the backwards-compatible interface copies this very
+  // method onto itself, so going through it would recurse.
   this.exportSVG = function (callback) { return exportSVG(instance, callback); };
   this.metrics = function() {
     return {"width": width, "height": height, "margin": margin, "scale": mapProjection.scale()};
@@ -1134,15 +1137,17 @@ export class SkyMap {
   }
 }
 
-// Visszafelé kompatibilis felület.
+// Backwards-compatible interface.
 //
-// A `Celestial.display(config)` ugyanúgy viselkedik, mint eddig: létrehoz egy
-// példányt, és annak a felületét kiteríti magára. A különbség, hogy a példány
-// now_ back is kapható — `var sky = Celestial.display(cfg)` —, és ezzel
-// több térkép is kezelhető egy oldalon.
-// Két név a betöltés UTÁN kap értétwo (a csillagképlista, illetve a kiválasztott
-// csillagkép), amikor a globális felület már lemásolódott. Ezekre továbbító
-// hozzáférés kerül, hogy a Celestial.constellations a régi módon működjön.
+// `Celestial.display(config)` behaves exactly as before: it creates an instance
+// and spreads that instance's interface onto itself. The difference is that the
+// instance is now also returned — `var sky = Celestial.display(cfg)` — which is
+// how several maps on one page become possible.
+//
+// Two names receive their value AFTER loading (the constellation list, and the
+// selected constellation), by which time the global interface has already been
+// copied. Those two get forwarding accessors, so that Celestial.constellations
+// keeps working the way it used to.
 ["constellations", "constellation"].forEach(function (name_) {
   Object.defineProperty(Celestial, name_, {
     get: function () { return current ? current[name_] : undefined; },
@@ -1153,20 +1158,20 @@ export class SkyMap {
 
 Celestial.display = function (config) {
   var instance = new SkyMap(config);
-  // Tulajdonság-leírókkal másolunk, nem értékkel: a példányon több tulajdonság
-  // getter (cfg, mapProjection, container, …), és értékmásolás esetén a
-  // Celestial.mapProjection egy vetítésváltás urlPathán elavulna.
+  // Copy property descriptors rather than values: several properties on the
+  // instance are getters (cfg, mapProjection, container and so on), and copying
+  // by value would leave Celestial.mapProjection stale after a projection change.
   Object.defineProperties(instance, {});
   var descriptors = Object.getOwnPropertyDescriptors(instance);
   for (var key_ in descriptors) {
-    // a továbbító hozzáféréssel ellátott neveket nem írjuk felül
+    // do not overwrite the names that have forwarding accessors
     if (key_ === "constructor" || key_ === "constellations" || key_ === "constellation") continue;
     Object.defineProperty(Celestial, key_, descriptors[key_]);
   }
   return instance;
 };
  
-// A CommonJS-export siteét a build vette át: a build/celestial.cjs és a
-// build/celestial.mjs a beágyazó igénye szerinti alakban adja out a Celestialt.
+// The CommonJS export has been taken over by the build: build/celestial.cjs and
+// build/celestial.mjs expose Celestial in whichever form the host needs.
 
 export { Celestial };

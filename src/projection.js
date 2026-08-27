@@ -1,5 +1,6 @@
-// A vetítések raw_ függvényeit névből oldjuk fel, ezért itt névtérként kell a
-// két pkg — ez az egyetlen site a könyvtárban, ahol dinamikus a hozzáférés.
+// The projections' raw functions are resolved by name, so the two packages are
+// imported as namespaces here — this is the only place in the library where the
+// access is dynamic.
 import * as d3geo from "d3-geo";
 import * as d3geoproj from "d3-geo-projection";
 import * as d3 from "./d3.js";
@@ -7,24 +8,24 @@ import { projections } from "./config.js";
 import { Celestial } from "./core.js";
 import { has } from "./util.js";
 
-// A d3 v3 a `d3.geo.<name_>.raw` alakot használta; a v7-ben ez `d3.geo<Nev>Raw`,
-// és néhány vetítés át is lett nevezve. A kivételek itt vannak felsorolva —
-// ami nem szerepel a táblában, azt a névkonvenció adja.
+// d3 v3 used the form `d3.geo.<name>.raw`; in v7 that is `d3.geo<Name>Raw`, and
+// a few projections were renamed as well. The exceptions are listed here —
+// anything not in the table follows the naming convention.
 var RAW_RENAMES = {
   "naturalEarth": "geoNaturalEarth1Raw"   // a v3 plugin Natural Earth I-et adott
 };
 
-// Néhány vetítés raw függvénye másképp értelmezi a paraméterét a v4-ben.
-// A config.js értékei a v3-hoz vannak kalibrálva, ezért itt igazítjuk őtwo.
+// A few projections' raw functions interpret their argument differently in v4.
+// The values in config.js are calibrated for v3, so they are adapted here.
 var ARG_ADAPT = {
-  // A v4-es twoPointEquidistantRaw első dolga: `z0 *= 2`. A v3 közvetlenül
-  // használta, tehát felezni kell, hogy ugyanaz a vetítés jöjjön out.
+  // The first thing v4's twoPointEquidistantRaw does is `z0 *= 2`. v3 used the
+  // argument directly, so it has to be halved to get the same projection.
   "twoPointEquidistant": function (z) { return z / 2; }
 };
 
-// A d3-geo-projection v4-ből két vetítés raw függvénye kimaradt, pedig a v3-as
-// pluginban megvolt. A képletek innen származnak, változtatás nélkül — a
-// test/projections.test.mjs a v3-as kimenethez méri őtwo, 1e-10 tűréssel.
+// Two projections lost their raw function in d3-geo-projection v4, although the
+// v3 plugin had them. The formulas are taken from there unchanged — and
+// test/projections.test.mjs measures them against the v3 output to 1e-10.
 var LOCAL_RAW = {
   "hatano": (function () {
     var eps = 1e-6, halfPi = Math.PI / 2;
@@ -45,11 +46,11 @@ var LOCAL_RAW = {
     };
     return hatano;
   })(),
-  // A v4-es healpixRaw ÁTSKÁLÁZTA a vetítést (a v3 `point[0] /= 2`-t csinált,
-  // a v4 `point[0] *= 4/τ` és `point[1] /= h`), ráadásul x-re és y-ra
-  // különbözőképp — vagyis az oldalarány is más. A config.js scale/ratio
-  // értékei a v3-hoz vannak kalibrálva, ezért a v3-as változatot visszük
-  // tovább. A Collignon és a hengeres egyenlő területű vetítés a v4-ből jön.
+  // v4's healpixRaw RESCALED the projection (v3 did `point[0] /= 2`, v4 does
+  // `point[0] *= 4/tau` and `point[1] /= h`) — and differently for x and y, so
+  // the aspect ratio changed too. The scale/ratio values in config.js are
+  // calibrated for v3, so the v3 version is carried forward. Collignon and the
+  // cylindrical equal-area projection come from v4.
   "healpix": function (h) {
     var lambert = d3geoproj.geoCylindricalEqualAreaRaw(0),
         collignon = d3geoproj.geoCollignonRaw,
@@ -113,8 +114,9 @@ var LOCAL_RAW = {
   })()
 };
 
-// A vetítés raw_ függvényének feloldása névből, a paraméter-átváltással
-// együtt. Kiadva, mert a tesztek a pinelt v3-as kimenethez ehhez mérnek.
+// Resolves a projection's raw function from its name, including the argument
+// adaptation. Exported because the tests measure this against the pinned v3
+// output.
 function rawProjection(name_, arg) {
   var raw = has(LOCAL_RAW, name_) ? LOCAL_RAW[name_]
           : (function () {
@@ -135,14 +137,15 @@ Celestial.projection = function(projection) {
   raw = rawProjection(projection, p.arg);
   if (!raw) { throw new Error("Projection not supported: " + projection); }
 
-  // Az égboltot tükrözve nézzük: kívülről befelé, nem belülről kifelé. Ezt a
-  // v3-as kód a raw függvény becsomagolásával oldotta meg — `raw(-λ, φ)` —, és
+  // We look at the sky mirrored: from the outside in, not from the inside out.
+  // The v3 code did this by wrapping the raw function — `raw(-lambda, phi)` — and
   // ezt tartjuk meg.
   //
-  // A v7 reflectX(true)-ja kézenfekvőbb volna, és 65 vetítésre pontosan ugyanazt
-  // adja. De nem mindre: a `wiechel`-nél 795 pixellel tér el, mert ott a λ
-  // előjele a képlet BELSEJÉBEN is számít (`atan2(sin λ · cos φ, −sin φ)`), nem
-  // csak a végeredmény x-koordinátájában. A becsomagolás ettől független.
+  // v7's reflectX(true) would be the obvious choice, and for 65 projections it
+  // gives exactly the same result. But not for all of them: for `wiechel` it
+  // differs by 795 pixels, because there the sign of lambda matters INSIDE the
+  // formula too (`atan2(sin lambda * cos phi, -sin phi)`), not only in the
+  // x coordinate of the result. Wrapping is unaffected by this.
   forward = function (l, f) { return raw(-l, f); };
   forward.invert = function (x, y) {
     var coord = raw.invert && raw.invert(x, y);

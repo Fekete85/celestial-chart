@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — reference-generátor (D3 v7)</title>
+<title>d3-celestial — reference generator (D3 v7)</title>
 <style>
   body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
          margin: 24px; max-width: 900px; background: #0f1420; color: #e7ebf6; }
@@ -15,21 +15,22 @@
 </style>
 </head>
 <body>
-<h1>d3-celestial — reference-generátor (migrált build)</h1>
+<h1>d3-celestial — reference generator (migrated build)</h1>
 <p>
-  Ez az oldal a <strong>jelenlegi (D3 v3-as) verzió</strong> vetítési outputét rögzíti, hogy
-  legyen mihez hasonlítani a migráció urlPathán. A vetítés determinisztikus függvény:
-  <code>(RA, Dec, vetítés, forgatás, zoom) → (x, y)</code>, tehát pontosan összevethető.
+  This page records the projection output of the <strong>current (D3 v3) version</strong>, so
+  that there is something to compare against along the way of the migration. A projection is a
+  deterministic function: <code>(RA, Dec, projection, rotation, zoom) → (x, y)</code>, so it can
+  be compared exactly.
 </p>
-<p id="statusEl">Betöltés…</p>
+<p id="statusEl">Loading…</p>
 <p>
-  <button id="letolt" disabled>Referencia mentése JSON-ba</button>
+  <button id="letolt" disabled>Save the reference as JSON</button>
   <span id="letolt-info"></span>
 </p>
 <div id="celestial-map"></div>
 <pre id="output"></pre>
 
-<!-- A build magában hordozza a D3-at: nincs szükség külön script-tagre. -->
+<!-- The build carries D3 inside it: no separate script tag is needed. -->
 <script src="../build/celestial.js"></script>
 <script src="reference.js?v=1787839003"></script>
 </body>

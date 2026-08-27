@@ -1,17 +1,18 @@
-# Dokumentáció
+# Documentation
 
-A `celestial-chart` a [d3-celestial](https://github.com/ofrohn/d3-celestial) modernizált
-forkja. A könyvtár használatát a gyökér [`README.md`](../README.md) írja le; itt a
-munka dokumentációja van, magyarul.
+`celestial-chart` is a modernised fork of
+[d3-celestial](https://github.com/ofrohn/d3-celestial). How to use the library is
+described in the root [`README.md`](../README.md); what lives here is the
+documentation of the work itself.
 
 | | |
 |---|---|
-| [`00-feasibility.md`](00-feasibility.md) | A kiindulópont: megéri-e átvenni a könyvtárat, és hogyan mérhető a migráció |
-| [`01-codebase.md`](01-codebase.md) | A kódbázis felmérése: 5669 sor, 16 modul, D3-függés szerint bontva |
-| [`02-migration.md`](02-migration.md) | A migráció terve, kockázat szerint |
-| [`03-issues.md`](03-issues.md) | Az upstream 42 nyitott issue-jának átnézése |
-| [`04-migration-log.md`](04-migration-log.md) | **A munka naplója**: mit mértünk, mit javítottunk, min bukott el az első próbálkozás |
-| [`kepek/`](kepek/) | A vizuális összevetés rögzített képei (`d3v3-*` és `d3v7-*`) |
+| [`00-feasibility.md`](00-feasibility.md) | The starting point: is the library worth taking over, and how can the migration be measured |
+| [`01-codebase.md`](01-codebase.md) | Survey of the codebase: 5669 lines, 16 modules, broken down by D3 dependency |
+| [`02-migration.md`](02-migration.md) | The migration plan, ordered by risk |
+| [`03-issues.md`](03-issues.md) | Triage of the 42 open upstream issues |
+| [`04-migration-log.md`](04-migration-log.md) | **The work log**: what was measured, what was fixed, and where the first attempt failed |
+| [`images/`](images/) | The captured images of the visual comparison (`d3v3-*` and `d3v7-*`) |
 
-A méréshez tartozó eszközök a [`harness/`](../harness/) mappában vannak, saját
-[README](../harness/README.md)-vel.
+The tools behind the measurements live in the [`harness/`](../harness/) folder,
+with its own [README](../harness/README.md).

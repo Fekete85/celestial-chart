@@ -23,8 +23,8 @@ function getData(d, trans) {
   return d;
 }
 
-// A példányt is megkapja: a bolygólista és a rácsértékek a térkép saját
-// konfigurációjától függnek, nem egy közös "aktuális térképétől".
+// These also receive the map instance: the planet list and the grid values
+// depend on that map's own configuration, not on a shared "current map".
 function getPlanets(d, sky) {
   var res = [];
   

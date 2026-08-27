@@ -1,11 +1,12 @@
-/* A d3-geo-projection v4-ből kimaradt vetítések pótlása.
+/* Replacing the projections that were dropped from d3-geo-projection v4.
  *
- * A `hatano` és a `wagner7` a v3-as pluginban megvolt, a v4-ben nincs kiadott
- * raw függvényük. A pótlás a v3-as képletek szó szerinti átvétele — a teszt
- * ezt bizonyítja: a pinelt v3-as buildből kimért értékekhez mérünk.
+ * `hatano` and `wagner7` were there in the v3 plugin, in v4 they have no
+ * exported raw function. The replacement is a verbatim carry-over of the v3
+ * formulas — and this test is what proves it: we measure against values taken
+ * from the pinned v3 build.
  *
- * A referenceértékek a böngészőben, a `harness/vendor/` alatti pinelt
- * plugintól származnak (test/projection-reference-d3v3.json).
+ * The reference values come from the pinned plugin under `harness/vendor/`,
+ * measured in the browser (test/projection-reference-d3v3.json).
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,26 +21,27 @@ const D3 = Object.assign({}, d3, gp);
 
 const TOLERANCE = 1e-10;
 
-// A twoPointEquidistant kivétel: a v4-es raw első dolga `z0 *= 2`, ezért mi
-// felezve adjuk át a config értékét. Az oda-back út ~1e-9 lebegőpontos zajt
-// hagy — a reference-háló ugyanezen a vetítésen 0,000 pixel eltérést mér.
+// twoPointEquidistant is the exception: the first thing the v4 raw does is
+// `z0 *= 2`, which is why we pass the config value halved. The round trip leaves
+// ~1e-9 of floating-point noise — on this very projection the reference net
+// measures a 0.000 pixel difference.
 const SPECIAL_TOLERANCE = { twoPointEquidistant: 1e-8 };
 const rad = f => f * Math.PI / 180;
 
-/* A könyvtár saját feloldóját hívjuk — ugyanazt, amit a Celestial.projection().
- * Így a teszt a névfeloldást, a pótolt raw-okat és a paraméter-átváltást is
- * fedi, nem csak a képleteket. */
+/* We call the library's own resolver — the same one Celestial.projection() uses.
+ * That way the test covers the name resolution, the replacement raws and the
+ * parameter conversion as well, not just the formulas. */
 const ARG = { hatano: null, wagner7: null, mercator: null, wiechel: null,
               healpix: 1, twoPointEquidistant: Math.PI / 2 };
 
 function raw(name_) {
   const r = rawProjection(name_, ARG[name_]);
-  assert.ok(typeof r === "function", name_ + ": nincs raw");
+  assert.ok(typeof r === "function", name_ + ": no raw");
   return r;
 }
 
 for (const name_ of Object.keys(ref.projections)) {
-  test(`${name_}: a vetített koordináták megegyeznek a v3-as kimenettel`, () => {
+  test(`${name_}: the projected coordinates match the v3 output`, () => {
     const p = raw(name_);
     const expected = ref.projections[name_].forward;
     const rad = f => f * Math.PI / 180;
@@ -47,22 +49,22 @@ for (const name_ of Object.keys(ref.projections)) {
     ref.points.forEach(([lo, la], i) => {
       const got = p(rad(lo), rad(la));
       const d = Math.max(Math.abs(got[0] - expected[i][0]), Math.abs(got[1] - expected[i][1]));
-      if (d > maxDelta) { maxDelta = d; bad = `[${lo},${la}] v3=${expected[i]} newer=${got}`; }
+      if (d > maxDelta) { maxDelta = d; bad = `[${lo},${la}] v3=${expected[i]} new=${got}`; }
     });
     const tolerance = SPECIAL_TOLERANCE[name_] || TOLERANCE;
-    assert.ok(maxDelta < tolerance, `max eltérés ${maxDelta} (tűrés ${tolerance}), pl. ${bad}`);
+    assert.ok(maxDelta < tolerance, `max difference ${maxDelta} (tolerance ${tolerance}), e.g. ${bad}`);
   });
 }
 
-test("a pótolt vetítések valóban felépülnek", () => {
+test("the replaced projections really do build", () => {
   for (const name_ of ["hatano", "wagner7", "healpix"]) {
     const prj = Celestial.projection(name_);
-    assert.equal(typeof prj, "function", name_ + " nem épült fel");
-    assert.ok(Number.isFinite(prj([10, 20])[0]), name_ + " nem ad számot");
+    assert.equal(typeof prj, "function", name_ + " did not build");
+    assert.ok(Number.isFinite(prj([10, 20])[0]), name_ + " does not return a number");
   }
 });
 
-test("az inverse_ visszaadja a kiindulási pontot", () => {
+test("the inverse gives back the starting point", () => {
   for (const name_ of ["hatano", "wagner7", "healpix", "wiechel"]) {
     const prj = Celestial.projection(name_);
     for (const [lo, la] of [[0, 0], [45, 30], [-120, -60], [170, 10]]) {
@@ -73,27 +75,27 @@ test("az inverse_ visszaadja a kiindulási pontot", () => {
   }
 });
 
-test("a d3-geo-projection v4-ben tényleg nincs raw ezekhez", () => {
-  // Ha egy jövőbeli verzió pótolja őtwo, ez a teszt szól, hogy a saját
-  // másolatunk elhagyható.
-  assert.equal(D3.geoHatanoRaw, undefined, "a geoHatanoRaw megjelent — a pótlás elhagyható");
-  assert.equal(D3.geoWagner7Raw, undefined, "a geoWagner7Raw megjelent — a pótlás elhagyható");
+test("d3-geo-projection v4 really has no raw for these", () => {
+  // If a future version supplies them, this test speaks up to say that our own
+  // copy can be dropped.
+  assert.equal(D3.geoHatanoRaw, undefined, "geoHatanoRaw has appeared — the replacement can be dropped");
+  assert.equal(D3.geoWagner7Raw, undefined, "geoWagner7Raw has appeared — the replacement can be dropped");
 });
 
-test("a v4-es healpix tényleg más léptékű — ezért van saját másolatunk", () => {
-  // Ha egy jövőbeli verzió backáll a v3-as normálásra, ez a teszt szól.
+test("the v4 healpix really is at a different scale — that is why we keep our own copy", () => {
+  // If a future version reverts to the v3 normalisation, this test speaks up.
   const v4 = D3.geoHealpixRaw(1);
   const ours = Celestial.projection("healpix").scale(1).translate([0, 0]);
   const p4 = v4(0.5, 0.3);
   const pm = ours([0.5 * 180 / Math.PI, 0.3 * 180 / Math.PI]);
   assert.ok(Math.abs(Math.abs(pm[0]) - Math.abs(p4[0])) > 1e-6,
-    "a v4-es healpix már ugyanazt adja — a saját másolat elhagyható");
+    "the v4 healpix now gives the same result — our own copy can be dropped");
 });
 
-test("a reflectX nem helyettesíti a raw-becsomagolást minden vetítésnél", () => {
-  // Ez a döntés indoklása: a wiechelnél a λ előjele a képlet belsejében is
-  // számít, ezért a v3-hű becsomagolást tartjuk meg. Ha ez a teszt elbukik,
-  // a reflectX-re át lehet állni.
+test("reflectX does not replace the raw wrapping for every projection", () => {
+  // This is the justification of the decision: for wiechel the sign of λ matters
+  // inside the formula as well, so we keep the v3-faithful wrapping. If this
+  // test fails, we can switch over to reflectX.
   const raw = D3.geoWiechelRaw;
   const wrapped = d3.geoProjection((l, f) => raw(-l, f)).scale(200).translate([400, 400]);
   const reflected = d3.geoProjection(raw).scale(200).translate([400, 400]).reflectX(true);
@@ -103,5 +105,5 @@ test("a reflectX nem helyettesíti a raw-becsomagolást minden vetítésnél", (
     if (!a || !b) continue;
     max = Math.max(max, Math.hypot(a[0] - b[0], a[1] - b[1]));
   }
-  assert.ok(max > 1, `a wiechelnél a kettő már megegyezik (max ${max}) — a reflectX egyszerűsítés lehetne`);
+  assert.ok(max > 1, `for wiechel the two now agree (max ${max}) — reflectX could be the simplification`);
 });

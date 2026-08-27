@@ -1,6 +1,6 @@
 upstream/
 node_modules/
-harness/referencia-*.json.tmp
+harness/reference-*.json.tmp
 .DS_Store
 build/
-demo/export-proba.svg
+demo/*.svg

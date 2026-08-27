@@ -1,4 +1,4 @@
-name: ellenőrzés
+name: verify
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  ellenoriz:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,36 +18,36 @@ jobs:
 
       - run: npm ci
 
-      # A böngészős ellenőrzés headless Chromiumot használ. Helyben a rendszer
-      # Chrome-ját (nincs letöltés), CI-ben a Playwright sajátját.
+      # The browser checks run headless Chromium. Locally that is the system
+      # Chrome (no download); in CI it is Playwright's own.
       - run: npx playwright install --with-deps chromium
 
-      - name: build + tesztek + típusellenőrzés + referencia-háló + vizuális összevetés + füstpróba
-        run: npm run ellenoriz
+      - name: build + tests + types + reference net + visual comparison + smoke test
+        run: npm run verify
 
-      # A háló és a képek a futás során újragenerálódnak. Ha bármelyik
-      # megváltozott, az érdemi eltérés — a diffet fel kell tölteni.
-      - name: eltérés esetén a friss mérések feltöltése
+      # The reference net and the screenshots are regenerated during the run.
+      # Any change is a real difference, so upload the fresh measurements.
+      - name: upload the fresh measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: meresek
+          name: measurements
           path: |
-            harness/referencia-d3v3.json
-            harness/referencia-d3v7.json
-            docs/kepek/*.png
+            harness/reference-d3v3.json
+            harness/reference-d3v7.json
+            docs/images/*.png
           if-no-files-found: ignore
 
-      - name: a csomag telepíthető és importálható
+      - name: the package installs and imports
         run: |
           npm pack
-          mkdir -p /tmp/proba && cd /tmp/proba && npm init -y >/dev/null
+          mkdir -p /tmp/pkg-check && cd /tmp/pkg-check && npm init -y >/dev/null
           npm i --no-audit --no-fund "$GITHUB_WORKSPACE"/celestial-chart-*.tgz
-          node --input-type=module -e 'const m = await import("celestial-chart"); if (typeof m.default !== "object" || typeof m.Egbolt !== "function") { console.error("ESM import hibás"); process.exit(1) } console.log("ESM ok, verzió:", m.default.version)'
-          node -e 'const m = require("celestial-chart"); if (!(m.default || m.Celestial)) { console.error("CJS require hibás"); process.exit(1) } console.log("CJS ok")'
+          node --input-type=module -e 'const m = await import("celestial-chart"); if (typeof m.default !== "object" || typeof m.SkyMap !== "function") { console.error("ESM import failed"); process.exit(1) } console.log("ESM ok, version:", m.default.version)'
+          node -e 'const m = require("celestial-chart"); if (!(m.default || m.Celestial)) { console.error("CJS require failed"); process.exit(1) } console.log("CJS ok")'
 
-      - name: a mérések nem térhetnek el a rögzítettektől
+      - name: the measurements must match the recorded ones
         run: |
-          git diff --stat -- harness/referencia-*.json docs/kepek/
-          git diff --quiet -- harness/referencia-*.json docs/kepek/ \
-            || (echo "A rögzített mérések eltérnek a friss futástól — nézd meg a feltöltött artifactot." && exit 1)
+          git diff --stat -- harness/reference-*.json docs/images/
+          git diff --quiet -- harness/reference-*.json docs/images/ \
+            || (echo "The recorded measurements differ from this run — see the uploaded artifact." && exit 1)

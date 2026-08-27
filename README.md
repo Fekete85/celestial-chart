@@ -53,10 +53,10 @@ one map ([#96](https://github.com/ofrohn/d3-celestial/issues/96),
 owns its state — including its own settings form:
 
 ```js
-import { Egbolt } from "celestial-chart";
+import { SkyMap } from "celestial-chart";
 
-const a = new Egbolt({ container: "map-a", projection: "orthographic" }, { onallo: true });
-const b = new Egbolt({ container: "map-b", projection: "mollweide" },   { onallo: true });
+const a = new SkyMap({ container: "map-a", projection: "orthographic" }, { standalone: true });
+const b = new SkyMap({ container: "map-b", projection: "mollweide" },   { standalone: true });
 ```
 
 **TypeScript types ship with the package.** Projection and coordinate-system
@@ -105,7 +105,7 @@ itself too: it fails if two projections — or two rotations — produce the sam
 output, because a net that measures nothing passes everything.
 
 ```bash
-npm run ellenoriz    # build + 60 unit tests + types + 27 browser assertions, ~2 min
+npm run verify    # build + 66 unit tests + types + 27 browser assertions, ~2 min
 ```
 
 The browser run regenerates both references, compares them, captures 12 screenshots

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — vizuális baseállapot (D3 v7)</title>
+<title>d3-celestial — visual baseline (D3 v7)</title>
 <style>
   body { margin: 0; background: #000; }
   #celestial-map { width: 800px; height: 800px; }
@@ -11,31 +11,32 @@
 <body>
 <div id="celestial-map"></div>
 
-<!-- A build magában hordozza a D3-at: nincs szükség külön script-tagre. -->
+<!-- The build carries D3 inside it: no separate script tag is needed. -->
 <script src="../build/celestial.js"></script>
 <script>
-/* Vizuális baseállapot: a reference-háló számokat rögzít, ez képet.
- * A migráció urlPathán ugyanezekkel a beállításokkal kell újra lefényképezni. */
-var ALAP = {
+/* Visual baseline: the reference net records numbers, this one records images.
+ * Along the way of the migration the same settings have to be photographed again. */
+var BASE = {
   container: "celestial-map",
   width: 800,
   transform: "equatorial",
   interactive: false,
   form: false,
   controls: false,
-  // A képeknek reprodukálhatónak kell lenniük: animáció közben fényképezve
-  // két runningás nem összevethető.
+  // The images have to be reproducible: photographed mid-animation, two runs
+  // are not comparable.
   disableAnimations: true,
-  // Enélkül minden redraw() újra beállítja a forgatást (celestial.js:467), és a
-  // d3 fok->radián->fok oda-back váltása képkockánként ezred fokot csúsztat.
-  // Mivel a redraw-k szátoday_ az adatbetöltés ütemezésétől függ, két same runningás
-  // szubpixellel eltérő képet adna — összehasonlíthatatlanul.
+  // Without this, every redraw() sets the rotation again (celestial.js:467), and
+  // d3's degree->radian->degree round trip drifts by a thousandth of a degree per
+  // frame. Since the number of redraws depends on the timing of the data loading,
+  // two identical runs would give images differing by a subpixel — incomparably.
   orientationfixed: false,
-  // Az első display() meghívja a location.js geo() függvényét, ami az AKTUÁLIS
-  // időből származtat középpontot — enélkül két runningás képe szubpixellel eltér,
-  // mert közben telt az idő. Rögzített dátummal a kép reprodukálható.
+  // The first display() calls the geo() function of location.js, which derives a
+  // centre from the CURRENT time — without this the images of two runs differ by a
+  // subpixel, because time passed in between. With a fixed date the image is
+  // reproducible.
   date: new Date(Date.UTC(2026, 7, 26, 20, 0, 0)),
-  // Alapból a térkép a megfigyelő zenitjét követi, ami az aktuális időtől függ.
+  // By default the map follows the observer's zenith, which depends on the current time.
   follow: "center",
   location: false,
   datapath: "./data/",
@@ -52,34 +53,34 @@ var ALAP = {
 };
 
 window.done = false;
-window.valt = function (projekcio, kozeppont, extra) {
+window.show = function (projection_, centerPoint, extra) {
   window.done = false;
   var c = {};
-  for (var k in ALAP) { c[k] = ALAP[k]; }
-  c.projection = projekcio;
-  // Mindig explicit középpont: a null nem állítja back az előzőt, és az
-  // egymás urlPatháni hívások átszivárogtatnák az állapotot a következő képre.
-  c.center = kozeppont || [0, 0, 0];
+  for (var k in BASE) { c[k] = BASE[k]; }
+  c.projection = projection_;
+  // Always an explicit centre: null does not reset the previous one, and
+  // consecutive calls would leak the state into the next image.
+  c.center = centerPoint || [0, 0, 0];
   if (extra) { for (var e in extra) { c[e] = extra[e]; } }
   c.callback = function () { window.done = true; };
   Celestial.display(c);
 };
-// Nézetválasztás az URL-ből, hogy oldalbetöltésenként PONTOSAN EGY display()
-// fusson. A könyvtár globális állapotot tart (#96/#131): a második display()
-// más — szubpixellel elcsúszott — képet ad, mint az első. Összehasonlítható
-// képekhez tehát mindig friss oldal kell.
-//   #airy            vagy   #orthographic,180,55
-//   #airy                          — vetítés alaphelyzetben
-//   #orthographic,180,55           — vetítés + középpont
-//   #orthographic,180,55|{"mw":{"show":false}} — plusz konfigurációs felülbírálás
+// The view is selected from the URL so that EXACTLY ONE display() runs per page
+// load. The library keeps global state (#96/#131): the second display() gives a
+// different — subpixel-shifted — image than the first. Comparable images
+// therefore always need a fresh page.
+//   #airy            or     #orthographic,180,55
+//   #airy                          — projection in its default orientation
+//   #orthographic,180,55           — projection + centre
+//   #orthographic,180,55|{"mw":{"show":false}} — plus a configuration override
 window.addEventListener("load", function () {
   var h = decodeURIComponent(location.hash.slice(1));
-  if (!h) { window.valt("aitoff"); return; }
-  var reszek = h.split("|");
-  var r = reszek[0].split(",");
-  var kozep = r.length >= 3 ? [parseFloat(r[1]), parseFloat(r[2]), parseFloat(r[3] || 0)] : [0, 0, 0];
-  var extra = reszek[1] ? JSON.parse(reszek[1]) : null;
-  window.valt(r[0], kozep, extra);
+  if (!h) { window.show("aitoff"); return; }
+  var parts = h.split("|");
+  var r = parts[0].split(",");
+  var center = r.length >= 3 ? [parseFloat(r[1]), parseFloat(r[2]), parseFloat(r[3] || 0)] : [0, 0, 0];
+  var extra = parts[1] ? JSON.parse(parts[1]) : null;
+  window.show(r[0], center, extra);
 });
 </script>
 </body>

@@ -1,12 +1,13 @@
-/* NEM RÉSZE A BUILDNEK.
+/* NOT PART OF THE BUILD.
  *
- * A `timezones()` függvényt a könyvtárban semmi nem hívja, és a `Celestial`
- * objektumra sem kerül fel — az upstreamben is elérhetetlen volt. A modulosítás
- * urlPathán ez láthatóvá vált: egyetlen modul sem importálja, ezért a csomagoló out
- * is hagyja. A `topojson` függősége is csak emiatt maradt volna a csomagban.
+ * Nothing in the library calls `timezones()`, and it is never attached to the
+ * `Celestial` object either — it was unreachable upstream as well.
+ * Modularisation made that visible: no module imports it, so the bundler leaves
+ * it out. Its `topojson` dependency would only have been in the bundle for this.
  *
- * Nem töröltük: ha az időzóna-reqésre szükség lesz, innen indulhat. Akkor
- * ES-modullá kell alakítani, és a topojson-client-et függőségként felvenni.
+ * Kept rather than deleted: if timezone lookup is ever needed, this is where to
+ * start. It would then have to become an ES module, with topojson-client added
+ * as a dependency.
  */
 function timezones() {
   var cfg = settings.set(),

@@ -1,16 +1,17 @@
-/* Az #148 issue numerikus ellenőrzése: "horizontal.inverse function missing a
- * sign correction?"  (bejelentve 2023-12-08, azóta válasz nélkül)
+/* A numerical check of issue #148: "horizontal.inverse function missing a
+ * sign correction?"  (reported on 2023-12-08, still unanswered)
  *
- * A könyvtár `horizontal()` függvénye égi -> horizontális koordinátát számol, a
- * `horizontal.inverse()` visszafelé. Ha mindkettő helyes, akkor a kettő
- * egymás urlPathán alkalmazva back kell adja a kiindulási pontot (round-trip).
+ * The library's `horizontal()` function converts celestial -> horizontal
+ * coordinates, and `horizontal.inverse()` goes back the other way. If both are
+ * correct, then applying them one after the other must give back the starting
+ * point (round-trip).
  *
- * Futtatás:  node harness/issue-148-check.mjs
+ * Run with:  node harness/issue-148-check.mjs
  */
 
 const deg2rad = Math.PI / 180;
 
-// --- A könyvtárból átemelt kód, változtatás nélkül ---------------------------
+// --- Code lifted from the library, unchanged ---------------------------------
 
 function getMST(dt, lng) {
   const yr0 = dt.getUTCFullYear(), mo0 = dt.getUTCMonth() + 1;
@@ -31,7 +32,7 @@ function getMST(dt, lng) {
   return mst;
 }
 
-// Égi -> horizontális. Ez a függvény HELYESEN kezeli a kvadráns-kétértelműséget.
+// Celestial -> horizontal. This function handles the quadrant ambiguity CORRECTLY.
 function horizontal(dt, pos, loc) {
   let ha = getMST(dt, loc[1]) - pos[0];
   if (ha < 0) ha = ha + 360;
@@ -42,24 +43,24 @@ function horizontal(dt, pos, loc) {
                         + Math.cos(dec) * Math.cos(lat) * Math.cos(ha));
   let az = Math.acos((Math.sin(dec) - Math.sin(alt) * Math.sin(lat))
                      / (Math.cos(alt) * Math.cos(lat)));
-  if (Math.sin(ha) > 0) az = Math.PI * 2 - az;   // <-- itt VAN előmark-korrekció
+  if (Math.sin(ha) > 0) az = Math.PI * 2 - az;   // <-- the sign correction IS here
   return [alt / deg2rad, az / deg2rad, 0];
 }
 
-// Horizontális -> égi, EREDETI (hibás) változat.
+// Horizontal -> celestial, the ORIGINAL (buggy) version.
 function inverseOriginal(dt, hor, loc) {
   const alt = hor[0] * deg2rad, az = hor[1] * deg2rad, lat = loc[0] * deg2rad;
   const dec = Math.asin(Math.sin(alt) * Math.sin(lat)
                         + Math.cos(alt) * Math.cos(lat) * Math.cos(az));
   let ha = ((Math.sin(alt) - Math.sin(dec) * Math.sin(lat))
             / (Math.cos(dec) * Math.cos(lat))).toFixed(6);
-  ha = Math.acos(ha);              // 0..PI — az előmark itt VESZIK EL
+  ha = Math.acos(ha);              // 0..PI — the sign is LOST here
   ha = ha / deg2rad;
   const ra = getMST(dt, loc[1]) - ha;
   return [ra, dec / deg2rad, 0];
 }
 
-// A bejelentő javaslata: a hiányzó előmark-korrekció.
+// The reporter's suggestion: the missing sign correction.
 function inverseFixed(dt, hor, loc) {
   const alt = hor[0] * deg2rad, az = hor[1] * deg2rad, lat = loc[0] * deg2rad;
   const dec = Math.asin(Math.sin(alt) * Math.sin(lat)
@@ -67,13 +68,13 @@ function inverseFixed(dt, hor, loc) {
   let ha = ((Math.sin(alt) - Math.sin(dec) * Math.sin(lat))
             / (Math.cos(dec) * Math.cos(lat))).toFixed(6);
   ha = Math.acos(ha);
-  if (Math.sin(az) > 0) { ha = -ha; }   // <-- a javasolt korrekció
+  if (Math.sin(az) > 0) { ha = -ha; }   // <-- the suggested correction
   ha = ha / deg2rad;
   const ra = getMST(dt, loc[1]) - ha;
   return [ra, dec / deg2rad, 0];
 }
 
-// --- Round-trip teszt --------------------------------------------------------
+// --- Round-trip test ---------------------------------------------------------
 
 function normalizeDeg(fok) {
   let f = fok % 360;
@@ -88,7 +89,7 @@ function angleDiff(a, b) {
 
 const DT = new Date(Date.UTC(2026, 7, 26, 20, 0, 0));
 const SITE = [47.5196, 19.22];   // Budapest
-const TOLERANCE = 0.01;              // fok
+const TOLERANCE = 0.01;              // degrees
 
 function check_(inverse_) {
   let badCount = 0, total = 0, maxError = 0, examples = [];
@@ -96,7 +97,7 @@ function check_(inverse_) {
     for (let dec = -80; dec <= 80; dec += 10) {
       total++;
       const hor = horizontal(DT, [ra, dec], SITE);
-      // Csak a horizont felettieket nézzük — a többi úgysem látszik.
+      // We only look at the ones above the horizon — the rest are not visible anyway.
       if (hor[0] < 0) { total--; continue; }
       const back = inverse_(DT, [hor[0], hor[1]], SITE);
       const dRa = angleDiff(ra, back[0]);
@@ -108,7 +109,7 @@ function check_(inverse_) {
         if (examples.length < 3) {
           examples.push(`RA ${ra}° Dec ${dec}° -> alt ${hor[0].toFixed(1)}° az `
                       + `${hor[1].toFixed(1)}° -> back RA ${normalizeDeg(back[0]).toFixed(1)}° `
-                      + `(eltérés ${dRa.toFixed(1)}°)`);
+                      + `(difference ${dRa.toFixed(1)}°)`);
         }
       }
     }
@@ -116,29 +117,29 @@ function check_(inverse_) {
   return { total, badCount, maxError, examples };
 }
 
-console.log("=== #148: horizontal.inverse round-trip teszt ===");
-console.log(`  Hely: Budapest (${SITE[0]}, ${SITE[1]}), idő: ${DT.toISOString()}`);
-console.log(`  Tűrés: ${TOLERANCE}°\n`);
+console.log("=== #148: horizontal.inverse round-trip test ===");
+console.log(`  Location: Budapest (${SITE[0]}, ${SITE[1]}), time: ${DT.toISOString()}`);
+console.log(`  Tolerance: ${TOLERANCE}°\n`);
 
 const e = check_(inverseOriginal);
-console.log("  EREDETI (a jelenlegi kód):");
-console.log(`    ${e.badCount}/${e.total} pont tér back rosszul  (${(e.badCount / e.total * 100).toFixed(0)}%)`);
-console.log(`    legnagyobb eltérés: ${e.maxError.toFixed(1)}°`);
+console.log("  ORIGINAL (the current code):");
+console.log(`    ${e.badCount}/${e.total} points round-trip incorrectly  (${(e.badCount / e.total * 100).toFixed(0)}%)`);
+console.log(`    largest difference: ${e.maxError.toFixed(1)}°`);
 e.examples.forEach(p => console.log(`      ${p}`));
 
 const j = check_(inverseFixed);
-console.log("\n  JAVÍTOTT (a bejelentő javaslata):");
-console.log(`    ${j.badCount}/${j.total} pont tér back rosszul  (${(j.badCount / j.total * 100).toFixed(0)}%)`);
-console.log(`    legnagyobb eltérés: ${j.maxError.toFixed(4)}°`);
+console.log("\n  FIXED (the reporter's suggestion):");
+console.log(`    ${j.badCount}/${j.total} points round-trip incorrectly  (${(j.badCount / j.total * 100).toFixed(0)}%)`);
+console.log(`    largest difference: ${j.maxError.toFixed(4)}°`);
 j.examples.forEach(p => console.log(`      ${p}`));
 
-console.log("\n=== ÍTÉLET ===");
+console.log("\n=== VERDICT ===");
 if (e.badCount > 0 && j.badCount === 0) {
-  console.log("  A bejelentés JOGOS, a javasolt javítás HELYES.");
-  console.log("  A error_ a horizont fölötti points_ felét érinti — pontosan azt a");
-  console.log("  felét, ahol sin(azimut) > 0, ahogy a bejelentő írta.");
+  console.log("  The report is VALID, the suggested fix is CORRECT.");
+  console.log("  The error affects half of the points above the horizon — exactly the");
+  console.log("  half where sin(azimuth) > 0, just as the reporter wrote.");
 } else if (e.badCount === 0) {
-  console.log("  Nem sikerült reprodukálni: az original is helyesen tér back.");
+  console.log("  Could not reproduce: the original round-trips correctly too.");
 } else {
-  console.log(`  A javítás csökkent a hibát (${e.badCount} -> ${j.badCount}), de nem szünteti meg.`);
+  console.log(`  The fix reduces the error (${e.badCount} -> ${j.badCount}), but does not eliminate it.`);
 }

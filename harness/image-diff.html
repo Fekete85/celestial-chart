@@ -1,49 +1,49 @@
 <!doctype html>
-<html lang="hu"><head><meta charset="utf-8"><title>képdiff</title></head><body>
+<html lang="en"><head><meta charset="utf-8"><title>image diff</title></head><body>
 <script>
-/* Két PNG pixelenkénti összevetése. A böngészőben running, mert a rajzolás is ott
- * történt — ugyanaz a dekóder, nincs színtér-eltérés. */
+/* Comparing two PNGs pixel by pixel. It runs in the browser, because the drawing
+ * happened there too — same decoder, no colour space difference. */
 window.diff = function (aUrl, bUrl) {
   return Promise.all([aUrl, bUrl].map(function (u) {
-    return new Promise(function (ok, error_) {
-      var i = new Image(); i.onload = function () { ok(i); }; i.onerror = error_; i.src = u;
+    return new Promise(function (ok, error) {
+      var i = new Image(); i.onload = function () { ok(i); }; i.onerror = error; i.src = u;
     });
-  })).then(function (kepek) {
-    var a = kepek[0], b = kepek[1];
+  })).then(function (images) {
+    var a = images[0], b = images[1];
     if (a.width !== b.width || a.height !== b.height) {
-      return { error_: "eltérő méret: " + a.width + "x" + a.height + " vs " + b.width + "x" + b.height };
+      return { error: "size mismatch: " + a.width + "x" + a.height + " vs " + b.width + "x" + b.height };
     }
     var cv = document.createElement("canvas");
     cv.width = a.width; cv.height = a.height;
     var cx = cv.getContext("2d", { willReadFrequently: true });
     cx.drawImage(a, 0, 0); var da = cx.getImageData(0, 0, cv.width, cv.height).data;
     cx.clearRect(0, 0, cv.width, cv.height);
-    cx.drawImage(b, 0, 0); var count = cx.getImageData(0, 0, cv.width, cv.height).data;
+    cx.drawImage(b, 0, 0); var db = cx.getImageData(0, 0, cv.width, cv.height).data;
 
-    var elteroPixel = 0, osszeg = 0, max = 0, hisztogram = { "1-8": 0, "9-32": 0, "33-96": 0, "97+": 0 };
+    var differingPixels = 0, sum = 0, max = 0, histogram = { "1-8": 0, "9-32": 0, "33-96": 0, "97+": 0 };
     var diffCv = document.createElement("canvas");
     diffCv.width = cv.width; diffCv.height = cv.height;
     var dcx = diffCv.getContext("2d");
-    var kim = dcx.createImageData(cv.width, cv.height);
+    var outImg = dcx.createImageData(cv.width, cv.height);
     for (var i = 0; i < da.length; i += 4) {
-      var d = Math.max(Math.abs(da[i]-count[i]), Math.abs(da[i+1]-count[i+1]), Math.abs(da[i+2]-count[i+2]));
+      var d = Math.max(Math.abs(da[i]-db[i]), Math.abs(da[i+1]-db[i+1]), Math.abs(da[i+2]-db[i+2]));
       if (d > 0) {
-        elteroPixel++; osszeg += d; if (d > max) max = d;
-        if (d <= 8) hisztogram["1-8"]++; else if (d <= 32) hisztogram["9-32"]++;
-        else if (d <= 96) hisztogram["33-96"]++; else hisztogram["97+"]++;
+        differingPixels++; sum += d; if (d > max) max = d;
+        if (d <= 8) histogram["1-8"]++; else if (d <= 32) histogram["9-32"]++;
+        else if (d <= 96) histogram["33-96"]++; else histogram["97+"]++;
       }
-      // a diffkép: fekete base, az eltérés vörösen felnagyítva
-      kim.data[i] = Math.min(255, d * 4); kim.data[i+1] = 0; kim.data[i+2] = 0; kim.data[i+3] = 255;
+      // the diff image: black background, the difference amplified in red
+      outImg.data[i] = Math.min(255, d * 4); outImg.data[i+1] = 0; outImg.data[i+2] = 0; outImg.data[i+3] = 255;
     }
-    dcx.putImageData(kim, 0, 0);
+    dcx.putImageData(outImg, 0, 0);
     window.__diffPng = diffCv.toDataURL("image/png").split(",")[1];
     return {
       pixel: cv.width * cv.height,
-      eltero: elteroPixel,
-      arany: +(100 * elteroPixel / (cv.width * cv.height)).toFixed(3),
-      atlagEltres: elteroPixel ? +(osszeg / elteroPixel).toFixed(1) : 0,
-      maxEltres: max,
-      hisztogram: hisztogram
+      differing: differingPixels,
+      share: +(100 * differingPixels / (cv.width * cv.height)).toFixed(3),
+      meanDiff: differingPixels ? +(sum / differingPixels).toFixed(1) : 0,
+      maxDiff: max,
+      histogram: histogram
     };
   });
 };

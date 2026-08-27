@@ -1,95 +1,95 @@
-# Migrációs terv
+# Migration plan
 
-Fázisokra bontva úgy, hogy **minden fázis után működő állapot legyen**, és az első kettőnek
-önmagában is legyen értéke — akkor is, ha a migráció soha nem fejeződik be.
+Broken into phases such that **after every phase there is a working state**, and such that the first
+two have value in themselves — even if the migration is never finished.
 
-## 0. fázis — matematikai hibák (D3-független)
+## Phase 0 — mathematical bugs (D3-independent)
 
-A `horizontal.js`, `moon.js`, `kepler.js` nulla D3-hívást tartalmaz. Az itteni hibák a
-D3-verziótól függetlenül javíthatók, és round-trip teszttel bizonyíthatók.
+`horizontal.js`, `moon.js` and `kepler.js` contain zero D3 calls. The bugs in them can be fixed
+independently of the D3 version, and proved with a round-trip test.
 
-| Issue | Mi a baj | Bizonyítva |
+| Issue | What is wrong | Proved |
 |---|---|---|
-| [#148](https://github.com/ofrohn/d3-celestial/issues/148) | `horizontal.inverse()` — hiányzó előjel-korrekció | **igen**: 153/306 pont hibás, max. eltérés 171,4° |
-| [#130](https://github.com/ofrohn/d3-celestial/issues/130) | „Wrong moon phase?" | még nem |
-| [#157](https://github.com/ofrohn/d3-celestial/issues/157) | 12 órás középpont-váltás rosszul interpolál | még nem |
+| [#148](https://github.com/ofrohn/d3-celestial/issues/148) | `horizontal.inverse()` — missing sign correction | **yes**: 153/306 points wrong, max. difference 171.4° |
+| [#130](https://github.com/ofrohn/d3-celestial/issues/130) | "Wrong moon phase?" | not yet |
+| [#157](https://github.com/ofrohn/d3-celestial/issues/157) | 12-hour centre change interpolates badly | not yet |
 
-**Kimenet:** javított matematika + unit tesztek. Ez önmagában publikálható PR-ként az upstreamnek is
-(bár a szerző 4,5 éve nem reagál).
+**Output:** fixed mathematics + unit tests. This alone could be published as a PR to upstream as well
+(though the author has not responded for 4.5 years).
 
-## 1. fázis — referencia-háló
+## Phase 1 — the reference net
 
-A [`harness/`](../harness/) már működik: 25 vetítés × 4 forgatás × 413 pont.
+The [`harness/`](../harness/) already works: 25 projections × 4 rotations × 413 points.
 
-**Bővítendő a migráció előtt:**
-- zoom-szintek (jelenleg csak az alapértelmezett)
-- `transform`: `ecliptic`, `galactic`, `supergalactic` (jelenleg csak `equatorial`)
-- a `Celestial.getPlanet()` kimenete néhány dátumra
-- canvas-pixelhash: nem csak koordináták, hanem a tényleges rajz ujjlenyomata
+**To be extended before the migration:**
+- zoom levels (currently only the default one)
+- `transform`: `ecliptic`, `galactic`, `supergalactic` (currently only `equatorial`)
+- the output of `Celestial.getPlanet()` for a few dates
+- canvas pixel hash: not just coordinates, but a fingerprint of the actual drawing
 
-**Kimenet:** `reference-d3v3.json`, ami a migráció mércéje.
+**Output:** `reference-d3v3.json`, the yardstick of the migration.
 
-## 2. fázis — mechanikus D3-csere
+## Phase 2 — mechanical D3 replacement
 
-Sorrendben, mert a későbbiek az előzőekre épülnek:
+In this order, because the later ones build on the earlier:
 
-1. `d3.functor` → saját 3 soros pótlás (14 hely)
-2. `d3.map` → natív `Map` (1 hely)
-3. `d3.scale.quantize` → `d3.scaleQuantize` (1 hely)
-4. `d3.time.format` → `d3.timeFormat` (4 hely)
-5. `d3.event.target` → callback-paraméter (1 hely)
-6. `d3.json` + `d3.queue` → `Promise.all` (19 hely) — **ez a legnagyobb darab**
-7. `d3.geo.distance/path/graticule/interpolate` → `geoDistance` stb. (11 hely)
+1. `d3.functor` → own 3-line replacement (14 places)
+2. `d3.map` → native `Map` (1 place)
+3. `d3.scale.quantize` → `d3.scaleQuantize` (1 place)
+4. `d3.time.format` → `d3.timeFormat` (4 places)
+5. `d3.event.target` → callback parameter (1 place)
+6. `d3.json` + `d3.queue` → `Promise.all` (19 places) — **this is the biggest chunk**
+7. `d3.geo.distance/path/graticule/interpolate` → `geoDistance` etc. (11 places)
 
-A háló minden lépés után visszajelez. Ha egy vetítés elmozdul, azonnal látszik.
+The net gives feedback after every step. If a projection moves, it shows up immediately.
 
-## 3. fázis — a kockázatos rész
+## Phase 3 — the risky part
 
-**`d3.geo.projection` → `d3.geoProjection`** (4 hely, de 25 vetítést érint).
+**`d3.geo.projection` → `d3.geoProjection`** (4 places, but it affects 25 projections).
 
-Módszer: vetítésenként, egyenként. Minden vetítés után a háló 4 forgatás × 413 pontot ellenőriz.
-Tűrés: 0,01 pixel — a lebegőpontos eltérés ennél kisebb kell legyen.
+Method: one projection at a time. After each projection the net checks 4 rotations × 413 points.
+Tolerance: 0.01 pixels — the floating-point difference has to be smaller than that.
 
-**`d3.svg.symbol` + `customSymbol` → `d3.symbol`** (6 hely, csak az SVG-kimenet).
-Ha az SVG-export elhagyható, ez a fázis kihagyható.
+**`d3.svg.symbol` + `customSymbol` → `d3.symbol`** (6 places, SVG output only).
+If the SVG export can be dropped, this phase can be skipped.
 
-## 4. fázis — ES-modulok
+## Phase 4 — ES modules
 
-Ez oldja meg a #86 (React), #81 (Node), #115 (webpack), #141 (ES-modul), #134 (`d3 is not defined`)
-issue-kat. A build `rollup`-pal, a kimenet ESM + UMD.
+This resolves issues #86 (React), #81 (Node), #115 (webpack), #141 (ES module), #134
+(`d3 is not defined`). The build uses `rollup`, the output is ESM + UMD.
 
-**Ekkor lesz értelme a tree-shakingnek**: a jelenlegi 148 KB-os monolitikus D3 helyett csak a
-használt modulok (`d3-geo`, `d3-geo-projection`, `d3-selection`, `d3-interpolate`, `d3-shape`,
-`d3-array`) kerülnének be.
+**This is when tree-shaking starts to make sense**: instead of the current 148 KB monolithic D3, only
+the modules actually used (`d3-geo`, `d3-geo-projection`, `d3-selection`, `d3-interpolate`,
+`d3-shape`, `d3-array`) would be pulled in.
 
-## 5. fázis — szingleton felszámolása (opcionális)
+## Phase 5 — eliminating the singleton (optional)
 
-A `Celestial` globális állapota miatt nem lehet két térkép egy oldalon (#96, #131). Ehhez
-osztály-alapú átírás kell. **A legnagyobb szerkezeti változás**, és a háló csak részben véd — az
-állapotkezelés hibáit nem fogja meg. Külön döntés.
+Because of `Celestial`'s global state, two maps cannot exist on one page (#96, #131). This needs a
+class-based rewrite. **The largest structural change**, and the net only partly protects against it —
+it does not catch state-handling bugs. A separate decision.
 
-## Amit érdemes elhagyni
+## What is worth dropping
 
-| Modul | Sor | Miért |
+| Module | Lines | Why |
 |---|---:|---|
-| `form.js` | 786 | Beépített vezérlő űrlap. A legtöbb integrátor saját UI-t csinál (mi is). |
-| `datetimepicker.js` | 220 | Ugyanaz — ma már van natív `<input type="datetime-local">`. |
-| `timezones.js` + `location.js` időzóna-része | ~100 | **Külső API-t hív** (`api.timezonedb.com`) beégetett kulccsal. Ez CSP-vel blokkolt, és elvi probléma is. Natív `Intl.DateTimeFormat().resolvedOptions().timeZone` kiváltja. |
+| `form.js` | 786 | The built-in settings form. Most integrators build their own UI (we do too). |
+| `datetimepicker.js` | 220 | The same — there is a native `<input type="datetime-local">` these days. |
+| `timezones.js` + the timezone part of `location.js` | ~100 | **Calls an external API** (`api.timezonedb.com`) with a hard-coded key. That is blocked by CSP, and is a problem in principle too. The native `Intl.DateTimeFormat().resolvedOptions().timeZone` replaces it. |
 
-Ez 1100+ sor, amit nem kell migrálni. Ha kellenek, később, külön csomagként.
+That is 1100+ lines that do not have to be migrated. If they are needed, later, as a separate package.
 
-## Reális ráfordítás
+## Realistic effort
 
-| Fázis | Becslés | Kockázat |
+| Phase | Estimate | Risk |
 |---|---|---|
-| 0. matematika | 1–2 nap | alacsony |
-| 1. háló bővítése | 1 nap | nincs |
-| 2. mechanikus csere | 2–3 nap | alacsony |
-| 3. projekciók | **3–5 nap** | **magas** |
-| 4. ES-modulok | 2–3 nap | közepes |
-| 5. szingleton | 3–5 nap | magas |
+| 0. mathematics | 1–2 days | low |
+| 1. extending the net | 1 day | none |
+| 2. mechanical replacement | 2–3 days | low |
+| 3. projections | **3–5 days** | **high** |
+| 4. ES modules | 2–3 days | medium |
+| 5. singleton | 3–5 days | high |
 
-Fázis 0–4: **kb. 10–14 nap** fókuszált munka. Az 5. fázis külön döntés.
+Phases 0–4: **roughly 10–14 days** of focused work. Phase 5 is a separate decision.
 
-Ez nem „egy hétvége", de nem is reménytelen — és a 0–1. fázis után bármikor meg lehet állni úgy,
-hogy közben valódi értéket hoztunk létre.
+This is not "a weekend", but it is not hopeless either — and after phases 0–1 it is possible to stop
+at any time having created real value along the way.

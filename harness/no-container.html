@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — konténer és szélesség nélkül</title>
+<title>d3-celestial — without a container and without a width</title>
 <style>body { margin: 0; background: #000; }</style>
 </head>
 <body>
-<!-- Szándékosan NINCS #celestial-map el és nincs megadott szélesség: ilyenkor
-     a könyvtár a body-ba rajzol, és a szélességet magának kell kitalálnia.
-     Ezt az ágat a getWidth() korábban a nem létező window.getBoundingClientRect()
-     hívással kezelte. -->
+<!-- Deliberately there is NO #celestial-map element and no given width: in that
+     case the library draws into the body, and it has to work out the width for
+     itself. getWidth() used to handle this branch with a call to the
+     non-existent window.getBoundingClientRect(). -->
 <script src="../build/celestial.js"></script>
 <script>
 window.__hiba = null;

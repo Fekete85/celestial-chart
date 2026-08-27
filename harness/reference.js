@@ -1,32 +1,35 @@
-/* Referencia-generátor a d3-celestial vetítéseihez.
+/* Reference generator for the d3-celestial projections.
  *
- * Miért ez a lényeg: a szerző 2021-ben maga írta egy issue-ban, hogy
+ * Why this is the crux: in 2021 the author himself wrote in an issue that
  * "the app has reached a state where it is difficult to add features without
- * breaking something". Ez nem a D3 verziójáról szól, hanem arról, hogy nincs
- * regressziós háló. Egy vetítési könyvtárnál a helyesség azt jelenti, hogy a
- * pixelek a siteükön vannak — ha ezt nem lehet automatikusan ellenőrizni,
- * minden változtatás rulett.
+ * breaking something". That is not about the D3 version, it is about there
+ * being no regression net. In a projection library correctness means that the
+ * pixels are in the right place — and if that cannot be checked automatically,
+ * every change is roulette.
  *
- * A vetítés viszont determinisztikus: adott konfiguráció és bemenet mellett
- * mindig ugyanaz a output. Tehát rögzíthető, és a migrált verziónak — adott
- * tűréssel — ugyanazt kell adnia.
+ * A projection, however, is deterministic: for a given configuration and input
+ * it always produces the same output. So it can be recorded, and the migrated
+ * version has to produce the same thing — within a given tolerance.
  *
- * A generált JSON a window.REFERENCE-ba kerül, és az oldalon is megjelenik.
+ * The generated JSON ends up in window.REFERENCE and is also shown on the page.
  */
 (function () {
   "use strict";
 
-  // A vizsgált vetítések. A d3-celestial ezeket a d3.geo.projection (v3) API-ra
-  // építi; a v7-ben ez d3.geoProjection + d3-geo-projection, más névvel és
-  // helyenként más viselkedéssel — pont ezért kell mérni.
-  // MINDEN konfigurált vetítés, nem egy válogatás. A háló csak arra véd, amit
-  // mér: 25 vetítéssel a maradék 44-ben egy elrontott képlet észrevétlen
-  // maradna. A listát a config.js-ből vesszük, hogy ne csússzon el tőle.
+  // The projections under test. d3-celestial builds these on the
+  // d3.geo.projection (v3) API; in v7 that is d3.geoProjection +
+  // d3-geo-projection, with different names and in places different behaviour —
+  // which is exactly why it has to be measured.
+  // EVERY configured projection, not a selection. The net only protects what it
+  // measures: with 25 projections a broken formula in the remaining 44 would go
+  // unnoticed. We take the list from config.js so that it cannot drift apart
+  // from it.
   var PROJECTIONS = Object.keys(Celestial.projections());
 
-  // Rácspontok az égen: 15 fokonként RA, 10 fokonként Dec.
-  // Ez 24 x 17 = 408 pont vetítésenként — elég sűrű ahhoz, hogy egy elrontott
-  // vetítés biztosan kilógjon, és elég ritka, hogy a fájl kezelhető maradjon.
+  // Grid points on the sky: RA every 15 degrees, Dec every 10 degrees.
+  // That is 24 x 17 = 408 points per projection — dense enough that a broken
+  // projection is certain to stand out, and sparse enough that the file stays
+  // manageable.
   function gridPoints() {
     var points_ = [];
     for (var ra = -180; ra < 180; ra += 15) {
@@ -34,18 +37,19 @@
         points_.push([ra, dec]);
       }
     }
-    // Sarkok és peremesetek külön: ezeken szokott elhasalni a clipping.
+    // Poles and edge cases separately: these are where clipping tends to fall over.
     points_.push([0, 90], [0, -90], [179.99, 0], [-179.99, 0], [0, 0]);
     return points_;
   }
 
-  // Forgatási állapotok — a d3-celestial ezekkel követi a megfigyelő siteét
-  // és az időt. A [0,0,0] az alaphelyzet, a többi valós észlelési helyzet.
+  // Rotation states — d3-celestial tracks the observer's location and the time
+  // with these. [0,0,0] is the default orientation, the rest are real observing
+  // situations.
   var ROTATIONS = [
     [0, 0, 0],
-    [-80.9, -47.5, 0],    // Budapest zenitje egy augusztusi este
-    [120, -30, 15],       // döntött nézet
-    [-45, 60, 0]          // magas északi szélesség
+    [-80.9, -47.5, 0],    // the zenith over Budapest on an August evening
+    [120, -30, 15],       // tilted view
+    [-45, 60, 0]          // high northern latitude
   ];
 
   var POINTS = gridPoints();
@@ -53,11 +57,11 @@
   function oneProjection(name_, baseConfig) {
     var result = { projection: name_, rotations: [] };
 
-    // FONTOS: a Celestial.apply() a projekciót NEM tudja átállítani — a readme
-    // szerint a width, projection, transform és *.data újratöltést igényel.
-    // Ha csak apply()-t hívnánk, minden vetítés ugyanazt a kimenetet adná, és
-    // a reference némán értéktelen lenne. (Ez a harness első verziójában
-    // pontosan így is volt — a self_check fogta out.)
+    // IMPORTANT: Celestial.apply() can NOT switch the projection — according to
+    // the readme, width, projection, transform and *.data require a reload.
+    // If we only called apply(), every projection would produce the same output
+    // and the reference would be silently worthless. (That is exactly what the
+    // first version of the harness did — the self_check caught it.)
     var config = {};
     for (var k in baseConfig) { config[k] = baseConfig[k]; }
     config.projection = name_;
@@ -76,9 +80,9 @@
         var coord = POINTS[j];
         var pt = null;
         try {
-          // A clip() mondja meg, hogy a pont a látható féltekén van-e.
-          // Ezt is rögzítjük: a clipping viselkedése a migráció egyik
-          // legkényesebb pontja.
+          // clip() tells us whether the point is on the visible hemisphere.
+          // We record this too: the behaviour of clipping is one of the most
+          // delicate points of the migration.
           var visible = Celestial.clip(coord);
           var projected = Celestial.mapProjection(coord);
           pt = projected
@@ -107,12 +111,13 @@
       interactive: false,
       form: false,
       controls: false,
-      // Enélkül a Celestial.rotate() csak elindít egy d3-átmenetet, és a
-      // szinkron mérés a forgatás ELŐTTI állapotot rögzíti — all_ a négy
-      // forgatás ugyanazt a koordinátát adná. (Az első háló pontosan így
-      // volt hibás; az alábbi önellenőrzés fogja out, ha visszatér.)
+      // Without this, Celestial.rotate() only starts a d3 transition, and the
+      // synchronous measurement records the state BEFORE the rotation — all
+      // four rotations would give the same coordinates. (The first net was
+      // wrong in exactly this way; the self-check below catches it if it comes
+      // back.)
       disableAnimations: true,
-      datapath: "./data/",         // a display() akkor is betölt, ha minden réteg rejtett
+      datapath: "./data/",         // display() loads even when every layer is hidden
       stars: { show: false, data: "stars.6.json" },
       dsos: { show: false },
       planets: { show: false },
@@ -126,9 +131,9 @@
     var reference = {
       generated: new Date().toISOString(),
       source: "ofrohn/d3-celestial @ 7e720a3 (2022-07-05)",
-      // A modulosított build magában hordozza a D3-at, tehát nincs globális d3 —
-      // ilyenkor a könyvtár saját verziója sameítja a mérést.
-      d3: (typeof d3 !== "undefined" && d3.version) ? d3.version : "beépítve (nincs globális d3)",
+      // The modularised build carries D3 inside it, so there is no global d3 —
+      // in that case the library's own version identifies the measurement.
+      d3: (typeof d3 !== "undefined" && d3.version) ? d3.version : "bundled (no global d3)",
       celestial: Celestial.version,
       config: { width: config.width, transform: config.transform },
       point_count: POINTS.length,
@@ -136,8 +141,9 @@
       projections: []
     };
 
-    // Két vetítés (cassini, quincuncial) a szállított upstream buildben sincs
-    // benne — ott is hibát dob. Ezeket számon tartjuk, de nem tekintjük bukásnak.
+    // Two projections (cassini, quincuncial) are missing from the shipped
+    // upstream build as well — they throw there too. We keep track of them, but
+    // we do not treat them as failures.
     var okCount = 0, failed = [];
     for (var i = 0; i < PROJECTIONS.length; i++) {
       var name_ = PROJECTIONS[i];
@@ -150,10 +156,11 @@
       }
     }
 
-    // --- Önellenőrzés ---
-    // Egy reference-háló akkor ér valamit, ha bizonyíthatóan mér is valamit.
-    // Ha két különböző vetítés ugyanazt a kimenetet adja, akkor a harness
-    // hibás (pl. nem váltott vetítést), és a reference némán értéktelen.
+    // --- Self-check ---
+    // A reference net is only worth something if it demonstrably measures
+    // something. If two different projections produce the same output, then the
+    // harness is broken (e.g. it did not switch projection), and the reference
+    // is silently worthless.
     var fingerprints = {};
     var collisions = [];
     for (var k = 0; k < reference.projections.length; k++) {
@@ -168,25 +175,25 @@
       }
     }
 
-    // A forgatásoknak is meg kell mozdítaniuk a pixeleket. Ha egy vetítésen
-    // belül két forgatás same koordinátákat ad, akkor a forgatás nem történt
-    // meg, és a háló a látszat ellenére egyetlen állapotot mér.
+    // The rotations have to move the pixels as well. If two rotations within a
+    // projection give identical coordinates, then the rotation did not happen,
+    // and despite appearances the net measures a single state.
     var rotationCollisions = [];
     for (var m = 0; m < reference.projections.length; m++) {
       var proj = reference.projections[m], seen = {};
       for (var f = 0; f < proj.rotations.length; f++) {
         var coord = JSON.stringify((proj.rotations[f].points || []).map(function (pp) {
-          return Array.isArray(pp) ? [pp[0], pp[1]] : pp;   // a clip-jelző nélkül
+          return Array.isArray(pp) ? [pp[0], pp[1]] : pp;   // without the clip flag
         }));
         if (seen[coord] !== undefined) {
-          rotationCollisions.push(proj.projection + ": fgt" + seen[coord] + " == fgt" + f);
+          rotationCollisions.push(proj.projection + ": rot" + seen[coord] + " == rot" + f);
         } else {
           seen[coord] = f;
         }
       }
     }
 
-    // A pontoknak valóban különbözniük kell egymástól egy vetítésen belül is.
+    // The points really do have to differ from each other within a projection too.
     var firstProjection = reference.projections[0];
     var uniquePoints = new Set(
       (firstProjection.rotations[0].points || []).map(function (p) { return JSON.stringify(p); })
@@ -206,12 +213,12 @@
     };
 
     window.REFERENCE = reference;
-    statusEl.innerHTML = '<span class="ok">Kész.</span> ' + okCount + "/" +
-      PROJECTIONS.length + " vetítés, " + reference.summary.total_points +
-      " mért pont. Celestial " + reference.celestial + ", D3: " + reference.d3;
-    // Letöltés: a reference-fájl a repóba kerül, és ehhez méri magát a
-    // migrált verzió. Böngészőből mentjük, mert a generálás is böngészőben
-    // running — a d3-celestial DOM-ot és canvas-t igényel.
+    statusEl.innerHTML = '<span class="ok">Done.</span> ' + okCount + "/" +
+      PROJECTIONS.length + " projections, " + reference.summary.total_points +
+      " measured points. Celestial " + reference.celestial + ", D3: " + reference.d3;
+    // Download: the reference file goes into the repo, and the migrated version
+    // measures itself against it. We save it from the browser, because the
+    // generation runs in the browser too — d3-celestial needs a DOM and a canvas.
     var button = document.getElementById("letolt");
     if (button) {
       button.disabled = false;
@@ -228,7 +235,7 @@
     }
 
     output.textContent = JSON.stringify(reference.summary, null, 2) +
-      "\n\nMinta (airy, alaphelyzet, első 5 pont):\n" +
+      "\n\nSample (airy, default orientation, first 5 points):\n" +
       JSON.stringify(reference.projections[0].rotations[0].points.slice(0, 5));
   }
 

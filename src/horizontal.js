@@ -27,13 +27,14 @@ horizontal.inverse = function(dt, hor, loc) {
   var dec = Math.asin((Math.sin(alt) * Math.sin(lat)) + (Math.cos(alt) * Math.cos(lat) * Math.cos(az)));
   var ha = (Math.sin(alt) - (Math.sin(dec) * Math.sin(lat))) / (Math.cos(dec) * Math.cos(lat));
   
-  // A kerekítési error_ kilökheti az acos értelmezési tartományából (zenitnél a
-  // hányados 1+1e-16). A korábbi .toFixed(6) ezt csak véletlenül kezelte, és
-  // közben 1e-6 pontosságra csonkolta a bemenetet, ahol az acos meredek.
+  // Rounding error can push the quotient outside the domain of acos (at the
+  // zenith it comes out as 1+1e-16). The previous .toFixed(6) handled that only
+  // by accident, and in doing so truncated the input to six decimals — where
+  // acos is steep.
   ha = Math.acos(Math.max(-1, Math.min(1, ha)));
-  // Az acos 0..180°-ot ad, így az égbolt egyik fele elveszne. Az előre irány
-  // ugyanezt a kétértelműséget kezeli (if (Math.sin(ha) > 0) az = 2π - az),
-  // az inverznek a tükörpárja kell. Lásd issue #148.
+  // acos returns 0..180 degrees, so half the sky would be lost. The forward
+  // direction handles the same ambiguity (if (Math.sin(ha) > 0) az = 2*pi - az);
+  // the inverse needs its mirror image. See upstream issue #148.
   if (Math.sin(az) > 0) ha = -ha;
   ha  = ha / deg2rad;
   
@@ -81,12 +82,13 @@ function getMST(dt, lng)
 }
 
 Celestial.horizontal = horizontal;
-// Óraszög inDegrees, [0, 360) tartományban.
+// Hour angle in degrees, in the range [0, 360).
 //
-// A condétel eredetileg `ha < 180` volt, ami elírás: a getMST [0,360)-t ad, az
-// ra is annyi, tehát a különbség (-360, 360) — nullánál kisebb értétwo kell
-// körbeforgatni. A `180`-nal például egy 100°-os óraszögből 460° lett. Két
-// sorral feljebb, a horizontal()-ban ugyanez a normálás helyesen szerepel.
+// The condition was originally `ha < 180`, which is a typo: getMST returns
+// [0, 360) and so does ra, so the difference lies in (-360, 360) — it is values
+// below zero that need wrapping. With `180`, an hour angle of 100 degrees came
+// out as 460. Two lines above, horizontal() has the same normalisation written
+// correctly.
 Celestial.ha = function(dt, lng, ra) {
   var ha = getMST(dt, lng) - ra;
   if (ha < 0) ha = ha + 360;

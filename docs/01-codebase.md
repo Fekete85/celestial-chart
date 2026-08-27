@@ -1,10 +1,10 @@
-# A kódbázis elemzése
+# Analysis of the codebase
 
-Vizsgált verzió: `ofrohn/d3-celestial @ 7e720a3` (2022-07-05), 16 modul, 5669 sor.
+Version examined: `ofrohn/d3-celestial @ 7e720a3` (2022-07-05), 16 modules, 5669 lines.
 
-## Fájlonkénti D3-függés
+## D3 dependency per file
 
-| Fájl | Sor | D3-hívás | Használt API-k |
+| File | Lines | D3 calls | APIs used |
 |---|---:|---:|---|
 | `celestial.js` | 1011 | 43 | `geo.circle`, `geo.distance`, `geo.graticule`, `geo.path`, `geo.projection`, `geo.zoom`, `geo.interpolate`, `interpolateLab`, `interpolateNumber`, `json`, `select` |
 | `svg.js` | 828 | 36 | `functor`, `geo.circle`, `geo.distance`, `geo.graticule`, `geo.path`, `svg.symbol`, `svg.customSymbol`, `svg.symbolTypes`, `queue`, `map`, `json` |
@@ -23,61 +23,61 @@ Vizsgált verzió: `ofrohn/d3-celestial @ 7e720a3` (2022-07-05), 16 modul, 5669 
 | **`get.js`** | 200 | **0** | — |
 | **`add.js`** | 41 | **0** | — |
 
-**1421 sor (25%) teljesen D3-mentes** — ez a csillagászati mag: holdfázis, Kepler-pályák,
-koordináta-transzformációk, horizontális átszámítás.
+**1421 lines (25%) are completely D3-free** — this is the astronomical core: lunar phase, Kepler
+orbits, coordinate transformations, horizontal conversion.
 
-## Teljes D3 API-leltár
+## Full D3 API inventory
 
-| Előfordulás | API (v3) | Megfelelője v7-ben | Nehézség |
+| Occurrences | API (v3) | Equivalent in v7 | Difficulty |
 |---:|---|---|---|
-| 45× | `d3.select` / `d3.selectAll` | `d3-selection`, azonos név | könnyű — de az `.on()` eseménykezelés változott |
-| 18× | `d3.json(url, cb)` | `d3-fetch`, **Promise-alapú** | közepes — callback-lánc átírása |
-| 14× | `d3.functor` | **v4-ben megszűnt** | könnyű — 3 soros pótlás |
-| 7× | `d3.geo.circle` | `d3.geoCircle` | közepes |
-| 6× | `d3.interpolateLab` | `d3-interpolate`, azonos név | triviális |
-| 6× | `d3.geo.distance` | `d3.geoDistance` | könnyű |
-| 5× | `d3.interpolateNumber` | `d3-interpolate`, azonos név | triviális |
-| 4× | `d3.time.format` | `d3.timeFormat` (`d3-time-format`) | könnyű |
-| 4× | `d3.geo.projection` | `d3.geoProjection` | **NEHÉZ** — a raw projection API eltér |
-| 3× | `d3.svg.symbol` | `d3.symbol` (`d3-shape`) | **NEHÉZ** — más felépítés |
-| 3× | `d3.svg.customSymbol` | *nem D3* — a könyvtár saját kiterjesztése | **NEHÉZ** — újraírandó |
-| 2× | `d3.geo.path` | `d3.geoPath` | könnyű |
-| 2× | `d3.geo.graticule` | `d3.geoGraticule` | könnyű |
-| 1× | `d3.geo.zoom` | külön csomag: `d3-geo-zoom` (más API) | közepes |
-| 1× | `d3.geo.interpolate` | `d3.geoInterpolate` | könnyű |
-| 1× | `d3.scale.quantize` | `d3.scaleQuantize` (`d3-scale`) | könnyű |
-| 1× | `d3.queue` | **megszűnt** — `Promise.all` | közepes |
-| 1× | `d3.map` | **v6-ban megszűnt** — natív `Map` | könnyű |
-| 1× | `d3.event.target` | v6-tól az event a callback paramétere | könnyű |
+| 45× | `d3.select` / `d3.selectAll` | `d3-selection`, same name | easy — but `.on()` event handling changed |
+| 18× | `d3.json(url, cb)` | `d3-fetch`, **Promise-based** | medium — rewriting the callback chain |
+| 14× | `d3.functor` | **removed in v4** | easy — a 3-line replacement |
+| 7× | `d3.geo.circle` | `d3.geoCircle` | medium |
+| 6× | `d3.interpolateLab` | `d3-interpolate`, same name | trivial |
+| 6× | `d3.geo.distance` | `d3.geoDistance` | easy |
+| 5× | `d3.interpolateNumber` | `d3-interpolate`, same name | trivial |
+| 4× | `d3.time.format` | `d3.timeFormat` (`d3-time-format`) | easy |
+| 4× | `d3.geo.projection` | `d3.geoProjection` | **HARD** — the raw projection API differs |
+| 3× | `d3.svg.symbol` | `d3.symbol` (`d3-shape`) | **HARD** — different structure |
+| 3× | `d3.svg.customSymbol` | *not D3* — the library's own extension | **HARD** — has to be rewritten |
+| 2× | `d3.geo.path` | `d3.geoPath` | easy |
+| 2× | `d3.geo.graticule` | `d3.geoGraticule` | easy |
+| 1× | `d3.geo.zoom` | separate package: `d3-geo-zoom` (different API) | medium |
+| 1× | `d3.geo.interpolate` | `d3.geoInterpolate` | easy |
+| 1× | `d3.scale.quantize` | `d3.scaleQuantize` (`d3-scale`) | easy |
+| 1× | `d3.queue` | **removed** — `Promise.all` | medium |
+| 1× | `d3.map` | **removed in v6** — native `Map` | easy |
+| 1× | `d3.event.target` | from v6 on, the event is the callback parameter | easy |
 
-## A három valódi kockázat
+## The three real risks
 
-**1. `d3.geo.projection` (4 előfordulás, de a könyvtár lelke).**
-A v3-ban `d3.geo.projection(raw)` egy raw projekciós függvényt burkol. A v7-ben `d3.geoProjection(project)`
-hasonló, de a `.rotate()`, `.clipAngle()`, `.precision()` viselkedése finoman eltér. A d3-celestial 25
-vetítést épít erre, köztük sajátokat is. **Ezt vetítésenként kell mérni** — pontosan erre való a
-referencia-háló.
+**1. `d3.geo.projection` (4 occurrences, but it is the soul of the library).**
+In v3, `d3.geo.projection(raw)` wraps a raw projection function. In v7, `d3.geoProjection(project)`
+is similar, but the behaviour of `.rotate()`, `.clipAngle()` and `.precision()` differs subtly.
+d3-celestial builds 25 projections on this, including its own. **This has to be measured per
+projection** — which is exactly what the reference net is for.
 
-**2. `d3.svg.symbol` + `customSymbol` (6 előfordulás).**
-A könyvtár saját szimbólumtípusokat definiál a v3 `d3.svg.symbol` kiterjesztésével. A v7 `d3.symbol`
-más felépítésű: a szimbólumtípus egy objektum `draw(context, size)` metódussal. Ez nem átnevezés,
-hanem újraírás — de jól körülhatárolt, és csak az SVG-kimenetet érinti.
+**2. `d3.svg.symbol` + `customSymbol` (6 occurrences).**
+The library defines its own symbol types by extending the v3 `d3.svg.symbol`. The v7 `d3.symbol` is
+built differently: a symbol type is an object with a `draw(context, size)` method. This is not a
+rename but a rewrite — though it is well bounded, and only affects the SVG output.
 
-**3. Globális állapot.**
-A `Celestial` egy globális szingleton. Ezért nem lehet két térkép egy oldalon (#96, #131). Az
-ES-modul átállás önmagában nem oldja meg — ahhoz osztály-alapú átírás kell, ami viszont a
-legnagyobb szerkezeti változás. Érdemes külön fázisként kezelni.
+**3. Global state.**
+`Celestial` is a global singleton. That is why two maps cannot exist on one page (#96, #131). Moving
+to ES modules does not solve this by itself — that needs a class-based rewrite, which in turn is the
+largest structural change. Worth handling as a separate phase.
 
-## Ami könnyebb, mint elsőre látszik
+## What is easier than it looks at first
 
-- A `d3.functor` pótlása: `const functor = v => typeof v === "function" ? v : () => v;`
-- Az `interpolateLab` / `interpolateNumber` változatlanul megvan a `d3-interpolate`-ben
-- A `d3-geo` `geoCircle`, `geoDistance`, `geoPath`, `geoGraticule` funkcionálisan azonos, csak a név más
-- A `topojson` külön él, verziófüggetlen
+- Replacing `d3.functor`: `const functor = v => typeof v === "function" ? v : () => v;`
+- `interpolateLab` / `interpolateNumber` still exist unchanged in `d3-interpolate`
+- `d3-geo`'s `geoCircle`, `geoDistance`, `geoPath`, `geoGraticule` are functionally identical, only the name differs
+- `topojson` lives separately and is version-independent
 
-## Mérési módszer
+## Measurement method
 
-A számok reprodukálhatók:
+The numbers are reproducible:
 
 ```bash
 git clone --depth 50 https://github.com/ofrohn/d3-celestial.git upstream

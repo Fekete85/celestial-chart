@@ -66,7 +66,7 @@ Every change below is measured against the pinned upstream build: 67 projections
 
 - D3 v7, ES modules, tree-shaken and bundled. Four outputs: IIFE (global
   `Celestial`, unchanged usage), minified IIFE, ESM and CJS.
-- Class-based instances (`Egbolt`), so several maps can share a page — each with
+- Class-based instances (`SkyMap`), so several maps can share a page — each with
   its own configuration, projection, container and settings form
   ([#96](https://github.com/ofrohn/d3-celestial/issues/96),
   [#131](https://github.com/ofrohn/d3-celestial/issues/131)).

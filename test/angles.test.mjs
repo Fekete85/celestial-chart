@@ -1,16 +1,16 @@
-/* Szögnormálás és a rá épülő efemerisz-számítás.
+/* Angle normalisation and the ephemeris computation built on top of it.
  *
- * A Trig.normalize / normalize0 kis, tiszta függvények, amiket a moon.js és a
- * kepler.js hív — és amikre eddig nem volt teszt. Pont ez a hibaosztály adta a
- * #157-et és a Celestial.ha() elírását is: rövid függvény, hihető képlet,
- * senki nem méri.
+ * Trig.normalize / normalize0 are small, pure functions called by moon.js and
+ * kepler.js — and until now nothing tested them. This is exactly the class of
+ * bug that produced #157 and the typo in Celestial.ha(): a short function, a
+ * plausible formula, nobody measures it.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Trig } from "../src/util.js";
 import { Kepler } from "../src/kepler.js";
 
-// JPL: a Föld–Hold baricentrum pályaelemei, J2000 epocha, évszázados változással
+// JPL: orbital elements of the Earth–Moon barycentre, J2000 epoch, with centennial rates
 const EARTH_ELEMENTS = {
   a: 1.00000261, e: 0.01671123, i: -1.531e-5,
   L: 100.46457166, W: 102.93768193, N: 0,
@@ -21,34 +21,34 @@ const EARTH_ELEMENTS = {
 
 const TAU = Math.PI * 2;
 
-test("normalize a [0, 2π) tartományba visz", () => {
+test("normalize maps into the [0, 2π) range", () => {
   const bad = [];
   for (let v = -30; v <= 30; v += 0.37) {
     const n = Trig.normalize(v);
     if (!(n >= 0 && n < TAU)) bad.push(`${v.toFixed(2)} → ${n.toFixed(3)}`);
   }
-  assert.deepEqual(bad.slice(0, 5), [], `${bad.length} érték esik a tartományon kívülre`);
+  assert.deepEqual(bad.slice(0, 5), [], `${bad.length} values fall outside the range`);
 });
 
-test("normalize megtartja a szöget (mod 2π)", () => {
+test("normalize preserves the angle (mod 2π)", () => {
   for (const v of [-25.3, -7.1, -1, 0, 1, 7.1, 25.3]) {
     const n = Trig.normalize(v);
     const diff = Math.abs(((n - v) % TAU + TAU) % TAU);
     assert.ok(diff < 1e-9 || Math.abs(diff - TAU) < 1e-9,
-      `${v} → ${n}: nem ugyanaz a szög`);
+      `${v} → ${n}: not the same angle`);
   }
 });
 
-test("normalize0 a [-π, π) tartományba visz", () => {
+test("normalize0 maps into the [-π, π) range", () => {
   const bad = [];
   for (let v = -30; v <= 30; v += 0.37) {
     const n = Trig.normalize0(v);
     if (!(n >= -Math.PI && n < Math.PI)) bad.push(`${v.toFixed(2)} → ${n.toFixed(3)}`);
   }
-  assert.deepEqual(bad.slice(0, 5), [], `${bad.length} érték esik a tartományon kívülre`);
+  assert.deepEqual(bad.slice(0, 5), [], `${bad.length} values fall outside the range`);
 });
 
-test("a hiperbolikus függvények megegyeznek a beépítettekkel", () => {
+test("the hyperbolic functions agree with the built-in ones", () => {
   for (let v = -3; v <= 3; v += 0.25) {
     assert.ok(Math.abs(Trig.sinh(v) - Math.sinh(v)) < 1e-9, "sinh " + v);
     assert.ok(Math.abs(Trig.cosh(v) - Math.cosh(v)) < 1e-9, "cosh " + v);
@@ -60,10 +60,11 @@ test("a hiperbolikus függvények megegyeznek a beépítettekkel", () => {
   }
 });
 
-/* A Hold ekliptikai hosszúsága naponta ~13,2 fokot halad. Ha a szögnormálás
- * elromlik nagy negatív bemenetnél, az kilógó értékként vagy ugrásként
- * jelenik meg — J2000-től távolodva a közepes elemek egyre nagyobbak. */
-test("a Hold pozíciója értelmes 1700 és 2300 között", () => {
+/* The Moon's ecliptic longitude advances by ~13.2 degrees a day. If angle
+ * normalisation breaks down for large negative inputs, that shows up as an
+ * out-of-range value or as a jump — the further from J2000, the larger the
+ * mean elements grow. */
+test("the Moon's position stays sensible between 1700 and 2300", () => {
   const bad = [];
   for (let ev = 1700; ev <= 2300; ev += 5) {
     const dt = new Date(Date.UTC(ev, 5, 15, 0, 0, 0));
@@ -71,13 +72,13 @@ test("a Hold pozíciója értelmes 1700 és 2300 között", () => {
           lun = Kepler().id("lun").elements({});
     const d = lun(dt).equatorial(earth(dt).spherical()).ephemeris;
     if (!d || !Number.isFinite(d.pos[0]) || !Number.isFinite(d.pos[1])) {
-      bad.push(`${ev}: nem szám`); continue;
+      bad.push(`${ev}: not a number`); continue;
     }
     const ra = d.pos[0], dec = d.pos[1];
-    if (ra < -180 || ra > 360) bad.push(`${ev}: rektaszcenzió ${ra.toFixed(1)}°`);
-    if (dec < -35 || dec > 35) bad.push(`${ev}: deklináció ${dec.toFixed(1)}° (a Hold ±28,6°-on belül marad)`);
-    if (!Number.isFinite(d.age) || d.age < 0 || d.age > 2 * Math.PI) bad.push(`${ev}: kor ${d.age}`);
-    if (!Number.isFinite(d.phase) || d.phase < 0 || d.phase > 1) bad.push(`${ev}: fázis ${d.phase}`);
+    if (ra < -180 || ra > 360) bad.push(`${ev}: right ascension ${ra.toFixed(1)}°`);
+    if (dec < -35 || dec > 35) bad.push(`${ev}: declination ${dec.toFixed(1)}° (the Moon stays within ±28.6°)`);
+    if (!Number.isFinite(d.age) || d.age < 0 || d.age > 2 * Math.PI) bad.push(`${ev}: age ${d.age}`);
+    if (!Number.isFinite(d.phase) || d.phase < 0 || d.phase > 1) bad.push(`${ev}: phase ${d.phase}`);
   }
-  assert.deepEqual(bad.slice(0, 6), [], `${bad.length} rendellenes érték`);
+  assert.deepEqual(bad.slice(0, 6), [], `${bad.length} anomalous values`);
 });

@@ -1,17 +1,17 @@
-/* Hold — fázis, megvilágítottság és pozíció numerikus tesztjei.
+/* Moon — numeric tests for phase, illuminated fraction and position.
  *
- * Az upstream #130 issue („Wrong moon phase?", 2022-03-18-ra teliholdat vártak,
- * fogyó gibbuszt láttak) kivizsgálása. A referenceértékek független forrásból
- * származnak, nem a kód saját outputéből:
+ * An investigation of the upstream issue #130 ("Wrong moon phase?", a full moon
+ * was expected for 2022-03-18, a waning gibbous was seen). The reference values
+ * come from independent sources, not from the code's own output:
  *
- *  - Meeus: Astronomical Algorithms, 2. kiadás, 47.a és 13.a példa
- *    (1992-04-12 0h TD, geocentrikus Hold).
- *  - Nap- és holdfogyatkozásokhoz kötött újhold/telihold időpoints_
- *    (NASA Eclipse Web Site) — ezek az adott szizígia percre pontos horgonyai.
- *  - A szinodikus hóday közismert hossza: 29,5306 day.
+ *  - Meeus: Astronomical Algorithms, 2nd edition, examples 47.a and 13.a
+ *    (1992-04-12 0h TD, geocentric Moon).
+ *  - New moon / full moon times tied to solar and lunar eclipses
+ *    (NASA Eclipse Web Site) — these are minute-accurate anchors of the given syzygy.
+ *  - The well-known length of the synodic month: 29.5306 days.
  *
- * A Föld pályaelemei a JPL „Keplerian Elements for Approximate Positions"
- * táblázatából valók, ugyanazok, mint a könyvtár planets.json-jában.
+ * The Earth's orbital elements come from the JPL "Keplerian Elements for
+ * Approximate Positions" table, the same ones as in the library's planets.json.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -19,7 +19,7 @@ import { Kepler } from "../src/kepler.js";
 
 const DEG = Math.PI / 180;
 
-// JPL: a Föld–Hold baricentrum pályaelemei, J2000 epocha, évszázados változással
+// JPL: orbital elements of the Earth–Moon barycentre, J2000 epoch, with centennial rates
 const EARTH_ELEMENTS = {
   a: 1.00000261, e: 0.01671123, i: -1.531e-5,
   L: 100.46457166, W: 102.93768193, N: 0,
@@ -28,8 +28,8 @@ const EARTH_ELEMENTS = {
   ep: "2000-01-01"
 };
 
-/* A Hold efemeriszét ugyanúgy állítjuk elő, ahogy a könyvtár teszi:
- * a Föld heliocentrikus helyzete adja a Nap irányát (getPlanet → equatorial). */
+/* We produce the Moon's ephemeris exactly the way the library does:
+ * the heliocentric position of the Earth gives the direction of the Sun (getPlanet → equatorial). */
 function moonAt(dt) {
   var earth = Kepler().id("ter").elements(EARTH_ELEMENTS),
       lun = Kepler().id("lun").elements({});
@@ -37,11 +37,11 @@ function moonAt(dt) {
 }
 
 const inDegrees = rad => rad / DEG;
-// Két szög eltérése inDegrees, a 0/360 határon is helyesen
+// The difference of two angles in degrees, correct across the 0/360 boundary as well
 const angleDelta = (a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
 
-test("fázis ismert újholdakkor nulla", () => {
-  // Teljes napfogyatkozások — a konjunkció időpontja percre ismert
+test("the phase is zero at known new moons", () => {
+  // Total solar eclipses — the moment of conjunction is known to the minute
   const newMoons = [
     "2017-08-21T18:30Z",
     "2024-04-08T18:21Z",
@@ -51,15 +51,15 @@ test("fázis ismert újholdakkor nulla", () => {
   for (const s of newMoons) {
     const e = moonAt(new Date(s));
     assert.ok(angleDelta(inDegrees(e.age), 0) < 0.5,
-      `${s}: age ${inDegrees(e.age).toFixed(2)}° nem 0° közeli`);
-    assert.ok(e.phase < 0.0001, `${s}: phase ${e.phase} nem 0 közeli`);
+      `${s}: age ${inDegrees(e.age).toFixed(2)}° is not close to 0°`);
+    assert.ok(e.phase < 0.0001, `${s}: phase ${e.phase} is not close to 0`);
   }
 });
 
-test("fázis ismert teliholdakkor egy", () => {
-  // Holdfogyatkozások, illetve a #130 issue dátuma
+test("the phase is one at known full moons", () => {
+  // Lunar eclipses, plus the date of issue #130
   const fullMoons = [
-    "2022-03-18T07:17Z",   // az #130 issue napja
+    "2022-03-18T07:17Z",   // the day of issue #130
     "2025-03-14T06:55Z",
     "2025-09-07T18:09Z",
     "2026-03-03T11:38Z"
@@ -67,14 +67,14 @@ test("fázis ismert teliholdakkor egy", () => {
   for (const s of fullMoons) {
     const e = moonAt(new Date(s));
     assert.ok(angleDelta(inDegrees(e.age), 180) < 0.5,
-      `${s}: age ${inDegrees(e.age).toFixed(2)}° nem 180° közeli`);
-    assert.ok(e.phase > 0.9999, `${s}: phase ${e.phase} nem 1 közeli`);
+      `${s}: age ${inDegrees(e.age).toFixed(2)}° is not close to 180°`);
+    assert.ok(e.phase > 0.9999, `${s}: phase ${e.phase} is not close to 1`);
   }
 });
 
-test("#130: 2022-03-18-án a Hold végig gyakorlatilag telve van", () => {
-  // A bejelentő szerint fogyó gibbuszt mutatott a térkép. A számított
-  // megvilágítottság viszont egész day 99,5% fölött van.
+test("#130: on 2022-03-18 the Moon is practically full all day long", () => {
+  // According to the reporter the map showed a waning gibbous. The computed
+  // illuminated fraction, however, stays above 99.5% for the whole day.
   for (let hour = 0; hour < 24; hour++) {
     const e = moonAt(new Date(Date.UTC(2022, 2, 18, hour)));
     assert.ok(e.phase > 0.995,
@@ -82,28 +82,28 @@ test("#130: 2022-03-18-án a Hold végig gyakorlatilag telve van", () => {
   }
 });
 
-test("phase a age-ből következik, és 0..1 közé esik", () => {
+test("phase follows from age, and falls between 0 and 1", () => {
   for (let n = 0; n < 400; n++) {
     const e = moonAt(new Date(Date.UTC(2024, 0, 1) + n * 86400000 * 0.7));
-    assert.ok(e.age >= 0 && e.age < 2 * Math.PI, `age ${e.age} kívül esik 0..2π-n`);
-    assert.ok(e.phase >= 0 && e.phase <= 1, `phase ${e.phase} kívül esik 0..1-en`);
+    assert.ok(e.age >= 0 && e.age < 2 * Math.PI, `age ${e.age} falls outside 0..2π`);
+    assert.ok(e.phase >= 0 && e.phase <= 1, `phase ${e.phase} falls outside 0..1`);
     assert.ok(Math.abs(e.phase - 0.5 * (1 - Math.cos(e.age))) < 1e-12);
   }
 });
 
-test("két újhold között a szinodikus hóday telik el", () => {
-  // Az age 0-átmeneteit keressük meg felezéssel, 2025 folyamán.
+test("a synodic month passes between two new moons", () => {
+  // We look for the zero crossings of age by bisection, over the course of 2025.
   const newMoonTime = startState => {
     let a = startState, b = startState;
-    // előrelépünk, amíg az age át nem fordul 360° → 0°
+    // we step forward until age wraps around from 360° to 0°
     let prev = moonAt(new Date(a)).age;
     for (let i = 1; i <= 40 * 24; i++) {
       b = startState + i * 3600000;
       const now_ = moonAt(new Date(b)).age;
-      if (now_ < prev) break;      // átfordult
+      if (now_ < prev) break;      // it wrapped around
       prev = now_; a = b;
     }
-    for (let i = 0; i < 40; i++) {  // felezés percnyi pontosságig
+    for (let i = 0; i < 40; i++) {  // bisection down to minute accuracy
       const k = (a + b) / 2;
       if (moonAt(new Date(k)).age > Math.PI) a = k; else b = k;
     }
@@ -119,36 +119,36 @@ test("két újhold között a szinodikus hóday telik el", () => {
 
   const mean = lengths.reduce((s, x) => s + x, 0) / lengths.length;
   assert.ok(Math.abs(mean - 29.5306) < 0.05,
-    `átlagos lunáció ${mean.toFixed(4)} day, várt 29,5306`);
+    `mean lunation ${mean.toFixed(4)} days, expected 29.5306`);
   for (const h of lengths) {
-    assert.ok(h > 29.2 && h < 29.9, `egy lunáció ${h.toFixed(3)} day, kívül a valós 29,27–29,83 sávon`);
+    assert.ok(h > 29.2 && h < 29.9, `one lunation is ${h.toFixed(3)} days, outside the real 29.27–29.83 band`);
   }
 });
 
-test("Meeus 47.a: ekliptikai koordináták és távolság", () => {
-  // Astronomical Algorithms, 47.a példa, 1992-04-12 0h TD
+test("Meeus 47.a: ecliptic coordinates and distance", () => {
+  // Astronomical Algorithms, example 47.a, 1992-04-12 0h TD
   const e = moonAt(new Date(Date.UTC(1992, 3, 12)));
   assert.equal(e.jd, 2448724.5);
   assert.ok(angleDelta(inDegrees(e.l), 133.162655) < 0.02,
-    `λ ${inDegrees(e.l).toFixed(5)}°, várt 133.16266°`);
+    `λ ${inDegrees(e.l).toFixed(5)}°, expected 133.16266°`);
   assert.ok(Math.abs(inDegrees(e.b) - -3.229126) < 0.02,
-    `β ${inDegrees(e.b).toFixed(5)}°, várt -3.22913°`);
+    `β ${inDegrees(e.b).toFixed(5)}°, expected -3.22913°`);
   assert.ok(Math.abs(e.r - 368409.7) < 30,
-    `Δ ${e.r.toFixed(1)} km, várt 368409.7 km`);
+    `Δ ${e.r.toFixed(1)} km, expected 368409.7 km`);
 });
 
-test("Meeus 13.a: rektaszcenzió és deklináció", () => {
-  // Ugyanaz az időpont egyenlítői koordinátákban.
+test("Meeus 13.a: right ascension and declination", () => {
+  // The same moment in equatorial coordinates.
   const e = moonAt(new Date(Date.UTC(1992, 3, 12)));
   assert.ok(angleDelta(inDegrees(e.ra), 134.688470) < 0.02,
-    `RA ${inDegrees(e.ra).toFixed(5)}°, várt 134.68847°`);
+    `RA ${inDegrees(e.ra).toFixed(5)}°, expected 134.68847°`);
   assert.ok(Math.abs(inDegrees(e.dec) - 13.768368) < 0.02,
-    `Dec ${inDegrees(e.dec).toFixed(5)}°, várt 13.76837°`);
+    `Dec ${inDegrees(e.dec).toFixed(5)}°, expected 13.76837°`);
 });
 
-test("ra/dec ugyanazt a pozíciót írja le, mint l/b", () => {
-  // Tisztán geometriai azonosság: az ekliptikai és az egyenlítői koordinátákat
-  // az ekliptika hajlása köti össze. Ephemerisz-pontosságtól független.
+test("ra/dec describes the same position as l/b", () => {
+  // A purely geometric identity: ecliptic and equatorial coordinates are tied
+  // together by the obliquity of the ecliptic. Independent of ephemeris accuracy.
   for (let n = 0; n < 60; n++) {
     const e = moonAt(new Date(Date.UTC(2024, 0, 1) + n * 86400000 * 6));
     const eps = (23.439292 - 0.0130042 * e.cy) * DEG;
@@ -158,8 +158,8 @@ test("ra/dec ugyanazt a pozíciót írja le, mint l/b", () => {
     const expectedRa = Math.atan2(sl * Math.cos(eps) - sb * Math.sin(eps), cl),
           expectedDec = Math.asin(sb * Math.cos(eps) + Math.cos(e.b) * Math.sin(eps) * Math.sin(e.l));
     assert.ok(angleDelta(inDegrees(e.ra), inDegrees(expectedRa)) < 0.01,
-      `RA ${inDegrees(e.ra).toFixed(4)}° ≠ l/b-ből ${inDegrees(expectedRa).toFixed(4)}°`);
+      `RA ${inDegrees(e.ra).toFixed(4)}° ≠ ${inDegrees(expectedRa).toFixed(4)}° from l/b`);
     assert.ok(Math.abs(inDegrees(e.dec) - inDegrees(expectedDec)) < 0.01,
-      `Dec ${inDegrees(e.dec).toFixed(4)}° ≠ l/b-ből ${inDegrees(expectedDec).toFixed(4)}°`);
+      `Dec ${inDegrees(e.dec).toFixed(4)}° ≠ ${inDegrees(expectedDec).toFixed(4)}° from l/b`);
   }
 });

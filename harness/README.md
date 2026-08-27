@@ -1,139 +1,142 @@
-# Referencia-háló
+# Reference net
 
-A `d3-celestial` vetítései determinisztikus függvények: `(RA, Dec, vetítés, forgatás) → (x, y)`.
-Ez azt jelenti, hogy a jelenlegi (D3 v3-as) kimenet **rögzíthető**, és a migrált verziónak — adott
-tűréssel — ugyanazt kell adnia.
+The `d3-celestial` projections are deterministic functions: `(RA, Dec, projection, rotation) → (x, y)`.
+That means the current (D3 v3) output can be **recorded**, and the migrated version has to produce
+the same thing — within a given tolerance.
 
-## Használat
+## Usage
 
 ```bash
 cd harness
 python3 -m http.server 8877
-# majd böngészőben: http://127.0.0.1:8877/reference.html
+# then in the browser: http://127.0.0.1:8877/reference.html
 ```
 
-Az oldal lefuttatja a mérést, és felkínálja a `reference-d3v3.json` letöltését.
+The page runs the measurement and offers `reference-d3v3.json` for download.
 
-**Böngészőben fut, nem Node-ban** — a d3-celestial DOM-ot és canvas-t igényel.
+**It runs in the browser, not in Node** — d3-celestial needs a DOM and a canvas.
 
-A mérés lefutott. Két referencia van a repóban:
+The measurement has been run. There are two references in the repo:
 
 | | |
 |---|---|
-| `reference-d3v3.json` | a pinelt upstream (D3 3.5.17) — `reference.html` |
-| `reference-d3v7.json` | a migrált build (D3 7.9.0) — `reference-new.html` |
+| `reference-d3v3.json` | the pinned upstream (D3 3.5.17) — `reference.html` |
+| `reference-d3v7.json` | the migrated build (D3 7.9.0) — `reference-new.html` |
 
-Összevetve: **25/25 vetítés, max eltérés 0.000 px** — a vetítési kimenet bitre azonos.
+Compared: **25/25 projections, max difference 0.000 px** — the projection output is bit-identical.
 
 ```bash
-node osszehasonlit.mjs reference-d3v3.json reference-d3v7.json
+node compare.mjs reference-d3v3.json reference-d3v7.json
 ```
 
-## Mit mér
+## What it measures
 
 | | |
 |---|---|
-| Vetítések | 25 (`airy`, `mercator`, `orthographic`, `stereographic`, …) |
-| Forgatások | 4 (alaphelyzet, Budapest zenitje, döntött nézet, magas északi szélesség) |
-| Égi pontok | 413 (15°-os RA × 10°-os Dec rács + sarkok és peremesetek) |
-| **Összesen** | **41 300 mért pont** |
+| Projections | 25 (`airy`, `mercator`, `orthographic`, `stereographic`, …) |
+| Rotations | 4 (default orientation, the zenith over Budapest, tilted view, high northern latitude) |
+| Sky points | 413 (a 15° RA × 10° Dec grid + poles and edge cases) |
+| **Total** | **41,300 measured points** |
 
-Minden pontra rögzül: `[x, y, látható]` — a vetített pixelkoordináta és a `Celestial.clip()`
-állapota. A clipping viselkedése a migráció egyik legkényesebb pontja, ezért külön mérjük.
+For every point we record `[x, y, visible]` — the projected pixel coordinate and the state of
+`Celestial.clip()`. The behaviour of clipping is one of the most delicate points of the migration,
+which is why we measure it separately.
 
-## Önellenőrzés
+## Self-check
 
-A háló csak akkor ér valamit, ha bizonyíthatóan **mér is valamit**. A generátor ezért ellenőrzi:
+The net is only worth something if it demonstrably **measures something**. The generator therefore
+checks that:
 
-- **nincs két azonos kimenetű vetítés** — ha lenne, az azt jelentené, hogy a vetítésváltás nem
-  történt meg, és a referencia némán értéktelen
-- **egy vetítésen belül nincs két azonos kimenetű forgatás** — ugyanez a forgatásokra
-- **a pontok többsége egyedi** az első vetítésen belül
+- **no two projections produce the same output** — if they did, it would mean that the projection
+  switch never happened, and the reference is silently worthless
+- **within a projection, no two rotations produce the same output** — the same thing for rotations
+- **most of the points are unique** within the first projection
 
-> Ez nem elméleti óvatosság, és kétszer is bizonyított:
+> This is not theoretical caution, and it has been proven twice:
 >
-> 1. A harness első verziója `Celestial.apply({projection})`-t hívott, amit az API nem támogat (a
->    `projection` újratöltést igényel). Így mind a 25 vetítés ugyanazt a kimenetet adta volna. Az
->    önellenőrzés fogta ki.
-> 2. A második verzióban a **négy forgatás** adott azonos koordinátákat: a `Celestial.rotate()`
->    d3-átmenetet indít, a szinkron mérés tehát a forgatás előtti állapotot rögzítette. Ezt már nem
->    fogta ki az önellenőrzés, mert csak a vetítésekre nézett. Azóta `disableAnimations: true`, és a
->    forgatás-ellenőrzés is bekerült.
+> 1. The first version of the harness called `Celestial.apply({projection})`, which the API does not
+>    support (`projection` requires a reload). So all 25 projections would have produced the same
+>    output. The self-check caught it.
+> 2. In the second version the **four rotations** gave identical coordinates: `Celestial.rotate()`
+>    starts a d3 transition, so the synchronous measurement recorded the state before the rotation.
+>    This time the self-check did *not* catch it, because it only looked at the projections. Since
+>    then `disableAnimations: true` is set, and the rotation check has been added too.
 >
-> Az önellenőrzés arra véd, amire megírták. Érdemes minden tengelyre kiterjeszteni, amit a háló az
-> állítása szerint mér.
+> A self-check only protects against what it was written for. It is worth extending it to every axis
+> the net claims to measure.
 
-## Vizuális alapállapot
+## Visual baseline
 
-A háló számokat hasonlít össze. Hogy a Nagy Medve *úgy néz-e ki, ahogy kell*, azt meg kell nézni —
-ehhez van a `visual.html`, ami a generátorral ellentétben minden réteget megjelenít
-(csillagok m≤6, csillagképnevek és -vonalak, Tejút, ekliptika, koordinátaháló).
+The net compares numbers. Whether Ursa Major *looks the way it should* has to be looked at — that is
+what `visual.html` is for, which, unlike the generator, renders every layer (stars m≤6, constellation
+names and lines, Milky Way, ecliptic, coordinate grid).
 
 ```bash
 python3 -m http.server 8877
 # http://127.0.0.1:8877/visual.html
-# a vetítés váltása a konzolból: valt("orthographic", [180, 55])
+# switching projection from the console: valt("orthographic", [180, 55])
 ```
 
-A vetítés és a középpont az URL hash-éből jön, hogy oldalbetöltésenként **pontosan egy** `display()`
-fusson:
+The projection and the centre come from the URL hash, so that **exactly one** `display()` runs per
+page load:
 
 ```
-#airy                                          alaphelyzet
-#orthographic,180,55                           vetítés + középpont
-#orthographic,180,55|{"mw":{"show":false}}     plusz konfigurációs felülbírálás
+#airy                                          default orientation
+#orthographic,180,55                           projection + centre
+#orthographic,180,55|{"mw":{"show":false}}     plus a configuration override
 ```
 
-Ez nem kényelmi kérdés. A rögzítés eleinte nem volt reprodukálható — ugyanaz a verzió önmagához
-mérve 3–6%-os pixeleltérést adott. Három ok, mind a könyvtár állapotkezeléséből:
+This is not a matter of convenience. At first the capture was not reproducible — the same version
+measured against itself gave a 3–6% pixel difference. Three causes, all of them from the library's
+state handling:
 
-| ok | ellenszer |
+| cause | remedy |
 |---|---|
-| az első `display()` a `location.js` `geo()`-ján át az **aktuális időből** származtat középpontot | `follow: "center"`, `location: false` |
-| animált átmenet közben fényképeztünk | `disableAnimations: true` |
-| a második `display()` más állapotot hagy maga után, mint az első (#96/#131) | oldalanként egy `display()` |
+| the first `display()`, via `geo()` in `location.js`, derives the centre from the **current time** | `follow: "center"`, `location: false` |
+| we were photographing during an animated transition | `disableAnimations: true` |
+| the second `display()` leaves behind a different state than the first (#96/#131) | one `display()` per page |
 
-Ezek után a zajszint **pontosan nulla**: ugyanaz a verzió kétszer futtatva bitre azonos képet ad.
-Az összevetéshez a `image-diff.html` van, ami két PNG-t pixelenként hasonlít össze.
+After that the noise level is **exactly zero**: running the same version twice gives a bit-identical
+image. For the comparison there is `image-diff.html`, which compares two PNGs pixel by pixel.
 
-A rögzített képek a [`docs/kepek/`](../docs/kepek/) mappában, `d3v3-` és `d3v7-` előtaggal:
+The recorded images are in [`docs/images/`](../docs/images/), with the `d3v3-` and `d3v7-` prefixes:
 
-| Kép | Mit ellenőriz |
+| Image | What it checks |
 |---|---|
-| `d3v3-aitoff-teljes-eg.png` | teljes égbolt, Tejút-sáv és ekliptika elhelyezkedése |
-| `d3v3-mollweide-teljes-eg.png` | másik teljes-égbolt vetítés, összevetésre |
-| `d3v3-mercator-teljes-eg.png` | téglalap alakú vetítés, pólusok felé nyúlás |
-| `d3v3-orthographic-nagymedve.png` | **félteke-vágás** + felismerhető alakzat (Nagy Göncöl, Cassiopeia W-je) |
-| `d3v3-stereographic-eszaki-sark.png` | pólusra centrált nézet |
-| `d3v3-airy-alap.png` | a generátor alapértelmezett vetítése |
+| `d3v3-aitoff-full-sky.png` | the whole sky, the position of the Milky Way band and the ecliptic |
+| `d3v3-mollweide-full-sky.png` | another whole-sky projection, for comparison |
+| `d3v3-mercator-full-sky.png` | rectangular projection, stretching towards the poles |
+| `d3v3-orthographic-big-dipper.png` | **hemisphere clipping** + a recognisable shape (the Plough, the W of Cassiopeia) |
+| `d3v3-stereographic-north-pole.png` | a view centred on the pole |
+| `d3v3-airy-base.png` | the generator's default projection |
 
-A migráció minden fázisa után ugyanezekkel a beállításokkal kell újra lefényképezni, és a két
-képsort egymás mellé tenni. Ezt semmilyen automatizmus nem váltja ki.
+After every phase of the migration these have to be photographed again with the same settings, and
+the two sets of images placed side by side. No amount of automation replaces this.
 
-## Az #148 issue ellenőrzése
+## Checking issue #148
 
 ```bash
 node issue-148-check.mjs
 ```
 
-Round-trip teszt a `horizontal()` / `horizontal.inverse()` párosra: ha mindkettő helyes, az oda-vissza
-átszámítás visszaadja a kiindulási koordinátát.
+A round-trip test for the `horizontal()` / `horizontal.inverse()` pair: if both are correct, the
+round-trip conversion gives back the starting coordinate.
 
-Eredmény: az eredeti kód a horizont fölötti pontok **50%-át** rosszul adja vissza (max. eltérés
-171,4°), a javítással 0 hiba (max. 0,0002°).
+Result: the original code returns **50% of the points** above the horizon incorrectly (max difference
+171.4°); with the fix there are 0 errors (max 0.0002°).
 
-## Fájlok
+## Files
 
 | | |
 |---|---|
-| `reference.html` + `reference.js` | a generátor |
-| `reference-new.html` | ugyanaz a generátor a migrált buildre — **csak a buildet tölti be**, külső D3 nélkül |
-| `reference-d3v3.json` | **a rögzített referencia** — ehhez méri magát a migrált verzió (712 KB) |
-| `reference-d3v7.json` | a migrált build kimenete |
-| `reference-sample.json` | a formátum bemutatása, olvasható méretben |
-| `osszehasonlit.mjs` | a két referencia diffje (`--onteszt` a saját érvényességére) |
-| `visual.html` / `visual-new.html` | a vizuális összevetés oldalai |
-| `image-diff.html` | két PNG pixelenkénti összevetése |
-| `issue-148-check.mjs` | a #148 numerikus vizsgálata (Node) |
-| `vendor/` | a vizsgált verzió pinelt másolata — hogy a referencia reprodukálható legyen |
-| `data/` | minimális adatkészlet (a `display()` akkor is betölt, ha minden réteg rejtett) |
+| `reference.html` + `reference.js` | the generator |
+| `reference-new.html` | the same generator against the migrated build — **it loads only the build**, with no external D3 |
+| `reference-d3v3.json` | **the recorded reference** — this is what the migrated version measures itself against (712 KB) |
+| `reference-d3v7.json` | the output of the migrated build |
+| `reference-sample.json` | a demonstration of the format, at a readable size |
+| `compare.mjs` | the diff of the two references (`--selftest` for its own validity) |
+| `visual.html` / `visual-new.html` | the pages for the visual comparison |
+| `image-diff.html` | pixel-by-pixel comparison of two PNGs |
+| `issue-148-check.mjs` | the numerical investigation of #148 (Node) |
+| `vendor/` | a pinned copy of the version under test — so that the reference is reproducible |
+| `data/` | a minimal data set (`display()` loads even when every layer is hidden) |

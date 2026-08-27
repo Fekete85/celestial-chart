@@ -9,15 +9,15 @@ import { Round, has, hasParent, isArray, isNumber, isValidDate, loadJson, pad, s
 
 var geoInfo = null;
 
-// Helymeghatározás és időbeállítás egy térképhez. A példányt kapja, mert az
-// űrlapmezői annak az űrlapján élnek.
+// Observer location and time controls for one map. It receives the instance
+// because its input fields live on that map's settings form.
 function geo(sky) {
   var cfg = sky.cfg;
   var $form = sky.form.$form,
       enable = sky.form.enable,
       showAdvanced = sky.form.showAdvanced;
   var dtFormat = d3.timeFormat("%Y-%m-%d %H:%M:%S"),
-      // a v3 formázója maga tudott visszafelé is; a v7-ben külön függvény
+      // in v3 the formatter could also parse; in v7 that is a separate function
       dtParse = d3.timeParse("%Y-%m-%d %H:%M:%S"),
       zenith = [0,0],
       geopos = [0,0], 
@@ -115,8 +115,8 @@ function geo(sky) {
   showAdvanced(config.advanced);
   
 
-  d3.select(document).on("mousedown", function (esemeny) { 
-    if (!hasParent(esemeny.target, "celestial-date") && dtpick.isVisible()) dtpick.hide(); 
+  d3.select(document).on("mousedown", function (event_) { 
+    if (!hasParent(event_.target, "celestial-date") && dtpick.isVisible()) dtpick.hide(); 
   });
   
   function now() {

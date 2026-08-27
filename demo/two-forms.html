@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — két interaktív térkép saját űrlappal</title>
+<title>d3-celestial — two interactive maps with their own settings forms</title>
 <link rel="stylesheet" href="../celestial.css">
 <style>
   body { font: 14px sans-serif; margin: 16px; }
@@ -12,21 +12,21 @@
 </style>
 </head>
 <body>
-<h1>Két interaktív térkép, külön űrlappal</h1>
+<h1>Two interactive maps, each with its own settings form</h1>
 <p>
-  Az upstream #96 és #131 utolsó darabja: eddig az űrlap, a helymeghatározás és az
-  SVG-export egy közös „aktuális térkép" mutatón dolgozott. Most mindegyik térkép
-  a sajátját kapja — az alsó űrlap az alsó térképet állítja, a felső a felsőt.
+  The last piece of upstream #96 and #131: until now the settings form, the location
+  handling and the SVG export all worked off a shared "current map" pointer. Now every map
+  gets its own — the lower form drives the lower map, the upper one the upper map.
 </p>
 
 <div class="fel"><h2>A — orthographic</h2><div id="terkep-a"></div></div>
 <div class="fel"><h2>B — mollweide</h2><div id="terkep-b"></div></div>
-<div id="statusEl">Betöltés…</div>
+<div id="statusEl">Loading…</div>
 
 <script type="module">
 import { SkyMap } from "../build/celestial.mjs";
 
-const KOZOS = {
+const COMMON = {
   width: 460, datapath: "../harness/data/",
   interactive: true, form: true, controls: true, location: false,
   follow: "center", disableAnimations: true, orientationfixed: false,
@@ -39,9 +39,9 @@ const KOZOS = {
                 constellations: true, lines: true, other: true, download: true }
 };
 
-const a = new SkyMap(Object.assign({}, KOZOS, {
+const a = new SkyMap(Object.assign({}, COMMON, {
   container: "terkep-a", projection: "orthographic", center: [180, 55, 0] }), { standalone: true });
-const b = new SkyMap(Object.assign({}, KOZOS, {
+const b = new SkyMap(Object.assign({}, COMMON, {
   container: "terkep-b", projection: "mollweide", center: [0, 0, 0] }), { standalone: true });
 
 window.__a = a; window.__b = b;
@@ -50,11 +50,11 @@ setTimeout(function () {
   const urlapA = document.querySelector("#terkep-a ~ #celestial-form");
   const urlapB = document.querySelector("#terkep-b ~ #celestial-form");
   document.getElementById("statusEl").textContent =
-    "A: " + a.cfg.projection + ", lépték " + Math.round(a.mapProjection.scale()) + "\n" +
-    "B: " + b.cfg.projection + ", lépték " + Math.round(b.mapProjection.scale()) + "\n" +
-    "külön űrlapfelület: " + (a.form !== b.form) +
-      " · külön űrlap-el: " + (!!urlapA && !!urlapB && urlapA !== urlapB) +
-      " · külön SVG-export: " + (a.exportSVG !== b.exportSVG);
+    "A: " + a.cfg.projection + ", scale " + Math.round(a.mapProjection.scale()) + "\n" +
+    "B: " + b.cfg.projection + ", scale " + Math.round(b.mapProjection.scale()) + "\n" +
+    "separate form interface: " + (a.form !== b.form) +
+      " · separate form element: " + (!!urlapA && !!urlapB && urlapA !== urlapB) +
+      " · separate SVG export: " + (a.exportSVG !== b.exportSVG);
 }, 5000);
 </script>
 </body>

@@ -7,8 +7,8 @@ import { poles } from "./projection.js";
 import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
 import { Round, attrs, taskQueue, functor, has, isArray, loadJson } from "./util.js";
 
-// SVG-export egy térképről. A példányt kapja, hogy a saját konfigurációjából,
-// tárolójából és névtábláiból dolgozzon.
+// SVG export of one map. It receives the instance so that it works from that
+// map's own configuration, container and name tables.
 function exportSVG(sky, done, fname) {
   var doc = d3.select("body").append("div").attr("id", "d3-celestial-svg").attr("style", "display: none"),
       svg = d3.select("#d3-celestial-svg").append("svg"), //.attr("style", "display: none"),
@@ -31,11 +31,12 @@ function exportSVG(sky, done, fname) {
   if (proj.clip) {
     projection.clipAngle(90);
   }
-  // A output fix méretű, tehát a lapon kívüli rész úgysem látszik — viszont
-  // vágás nélkül nem-véges koordináták kerülnek az útvonalakba. A mercator
-  // háttérköre például a pólusokat is tartalmazza, ott a vetítés ±végtelen, és
-  // az `Infinity` az SVG `d` attribútumában érvénytelen: a böngésző az egész
-  // útvonalat eldobja. A clipExtent postclip, tehát a clipAngle mellett áll meg.
+  // The output has a fixed size, so anything outside the page is invisible
+  // anyway — but without clipping, non-finite coordinates end up in the paths.
+  // Mercator's background circle, for instance, includes the poles, where the
+  // projection goes to plus or minus infinity, and `Infinity` is invalid in an
+  // SVG `d` attribute: the browser discards the whole path. clipExtent is a
+  // post-clip, so it coexists with clipAngle.
   projection.clipExtent([[0, 0], [m.width, m.height]]);
   circle = d3.geoCircle().radius(179.95).center(center);
 
@@ -265,8 +266,8 @@ function exportSVG(sky, done, fname) {
           }));
 
         styles.stars = svgStyle(cfg.stars.style);
-        // A tartomány iránya a skála felépítésétől függ (a v3-ban csökkenő volt,
-        // a v7-ben növekvőnek kell lennie) — a ciklus ne múljon ezen.
+        // The direction of the domain depends on how the scale was built
+        // (descending in v3, ascending in v7) — the loop must not depend on it.
         var range = bvcolor.domain(),
             bvMin = Math.min(range[0], range[1]),
             bvMax = Math.max(range[0], range[1]);
@@ -808,11 +809,12 @@ var customSvgSymbols = new Map(Object.entries({
     var s = Math.sqrt(size), 
         r = s/2,
         ph = 0.5 * (1 - Math.cos(ratio)),
-        // A terminátor fél-kistengelye a korong sugarának |cos(fázisszög)|-szerese,
-        // ami a megvilágított hányaddal |2·ph − 1| = 2·|ph − 0.5|. Az 1.6-os szorzó
-        // miatt a telihold 19%-kal keskenyebb, gibbusz alakú korongként rajzolódott
-        // (#130). Az 1.98 + 0.01 pontosan 1-et ad teli- és újholdnál, és megtartja
-        // az elfajulás elleni védelmet negyedeknél.
+        // The terminator's semi-minor axis is |cos(phase angle)| times the disc
+        // radius, which in terms of the illuminated fraction is
+        // |2*ph - 1| = 2*|ph - 0.5|. The factor of 1.6 drew a full moon 19% too
+        // narrow — as a gibbous disc (#130). 1.98 + 0.01 gives exactly 1 at full
+        // and new moon while keeping the guard against a degenerate ellipse at
+        // the quarters.
         e = 1.98 * Math.abs(ph - 0.5) + 0.01,
         dir = ratio > Math.PI ? 0 : 1,
         termdir = Math.abs(ph) > 0.5 ? dir : Math.abs(dir-1); 
@@ -823,9 +825,9 @@ var customSvgSymbols = new Map(Object.entries({
   } 
 }));
 
-// A v3-ban a szimbólum típusa szöveg volt ("circle"), a v7-ben objektum.
-// Függvényben oldjuk fel, nem modulszintű táblában: így az svg.js betöltéskor
-// nem hivatkozik a d3-ra, és Node-ból is tesztelhető marad.
+// In v3 a symbol type was a string ("circle"); in v7 it is an object.
+// Resolved in a function rather than a module-level table, so that svg.js does
+// not reference d3 at load time and stays testable from Node.
 function builtinSymbol(name_) {
   switch (name_) {
     case "circle": return d3.symbolCircle;
@@ -834,7 +836,7 @@ function builtinSymbol(name_) {
     case "square": return d3.symbolSquare;
     case "star": return d3.symbolStar;
     case "wye": return d3.symbolWye;
-    // A v3 külön ismerte a lefelé mutató háromszöget, a v7 nem.
+    // v3 knew a separate downward triangle; v7 does not.
     case "triangle": case "triangle-up": case "triangle-down": return d3.symbolTriangle;
     default: return null;
   }
@@ -866,9 +868,9 @@ function customSymbol() {
 
 
 
-// Visszafelé kompatibilis: a globális felület a legutóbbi térképre hat.
-// Példányonként a Celestial.display() által visszaadott objektumon van
-// exportSVG, ami a saját térképét exportálja.
+// Backwards compatible: the global interface acts on the most recent map.
+// Per instance, the object returned by Celestial.display() carries its own
+// exportSVG, which exports that map.
 Celestial.exportSVG = function(callback) {
   if (!callback) return;
   exportSVG(this && this.cfg ? this : Celestial, callback);

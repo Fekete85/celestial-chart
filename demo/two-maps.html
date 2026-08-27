@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>d3-celestial — két független térkép</title>
+<title>d3-celestial — two independent maps</title>
 <style>
   body { font: 14px sans-serif; margin: 16px; }
   .row { display: flex; gap: 24px; flex-wrap: wrap; }
@@ -12,21 +12,21 @@
 </style>
 </head>
 <body>
-<h1>Két független térkép egy oldalon</h1>
+<h1>Two independent maps on one page</h1>
 <p>
-  Az upstream #96 és #131 issue: a könyvtár globális állapotot tartott, ezért egy oldalon
-  csak egy térkép működött. Az osztály-baseú felülettel mindegyik példány saját állapotot kap.
+  Upstream issues #96 and #131: the library kept global state, so only one map worked on a
+  page. With the class-based interface every instance gets its own state.
 </p>
 <div class="row">
-  <div class="box"><h2>A — orthographic, Nagy Medve</h2><div id="terkep-a"></div></div>
-  <div class="box"><h2>B — mollweide, full égbolt</h2><div id="terkep-b"></div></div>
+  <div class="box"><h2>A — orthographic, Ursa Major</h2><div id="terkep-a"></div></div>
+  <div class="box"><h2>B — mollweide, whole sky</h2><div id="terkep-b"></div></div>
 </div>
-<div id="statusEl">Betöltés…</div>
+<div id="statusEl">Loading…</div>
 
 <script type="module">
 import { SkyMap } from "../build/celestial.mjs";
 
-const KOZOS = {
+const COMMON = {
   width: 470,
   datapath: "../harness/data/",
   interactive: false, form: false, controls: false, location: false,
@@ -42,13 +42,13 @@ const KOZOS = {
   background: { fill: "#000000", stroke: "#000000" }
 };
 
-// Az `standalone: true` a lényeg: a példány csak az baseértelmezésekre és a saját
-// configjára épül, nem a felhalmozott globális beállításra.
-const a = new SkyMap(Object.assign({}, KOZOS, {
+// `standalone: true` is the point: the instance builds only on the defaults and on
+// its own config, not on the accumulated global settings.
+const a = new SkyMap(Object.assign({}, COMMON, {
   container: "terkep-a", projection: "orthographic", center: [180, 55, 0]
 }), { standalone: true });
 
-const b = new SkyMap(Object.assign({}, KOZOS, {
+const b = new SkyMap(Object.assign({}, COMMON, {
   container: "terkep-b", projection: "mollweide", center: [0, 0, 0]
 }), { standalone: true });
 
@@ -56,12 +56,12 @@ window.__a = a; window.__b = b;
 
 setTimeout(function () {
   document.getElementById("statusEl").textContent =
-    "A: " + a.cfg.projection + "  középpont " + JSON.stringify(a.cfg.center.map(Math.round)) +
-      "  lépték " + Math.round(a.mapProjection.scale()) + "\n" +
-    "B: " + b.cfg.projection + "  középpont " + JSON.stringify(b.cfg.center.map(Math.round)) +
-      "  lépték " + Math.round(b.mapProjection.scale()) + "\n" +
-    "külön állapot: " + (a.cfg !== b.cfg) + " · külön vetítés: " + (a.mapProjection !== b.mapProjection) +
-      " · külön tároló: " + (a.container.node() !== b.container.node());
+    "A: " + a.cfg.projection + "  centre " + JSON.stringify(a.cfg.center.map(Math.round)) +
+      "  scale " + Math.round(a.mapProjection.scale()) + "\n" +
+    "B: " + b.cfg.projection + "  centre " + JSON.stringify(b.cfg.center.map(Math.round)) +
+      "  scale " + Math.round(b.mapProjection.scale()) + "\n" +
+    "separate state: " + (a.cfg !== b.cfg) + " · separate projection: " + (a.mapProjection !== b.mapProjection) +
+      " · separate container: " + (a.container.node() !== b.container.node());
 }, 4000);
 </script>
 </body>

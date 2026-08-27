@@ -1,228 +1,232 @@
-# Megvalósíthatósági felmérés és migrációs áttekintés
+# Feasibility survey and migration overview
 
-> Ez a dokumentum a munka **kiindulópontja**: a felmérés, amely eldöntötte, megéri-e átvenni és
-> modernizálni a [d3-celestial](https://github.com/ofrohn/d3-celestial) könyvtárat. A kész fork
-> leírása a [`README.md`](../README.md)-ben van, a részletes napló a
-> [`04-migration-log.md`](04-migration-log.md)-ben.
+> This document is the **starting point** of the work: the survey that decided whether it was worth
+> taking over and modernising the [d3-celestial](https://github.com/ofrohn/d3-celestial) library. The
+> finished fork is described in [`README.md`](../README.md), the detailed log in
+> [`04-migration-log.md`](04-migration-log.md).
 
-A vizsgált verzió: `ofrohn/d3-celestial @ 7e720a3` (2022-07-05).
+The version examined: `ofrohn/d3-celestial @ 7e720a3` (2022-07-05).
 
 ---
 
-## A négy legfontosabb megállapítás
+## The four most important findings
 
-### 1. A projekt gazdátlan, de nem halott
+### 1. The project is unmaintained, but not dead
 
 | | |
 |---|---|
-| Szerző utolsó hozzászólása bármihez | **2022-01-20** |
-| Utolsó nem-dependabot merge | 2022-01-20 |
-| Nyitott PR-ok elfogadás nélkül | #135 (2022), #150 (2024), #152 (2025), #154–156 (2025) |
-| Nyitott issue | **42** |
-| Csillag / fork | 740 / 204 |
+| Author's last comment on anything | **2022-01-20** |
+| Last non-dependabot merge | 2022-01-20 |
+| Open PRs without acceptance | #135 (2022), #150 (2024), #152 (2025), #154–156 (2025) |
+| Open issues | **42** |
+| Stars / forks | 740 / 204 |
 
-A 204 forkból **egy sem** végzett érdemi karbantartást (a legaktívabb, `mcoenca`, 47 committal egy
-saját párizsi alkalmazás). Vagyis: van igény, van közösség, de nincs gazda.
+**None** of the 204 forks has done any substantial maintenance (the most active one, `mcoenca`, has 47
+commits on a Paris-specific application of its own). In other words: there is demand, there is a
+community, but there is no maintainer.
 
-**Következmény:** amit itt terveznénk, az nem upstream PR, hanem **hard fork** — saját néven, saját
-karbantartással. A szerző 2021-ben maga írta három issue-ra:
+**Consequence:** what we would plan here is not an upstream PR but a **hard fork** — under its own
+name, with its own maintenance. In 2021 the author himself wrote on three issues:
 
-> *„The app has reached a state where it is difficult to add features without breaking something."*
+> *"The app has reached a state where it is difficult to add features without breaking something."*
 
-### 2. A kódbázis harmada érintetlenül átvihető
+### 2. A third of the codebase can be carried over untouched
 
-5669 sor, 16 modul. D3-függés szerint:
+5669 lines, 16 modules. By D3 dependency:
 
-| Csoport | Sor | D3-hívás | Mi ez |
+| Group | Lines | D3 calls | What it is |
 |---|---:|---:|---|
-| **Tiszta matematika** | 1421 | **0** | `moon.js`, `kepler.js`, `transform.js`, `horizontal.js`, `get.js`, `add.js` |
-| **Mag** | 2050 | 59 | `celestial.js`, `canvas.js`, `projection.js`, `config.js`, `util.js` |
-| **Opcionális** | 2198 | 71 | `form.js`, `svg.js`, `location.js`, `datetimepicker.js`, `timezones.js` |
+| **Pure mathematics** | 1421 | **0** | `moon.js`, `kepler.js`, `transform.js`, `horizontal.js`, `get.js`, `add.js` |
+| **Core** | 2050 | 59 | `celestial.js`, `canvas.js`, `projection.js`, `config.js`, `util.js` |
+| **Optional** | 2198 | 71 | `form.js`, `svg.js`, `location.js`, `datetimepicker.js`, `timezones.js` |
 
-A csillagászati számítások (holdfázis, Kepler-pálya, koordináta-transzformáció) **egyetlen D3-hívást
-sem tartalmaznak**. A beépített vezérlő űrlap és az SVG-kimenet elhagyható vagy későbbre halasztható.
+The astronomical computations (lunar phase, Kepler orbits, coordinate transformation) contain **not a
+single D3 call**. The built-in settings form and the SVG output can be dropped or postponed.
 
-**Az első fázis tehát ~2050 sor, nem 5669.**
+**The first phase is therefore ~2050 lines, not 5669.**
 
-### 3. A migráció mérhetővé tehető — és ez a kulcs
+### 3. The migration can be made measurable — and that is the key
 
-A szerző idézett mondata nem a D3 verziójáról szól, hanem arról, hogy **nincs regressziós háló**.
-Egy vetítési könyvtárnál a helyesség azt jelenti, hogy a pixelek a helyükön vannak.
+The sentence quoted from the author is not about the D3 version, it is about there being **no
+regression net**. In a projection library, correctness means the pixels are where they belong.
 
-A vetítés viszont determinisztikus függvény: `(RA, Dec, vetítés, forgatás) → (x, y)`. Tehát
-rögzíthető. A [`harness/`](harness/) mappában **működő referencia-generátor** van:
-
-```
-67 vetítés × 4 forgatás × 413 égi pont = 110 684 mért pont
-```
-
-Rögzíti a vetített pixelkoordinátákat **és a clipping állapotát** is. A migrált verziónak — adott
-tűréssel — ugyanezt kell adnia.
-
-**A mérés lefutott** — és a háló maga is javításra szorult. Az első változat a négy forgatásra
-*ugyanazt* a koordinátát mérte: a `Celestial.rotate()` d3-átmenetet indít, a szinkron mérés tehát a
-forgatás előtti állapotot rögzítette. Csak a láthatósági jelző különbözött, ezért nem tűnt fel.
-`disableAnimations: true`, és az önellenőrzés kiegészítve: *egy vetítésen belül két forgatás nem
-adhat azonos koordinátákat*.
-
-> Ugyanaz a hibaosztály, amit a háló első verziójánál is az önellenőrzés fogott ki — csak egy másik
-> tengelyen. Az önellenőrzés arra véd, amire megírták.
-
-> A harness első verziója **hibás volt**: a `Celestial.apply()`-jal váltott vetítést, amit az API nem
-> támogat (`projection` újratöltést igényel), így minden vetítés ugyanazt a kimenetet adta volna. Egy
-> beépített **önellenőrzés** fogta ki: ha két különböző vetítés azonos kimenetet ad, a referencia
-> némán értéktelen. Ez jól mutatja, hogy a hálót magát is validálni kell.
-
-### 4. Van értékes munka, ami nem is igényli a D3-migrációt
-
-A [#148](https://github.com/ofrohn/d3-celestial/issues/148) issue (bejelentve 2023-12-08, azóta
-válasz nélkül) szerint a `horizontal.inverse()` függvényből hiányzik egy előjel-korrekció.
-
-Reprodukáltuk és számszerűsítettük ([`harness/issue-148-check.mjs`](harness/issue-148-check.mjs)):
+But projection is a deterministic function: `(RA, Dec, projection, rotation) → (x, y)`. So it can be
+pinned. The [`harness/`](../harness/) folder holds a **working reference generator**:
 
 ```
-EREDETI:    153/306 pont tér vissza rosszul (50%), legnagyobb eltérés 171,4°
-JAVÍTOTT:     0/306 hiba, legnagyobb eltérés 0,0002°
+67 projections × 4 rotations × 413 sky points = 110 684 measured points
 ```
 
-A hiba a horizont fölötti pontok **felét** érinti — pontosan azt a felét, ahol `sin(azimut) > 0`.
-Az `acos` mindig 0–180°-ot ad, így az égbolt egyik fele elveszik; az előre irány kezeli ezt
-(`if (Math.sin(ha) > 0) az = 2π - az`), az inverz nem.
+It records the projected pixel coordinates **and the clipping state** as well. The migrated version
+has to produce the same thing — within a given tolerance.
 
-**A javítás egyetlen sor, és a `horizontal.js` nulla D3-hívást tartalmaz** — vagyis a D3-verziótól
-teljesen függetlenül javítható.
+**The measurement has been run** — and the net itself needed fixing. The first version measured the
+*same* coordinate for all four rotations: `Celestial.rotate()` starts a d3 transition, so the
+synchronous measurement recorded the state before the rotation. Only the visibility flag differed,
+which is why it went unnoticed. `disableAnimations: true`, and the self-check extended: *within one
+projection, two rotations must not give identical coordinates*.
+
+> The same class of bug that the self-check already caught in the net's first version — just on a
+> different axis. A self-check only protects against what it was written for.
+
+> The first version of the harness was **wrong**: it switched projections with `Celestial.apply()`,
+> which the API does not support (`projection` requires a reload), so every projection would have
+> produced the same output. A built-in **self-check** caught it: if two different projections give
+> identical output, the reference is silently worthless. This shows nicely that the net itself has to
+> be validated.
+
+### 4. There is valuable work that does not even require the D3 migration
+
+Issue [#148](https://github.com/ofrohn/d3-celestial/issues/148) (reported 2023-12-08, unanswered
+since) says that a sign correction is missing from the `horizontal.inverse()` function.
+
+We reproduced and quantified it ([`harness/issue-148-check.mjs`](../harness/issue-148-check.mjs)):
+
+```
+ORIGINAL:   153/306 points come back wrong (50%), largest difference 171.4°
+FIXED:        0/306 wrong, largest difference 0.0002°
+```
+
+The bug affects **half** of the points above the horizon — exactly the half where `sin(azimuth) > 0`.
+`acos` always returns 0–180°, so one half of the sky is lost; the forward direction handles this
+(`if (Math.sin(ha) > 0) az = 2π - az`), the inverse does not.
+
+**The fix is a single line, and `horizontal.js` contains zero D3 calls** — meaning it can be fixed
+entirely independently of the D3 version.
 
 ---
 
-## Ajánlott sorrend
+## Recommended order
 
-Az első két lépésnek **önmagában is van értéke**, függetlenül attól, hogy a migráció valaha befejeződik-e.
+The first two steps **have value in themselves**, regardless of whether the migration is ever finished.
 
-| # | Lépés | Miért ez a sorrend | Kockázat |
+| # | Step | Why this order | Risk |
 |---|---|---|---|
-| 1 | **Matematikai hibák javítása** (#148, #130 holdfázis, #157 interpoláció) | D3-mentes fájlok, round-trip teszttel bizonyítható | alacsony |
-| 2 | ~~**Referencia-háló rögzítése** a jelenlegi verzióra~~ **kész** | Ezután bármihez hozzá lehet nyúlni félelem nélkül | nincs |
-| 3 | ~~Mechanikus D3-csere~~ **kész** | Gépies, a háló azonnal visszajelez | alacsony |
-| 4 | ~~`d3.geo.*` → `d3-geo` + `d3-geo-projection`~~ **kész** | **Ez az érdemi rész**, vetítésenként mérve | **magas** |
-| 5 | ~~ES-modulok, tree-shaking~~ **kész** | Ez oldja meg a #86, #81, #115, #141 issue-kat | közepes |
-| 6 | ~~`form.js` / `svg.js`~~ **migrálva, működik** | Külön döntés, nem blokkoló | – |
+| 1 | **Fixing the mathematical bugs** (#148, #130 lunar phase, #157 interpolation) | D3-free files, provable with a round-trip test | low |
+| 2 | ~~**Pinning the reference net** against the current version~~ **done** | After this, anything can be touched without fear | none |
+| 3 | ~~Mechanical D3 replacement~~ **done** | Mechanical, the net gives immediate feedback | low |
+| 4 | ~~`d3.geo.*` → `d3-geo` + `d3-geo-projection`~~ **done** | **This is the substantial part**, measured per projection | **high** |
+| 5 | ~~ES modules, tree-shaking~~ **done** | This resolves issues #86, #81, #115, #141 | medium |
+| 6 | ~~`form.js` / `svg.js`~~ **migrated, works** | A separate decision, not blocking | – |
 
-Az 1–6. lépés elkészült. Az eredmény és a közben talált hibák: [`docs/04-migration-log.md`](docs/04-migration-log.md).
+Steps 1–6 are complete. The result and the bugs found along the way:
+[`04-migration-log.md`](04-migration-log.md).
 
-### Használat
+### Usage
 
 ```js
-import Celestial from "celestial-chart";           // ES-modul
+import Celestial from "celestial-chart";           // ES module
 const { Celestial } = require("celestial-chart");  // CommonJS
 ```
 
-**TypeScript-típusok** a csomagban vannak — nem kell `@types` csomag. A vetítés-
-és koordinátarendszer-nevek unió típusok, tehát a szerkesztő felkínálja őket:
+**TypeScript types** ship with the package — no `@types` package needed. The projection and
+coordinate-system names are union types, so the editor offers them:
 
 ```ts
-import Celestial, { Egbolt, Config } from "celestial-chart";
+import Celestial, { SkyMap, Config } from "celestial-chart";
 Celestial.display({ projection: "mollweide", transform: "galactic" });
-//                               ^ a 69 támogatott név egyike
+//                               ^ one of the 69 supported names
 ```
 
-A típus nem csúszhat el a kódtól: teszt méri, hogy minden futásidejű beállítás
-szerepel-e benne, és hogy nem talál-e ki nem létezőt.
+The type cannot drift away from the code: a test measures whether every runtime setting appears in
+it, and whether it invents one that does not exist.
 
-Több független térkép egy oldalon (upstream #96, #131):
+Several independent maps on one page (upstream #96, #131):
 
 ```js
-import { Egbolt } from "celestial-chart";
-const a = new Egbolt({ container: "map-a", projection: "orthographic" }, { onallo: true });
-const b = new Egbolt({ container: "map-b", projection: "mollweide" },   { onallo: true });
+import { SkyMap } from "celestial-chart";
+const a = new SkyMap({ container: "map-a", projection: "orthographic" }, { standalone: true });
+const b = new SkyMap({ container: "map-b", projection: "mollweide" },   { standalone: true });
 ```
 
-vagy böngészőben, a régi módon — de már **egyetlen fájlból, külső D3 nélkül**:
+or in the browser, the old way — but now from **a single file, without external D3**:
 
 ```html
 <script src="build/celestial.min.js"></script>
 ```
 
-| | fájlok | méret |
+| | files | size |
 |---|---:|---:|
 | upstream v3 (d3 + plugin + celestial) | 3 | 316 KB |
-| migrált, modulosítás előtt | 3 | 463 KB |
-| **most** | **1** | **291 KB** |
+| migrated, before modularisation | 3 | 463 KB |
+| **now** | **1** | **291 KB** |
 
-### A migráció mérlege
+### The balance sheet of the migration
 
 ```
-110 684 mért pont — 67/67 vetítés max eltérés 0.000 px, 0 clipping-eltérés
+110 684 measured points — 67/67 projections max difference 0.000 px, 0 clipping differences
 ```
 
-A vetítési kimenet **bitre azonos** a D3 v3-as verzióval. (A 69 konfigurált
-vetítésből kettő az upstream szállított buildjében sincs benne — ott is hibát dob.) Három pontban a régi kód NaN-t adott
-(a vetítés antipódusa), az új definiált értéket — ez javulás.
+The projection output is **bit-identical** to the D3 v3 version. (Two of the 69 configured
+projections are not in the upstream shipped build either — it throws an error there too.) At three
+points the old code returned NaN (the antipode of the projection), the new one a defined value —
+that is an improvement.
 
-A migráció közben **nyolc hiba** került elő, amiből hatot a numerikus háló nem is fogott volna meg
-(színek, események, ablakátméretezés, betöltési lánc, SVG-export), mert az csak a geometriát méri.
-Egyik sem dobott kivételt — mind kézi végigpróbálásból jött elő.
+**Eight bugs** came up during the migration, six of which the numeric net would not even have
+caught (colours, events, window resizing, loading chain, SVG export), because it only measures
+geometry. None of them threw an exception — all of them came out of manual walkthroughs.
 
-Vizuálisan hat nézetben mérve az eltérés **0,04–0,70%** a csillagok és feliratok peremén, azaz
-élsimítás. **44 tájolásra ellenőrizve a Tejút kitöltése is megegyezik** a v3-éval — nincs ismert
-vizuális regresszió.
+Measured visually across six views, the difference is **0.04–0.70%** at the edges of the stars and
+labels, i.e. anti-aliasing. **The Milky Way fill has also been verified over 44 orientations to match**
+the v3 one — there is no known visual regression.
 
-Részletek: [`docs/01-codebase.md`](docs/01-codebase.md) · [`docs/02-migration.md`](docs/02-migration.md) ·
-[`docs/03-issues.md`](docs/03-issues.md)
+Details: [`01-codebase.md`](01-codebase.md) · [`02-migration.md`](02-migration.md) ·
+[`03-issues.md`](03-issues.md)
 
-## Ellenőrzés
+## Verification
 
 ```bash
 npm install
-npm run ellenoriz     # build + 60 teszt + típusellenőrzés + a háló öntesztje + 27 böngészős állítás
+npm run verify        # build + 60 tests + type check + the net's self-test + 27 browser assertions
 ```
 
-Az `ellenoriz` headless Chromiumban végigméri a teljes vizsgálatot (~2 perc):
-mindkét referencia újragenerálása és összevetése, 12 kép + pixeldiff, interaktív
-füstpróba (zoom, forgatás, vetítésváltás, űrlap, SVG-export, két független
-térkép), konzolhiba-figyelés. Ugyanez fut CI-ben minden pusholásnál.
+`verify` runs the whole investigation end to end in headless Chromium (~2 minutes): regenerating and
+comparing both references, 12 images + pixel diff, an interactive smoke test (zoom, rotation,
+projection switch, settings form, SVG export, two independent maps), console-error watching. The same
+thing runs in CI on every push.
 
-Kézi vizsgálódáshoz:
+For manual investigation:
 
 ```bash
-npm run szerver
-# http://127.0.0.1:8877/harness/reference.html      a pinelt v3 mérése
-# http://127.0.0.1:8877/harness/reference-new.html   a migrált build mérése
-# http://127.0.0.1:8877/harness/visual.html#orthographic,180,55       régi kép
-# http://127.0.0.1:8877/harness/visual-new.html#orthographic,180,55    új kép
-# http://127.0.0.1:8877/demo/full.html             teljes felület: űrlap, zoom, SVG-export
+npm run serve
+# http://127.0.0.1:8877/harness/reference.html      measuring the pinned v3
+# http://127.0.0.1:8877/harness/reference-new.html   measuring the migrated build
+# http://127.0.0.1:8877/harness/visual.html#orthographic,180,55       old image
+# http://127.0.0.1:8877/harness/visual-new.html#orthographic,180,55    new image
+# http://127.0.0.1:8877/demo/full.html             the full surface: settings form, zoom, SVG export
 ```
 
-## Mit old meg a modernizáció, és mit nem
+## What the modernisation solves, and what it does not
 
-**Megoldja** (7 issue egy csapásra): #147 (D3-frissítés), #141 (ES-modul), #86 (React), #81 (Node),
-#115 (webpack), #134 (`d3 is not defined`), és részben #96/#131 (több példány egy oldalon — ez a
-globális állapot problémája, amit egy osztály-alapú átírás szüntet meg).
+**It solves** (7 issues in one go): #147 (D3 upgrade), #141 (ES module), #86 (React), #81 (Node),
+#115 (webpack), #134 (`d3 is not defined`), and partly #96/#131 (multiple instances on one page —
+that is the problem of global state, which a class-based rewrite removes).
 
-**Megoldja továbbá**: #96 és #131 (több példány egy oldalon) — az osztály-alapú felülettel.
-Több *interaktív* térkép is működik egy oldalon, mindegyik saját űrlappal
-([`demo/two-forms.html`](demo/two-forms.html)).
+**It also solves**: #96 and #131 (multiple instances on one page) — via the class-based interface.
+Several *interactive* maps work on one page too, each with its own settings form
+([`demo/two-forms.html`](../demo/two-forms.html)).
 
-**Nem oldja meg**: a matematikai hibákat (#148, #130, #157) és a funkciókéréseket. Azok külön munkák
-— de a referencia-háló ezeket is biztonságossá teszi.
+**It does not solve**: the mathematical bugs (#148, #130, #157) and the feature requests. Those are
+separate pieces of work — but the reference net makes those safe as well.
 
-## Amit a felmérés nem tud eldönteni
+## What the survey cannot decide
 
-A vetítések **vizuális** helyességét. A háló számokat hasonlít össze; hogy a Nagy Medve úgy néz-e ki,
-ahogy kell, azt **meg kell nézni**. A migráció minden fázisa után kell egy emberi pillantás — ezt
-semmilyen automatizmus nem váltja ki.
+The **visual** correctness of the projections. The net compares numbers; whether the Great Bear looks
+the way it should has to be **looked at**. After every phase of the migration a human glance is
+needed — no automation replaces that.
 
-Amit tehettünk: rögzítettük, hogy *most* hogy néz ki, és megismételtük a migrált verzióval. A
-[`docs/kepek/`](docs/kepek/) mappában hat-hat kép van (`d3v3-*` / `d3v7-*`), köztük a félteke-vágást
-és a Nagy Göncölt mutató orthographic nézet.
+What we could do: we recorded how it looks *now*, and repeated it with the migrated version. The
+[`images/`](images/) folder holds six images each (`d3v3-*` / `d3v7-*`), among them the orthographic
+view showing the hemisphere clipping and the Big Dipper.
 
-A rögzítés eleinte **nem volt reprodukálható** — ugyanaz a verzió önmagához mérve 3–6%-os
-pixeleltérést adott. Három ok, mind a könyvtár állapotkezeléséből: az első `display()` az aktuális
-időből számol középpontot, az animált átmenet közben fényképeztünk, és a második `display()` más
-állapotot hagy maga után, mint az első. Ezek kikapcsolása után a zajszint **pontosan nulla** — csak
-innentől jelent bármit a régi és az új összevetése.
+The recording was **not reproducible** at first — the same version measured against itself gave a 3–6%
+pixel difference. Three causes, all of them from the library's state handling: the first `display()`
+derives a centre from the current time, we took the snapshot during the animated transition, and the
+second `display()` leaves behind a different state than the first. After switching these off the noise
+floor is **exactly zero** — only from that point does comparing old and new mean anything.
 
-## Licenc
+## Licence
 
-Az upstream BSD-3-Clause, a fork is az marad. Az `upstream/` mappa gitignore-olt; a
-[`harness/vendor/`](harness/vendor/) a vizsgált verzió pinelt másolatát tartalmazza, hogy a
-referencia reprodukálható legyen.
+Upstream is BSD-3-Clause, and the fork stays that. The `upstream/` folder is gitignored; the
+[`harness/vendor/`](../harness/vendor/) folder contains a pinned copy of the examined version so that
+the reference stays reproducible.

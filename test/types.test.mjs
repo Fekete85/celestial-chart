@@ -1,8 +1,8 @@
-/* A típusdefiníció és a valóság összemérése.
+/* The type definition measured against reality.
  *
- * Egy .d.ts fájl a legcsendesebb hazugság: fordul, senki nem futtatja, és
- * lassan elcsúszik a kódtól. Ezért ugyanaz az elv, mint a reference-hálónál —
- * mérjük, nem hisszük.
+ * A .d.ts file is the quietest kind of lie: it compiles, nobody runs it, and it
+ * slowly drifts away from the code. So the same principle as with the reference
+ * net — we measure it, we do not believe it.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,11 +11,11 @@ import { settings, projections } from "../src/config.js";
 
 const dts = fs.readFileSync(new URL("../types/celestial.d.ts", import.meta.url), "utf8");
 
-/* A beállítás-nevek a védett halmaz: minden runningásidejű kulcsnak szerepelnie
- * kell a típusban, és minden típusbeli névnek léteznie kell runningásidőben. */
-// Ezek nem beállításnevek, hanem ADATKULCSOK: a dsos.symbols mélyég-típusonként
-// (gg, s0, oc, …) tart egy leírót. A típusban ezért Record, nem felsorolás — a
-// bejáró sem megy beléjük.
+/* The setting names are the protected set: every runtime key has to appear in
+ * the type, and every name in the type has to exist at runtime. */
+// These are not setting names but DATA KEYS: dsos.symbols keeps one descriptor
+// per deep-sky type (gg, s0, oc, …). In the type it is therefore a Record, not
+// an enumeration — and the walker does not descend into them either.
 const KEYED_MAPS = new Set(["dsos.symbols"]);
 
 function settingNames(o, out = new Set(), urlPath = "") {
@@ -30,38 +30,38 @@ function settingNames(o, out = new Set(), urlPath = "") {
   return out;
 }
 
-// A Config interfész törzse
+// The body of the Config interface
 const configBody = dts.slice(dts.indexOf("export interface Config {"),
-                              dts.indexOf("/** A térkép aktuális méretei. */"));
+                              dts.indexOf("/** The map's current dimensions. */"));
 const typeNames = new Set(
   [...configBody.matchAll(/^\s*(?:"([^"]+)"|([A-Za-z_$][\w$]*))\??:/gm)]
     .map(m => m[1] || m[2]));
 
-test("minden beállítás szerepel a típusban", () => {
+test("every setting appears in the type", () => {
   const missing_ = [...settingNames(settings)].filter(n => !typeNames.has(n));
-  assert.deepEqual(missing_, [], `${missing_.length} beállítás hiányzik a types/celestial.d.ts-ből`);
+  assert.deepEqual(missing_, [], `${missing_.length} settings are missing from types/celestial.d.ts`);
 });
 
-test("a típus nem talál out nem létező beállítást", () => {
+test("the type does not invent settings that do not exist", () => {
   const actual = settingNames(settings);
-  actual.add("date");   // nincs baseértelmezése, a kód viszont használja
+  actual.add("date");   // it has no default, but the code does use it
   const extra = [...typeNames].filter(n => !actual.has(n));
-  assert.deepEqual(extra, [], `${extra.length} olyan név van a típusban, ami runningásidőben nincs`);
+  assert.deepEqual(extra, [], `${extra.length} names in the type do not exist at runtime`);
 });
 
-test("a vetítés-unió pontosan a támogatott vetítéseket sorolja", () => {
-  const union = dts.slice(dts.indexOf("export type Vetites ="), dts.indexOf("export type Transzformacio"));
+test("the projection union lists exactly the supported projections", () => {
+  const union = dts.slice(dts.indexOf("export type Projection ="), dts.indexOf("export type Transform"));
   const inTypes = new Set([...union.matchAll(/\|\s*"([^"]+)"/g)].map(m => m[1]));
   const actual = new Set(Object.keys(projections));
-  assert.deepEqual([...actual].filter(v => !inTypes.has(v)), [], "hiányzó vetítés a típusból");
-  assert.deepEqual([...inTypes].filter(v => !actual.has(v)), [], "nem létező vetítés a típusban");
+  assert.deepEqual([...actual].filter(v => !inTypes.has(v)), [], "projection missing from the type");
+  assert.deepEqual([...inTypes].filter(v => !actual.has(v)), [], "non-existent projection in the type");
 });
 
-test("a transzformáció-unió megegyezik az Euler-szögek kulcsaival", () => {
-  const union = dts.match(/export type Transzformacio = ([^;]+);/)[1];
+test("the transform union matches the keys of the Euler angles", () => {
+  const union = dts.match(/export type Transform = ([^;]+);/)[1];
   const inTypes = new Set([...union.matchAll(/"([^"]+)"/g)].map(m => m[1]));
-  // az eulerAngles az egyenlítőit is tartalmazza, az euler nem — az uniónak all_ kell
+  // eulerAngles contains the equatorial one as well, euler does not — the union needs all of them
   assert.ok(inTypes.has("equatorial") && inTypes.has("ecliptic") &&
             inTypes.has("galactic") && inTypes.has("supergalactic"),
-    "hiányzó koordináta-rendszer: " + [...inTypes].join(", "));
+    "missing coordinate system: " + [...inTypes].join(", "));
 });
