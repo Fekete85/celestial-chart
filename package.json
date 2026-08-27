@@ -1,9 +1,58 @@
 {
-  "name": "d3-celestial-modern",
-  "version": "0.8.0-dev",
-  "description": "A d3-celestial modernizált forkja",
+  "name": "celestial-chart",
+  "version": "0.8.0",
+  "description": "Interactive celestial map for the browser — a modernised fork of d3-celestial (D3 v7, ES modules, TypeScript types, multiple maps per page)",
+  "keywords": [
+    "astronomy",
+    "star chart",
+    "sky map",
+    "celestial",
+    "constellations",
+    "planetarium",
+    "cartography",
+    "projection",
+    "d3",
+    "canvas",
+    "svg",
+    "visualization"
+  ],
   "type": "module",
   "license": "BSD-3-Clause",
+  "author": "Fekete László",
+  "homepage": "https://github.com/Fekete85/celestial-chart#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fekete85/celestial-chart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Fekete85/celestial-chart/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "main": "build/celestial.cjs",
+  "module": "build/celestial.mjs",
+  "types": "types/celestial.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/celestial.d.ts",
+      "import": "./build/celestial.mjs",
+      "require": "./build/celestial.cjs"
+    }
+  },
+  "files": [
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE.md",
+    "README.md",
+    "build",
+    "celestial.css",
+    "images",
+    "lib",
+    "src",
+    "types/celestial.d.ts"
+  ],
   "scripts": {
     "teszt": "node --test test/*.teszt.mjs",
     "epit": "node epit.mjs",
@@ -25,7 +74,8 @@
     "d3-shape": "^3.2.0",
     "d3-time-format": "^4.1.0",
     "d3-transition": "^3.0.1",
-    "d3-zoom": "^3.0.0"
+    "d3-zoom": "^3.0.0",
+    "versor": "^0.2.0"
   },
   "devDependencies": {
     "acorn": "^8.18.0",
@@ -33,25 +83,5 @@
     "esbuild": "^0.25.0",
     "playwright": "^1.62.1",
     "typescript": "^7.0.2"
-  },
-  "main": "build/celestial.cjs",
-  "module": "build/celestial.mjs",
-  "exports": {
-    ".": {
-      "types": "./types/celestial.d.ts",
-      "import": "./build/celestial.mjs",
-      "require": "./build/celestial.cjs"
-    }
-  },
-  "files": [
-    "build",
-    "src",
-    "lib",
-    "types/celestial.d.ts",
-    "celestial.css",
-    "images",
-    "LICENSE",
-    "README.md"
-  ],
-  "types": "types/celestial.d.ts"
+  }
 }

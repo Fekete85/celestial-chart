@@ -495,7 +495,7 @@ azt is, hogy az egymást követő hívások a felhalmozott globális beállítá
 Celestial.display({ container: "map", projection: "aitoff" });
 
 // több független térkép
-import { Egbolt } from "d3-celestial-modern";
+import { Egbolt } from "celestial-chart";
 const a = new Egbolt({ container: "map-a", projection: "orthographic" }, { onallo: true });
 const b = new Egbolt({ container: "map-b", projection: "mollweide" },   { onallo: true });
 ```

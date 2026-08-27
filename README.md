@@ -1,226 +1,130 @@
-# d3-celestial modernizáció — megvalósíthatósági felmérés
+# celestial-chart
 
-Ez a repó **nem a fork**, hanem az azt megelőző felmérés: megéri-e átvenni és modernizálni a
-[d3-celestial](https://github.com/ofrohn/d3-celestial) könyvtárat, és ha igen, hogyan.
+Interactive celestial map for the browser: stars, constellations, deep-sky objects,
+the Milky Way and planets, in 67 map projections, rendered to canvas with SVG export.
 
-A vizsgált verzió: `ofrohn/d3-celestial @ 7e720a3` (2022-07-05).
+A modernised fork of [d3-celestial](https://github.com/ofrohn/d3-celestial) by
+Olaf Frohn, whose last release was in 2022 and which is pinned to D3 v3.
 
----
-
-## A négy legfontosabb megállapítás
-
-### 1. A projekt gazdátlan, de nem halott
-
-| | |
-|---|---|
-| Szerző utolsó hozzászólása bármihez | **2022-01-20** |
-| Utolsó nem-dependabot merge | 2022-01-20 |
-| Nyitott PR-ok elfogadás nélkül | #135 (2022), #150 (2024), #152 (2025), #154–156 (2025) |
-| Nyitott issue | **42** |
-| Csillag / fork | 740 / 204 |
-
-A 204 forkból **egy sem** végzett érdemi karbantartást (a legaktívabb, `mcoenca`, 47 committal egy
-saját párizsi alkalmazás). Vagyis: van igény, van közösség, de nincs gazda.
-
-**Következmény:** amit itt terveznénk, az nem upstream PR, hanem **hard fork** — saját néven, saját
-karbantartással. A szerző 2021-ben maga írta három issue-ra:
-
-> *„The app has reached a state where it is difficult to add features without breaking something."*
-
-### 2. A kódbázis harmada érintetlenül átvihető
-
-5669 sor, 16 modul. D3-függés szerint:
-
-| Csoport | Sor | D3-hívás | Mi ez |
-|---|---:|---:|---|
-| **Tiszta matematika** | 1421 | **0** | `moon.js`, `kepler.js`, `transform.js`, `horizontal.js`, `get.js`, `add.js` |
-| **Mag** | 2050 | 59 | `celestial.js`, `canvas.js`, `projection.js`, `config.js`, `util.js` |
-| **Opcionális** | 2198 | 71 | `form.js`, `svg.js`, `location.js`, `datetimepicker.js`, `timezones.js` |
-
-A csillagászati számítások (holdfázis, Kepler-pálya, koordináta-transzformáció) **egyetlen D3-hívást
-sem tartalmaznak**. A beépített vezérlő űrlap és az SVG-kimenet elhagyható vagy későbbre halasztható.
-
-**Az első fázis tehát ~2050 sor, nem 5669.**
-
-### 3. A migráció mérhetővé tehető — és ez a kulcs
-
-A szerző idézett mondata nem a D3 verziójáról szól, hanem arról, hogy **nincs regressziós háló**.
-Egy vetítési könyvtárnál a helyesség azt jelenti, hogy a pixelek a helyükön vannak.
-
-A vetítés viszont determinisztikus függvény: `(RA, Dec, vetítés, forgatás) → (x, y)`. Tehát
-rögzíthető. A [`harness/`](harness/) mappában **működő referencia-generátor** van:
-
+```bash
+npm install celestial-chart
 ```
-67 vetítés × 4 forgatás × 413 égi pont = 110 684 mért pont
-```
-
-Rögzíti a vetített pixelkoordinátákat **és a clipping állapotát** is. A migrált verziónak — adott
-tűréssel — ugyanezt kell adnia.
-
-**A mérés lefutott** — és a háló maga is javításra szorult. Az első változat a négy forgatásra
-*ugyanazt* a koordinátát mérte: a `Celestial.rotate()` d3-átmenetet indít, a szinkron mérés tehát a
-forgatás előtti állapotot rögzítette. Csak a láthatósági jelző különbözött, ezért nem tűnt fel.
-`disableAnimations: true`, és az önellenőrzés kiegészítve: *egy vetítésen belül két forgatás nem
-adhat azonos koordinátákat*.
-
-> Ugyanaz a hibaosztály, amit a háló első verziójánál is az önellenőrzés fogott ki — csak egy másik
-> tengelyen. Az önellenőrzés arra véd, amire megírták.
-
-> A harness első verziója **hibás volt**: a `Celestial.apply()`-jal váltott vetítést, amit az API nem
-> támogat (`projection` újratöltést igényel), így minden vetítés ugyanazt a kimenetet adta volna. Egy
-> beépített **önellenőrzés** fogta ki: ha két különböző vetítés azonos kimenetet ad, a referencia
-> némán értéktelen. Ez jól mutatja, hogy a hálót magát is validálni kell.
-
-### 4. Van értékes munka, ami nem is igényli a D3-migrációt
-
-A [#148](https://github.com/ofrohn/d3-celestial/issues/148) issue (bejelentve 2023-12-08, azóta
-válasz nélkül) szerint a `horizontal.inverse()` függvényből hiányzik egy előjel-korrekció.
-
-Reprodukáltuk és számszerűsítettük ([`harness/issue-148-ellenorzes.mjs`](harness/issue-148-ellenorzes.mjs)):
-
-```
-EREDETI:    153/306 pont tér vissza rosszul (50%), legnagyobb eltérés 171,4°
-JAVÍTOTT:     0/306 hiba, legnagyobb eltérés 0,0002°
-```
-
-A hiba a horizont fölötti pontok **felét** érinti — pontosan azt a felét, ahol `sin(azimut) > 0`.
-Az `acos` mindig 0–180°-ot ad, így az égbolt egyik fele elveszik; az előre irány kezeli ezt
-(`if (Math.sin(ha) > 0) az = 2π - az`), az inverz nem.
-
-**A javítás egyetlen sor, és a `horizontal.js` nulla D3-hívást tartalmaz** — vagyis a D3-verziótól
-teljesen függetlenül javítható.
-
----
-
-## Ajánlott sorrend
-
-Az első két lépésnek **önmagában is van értéke**, függetlenül attól, hogy a migráció valaha befejeződik-e.
-
-| # | Lépés | Miért ez a sorrend | Kockázat |
-|---|---|---|---|
-| 1 | **Matematikai hibák javítása** (#148, #130 holdfázis, #157 interpoláció) | D3-mentes fájlok, round-trip teszttel bizonyítható | alacsony |
-| 2 | ~~**Referencia-háló rögzítése** a jelenlegi verzióra~~ **kész** | Ezután bármihez hozzá lehet nyúlni félelem nélkül | nincs |
-| 3 | ~~Mechanikus D3-csere~~ **kész** | Gépies, a háló azonnal visszajelez | alacsony |
-| 4 | ~~`d3.geo.*` → `d3-geo` + `d3-geo-projection`~~ **kész** | **Ez az érdemi rész**, vetítésenként mérve | **magas** |
-| 5 | ~~ES-modulok, tree-shaking~~ **kész** | Ez oldja meg a #86, #81, #115, #141 issue-kat | közepes |
-| 6 | ~~`form.js` / `svg.js`~~ **migrálva, működik** | Külön döntés, nem blokkoló | – |
-
-Az 1–6. lépés elkészült. Az eredmény és a közben talált hibák: [`docs/04-migracio-naplo.md`](docs/04-migracio-naplo.md).
-
-### Használat
 
 ```js
-import Celestial from "d3-celestial-modern";           // ES-modul
-const { Celestial } = require("d3-celestial-modern");  // CommonJS
+import Celestial from "celestial-chart";
+
+Celestial.display({
+  container: "celestial-map",
+  projection: "aitoff",
+  stars: { limit: 6 },
+  constellations: { names: true, lines: true }
+});
 ```
 
-**TypeScript-típusok** a csomagban vannak — nem kell `@types` csomag. A vetítés-
-és koordinátarendszer-nevek unió típusok, tehát a szerkesztő felkínálja őket:
+Or a single script tag — **D3 is bundled, no separate `<script>` needed**:
 
-```ts
-import Celestial, { Egbolt, Config } from "d3-celestial-modern";
-Celestial.display({ projection: "mollweide", transform: "galactic" });
-//                               ^ a 69 támogatott név egyike
+```html
+<link rel="stylesheet" href="node_modules/celestial-chart/celestial.css">
+<div id="celestial-map"></div>
+<script src="node_modules/celestial-chart/build/celestial.min.js"></script>
 ```
 
-A típus nem csúszhat el a kódtól: teszt méri, hogy minden futásidejű beállítás
-szerepel-e benne, és hogy nem talál-e ki nem létezőt.
+## What this fork changes
 
-Több független térkép egy oldalon (upstream #96, #131):
+**It runs on current D3.** Upstream is pinned to D3 v3 (2016). This fork uses
+D3 v7 as ES modules, bundled in — which resolves upstream
+[#147](https://github.com/ofrohn/d3-celestial/issues/147) (D3 upgrade),
+[#141](https://github.com/ofrohn/d3-celestial/issues/141) (ES modules),
+[#134](https://github.com/ofrohn/d3-celestial/issues/134) (`d3 is not defined`),
+[#115](https://github.com/ofrohn/d3-celestial/issues/115) (webpack),
+[#86](https://github.com/ofrohn/d3-celestial/issues/86) (React) and
+[#81](https://github.com/ofrohn/d3-celestial/issues/81) (Node).
+
+One file instead of three, and smaller than the original despite a much newer D3:
+
+| | files | minified |
+|---|---:|---:|
+| upstream (d3 + plugin + celestial) | 3 | 316 KB |
+| celestial-chart | **1** | **295 KB** |
+
+**Several maps on one page.** Upstream kept global state, so a page could hold
+one map ([#96](https://github.com/ofrohn/d3-celestial/issues/96),
+[#131](https://github.com/ofrohn/d3-celestial/issues/131)). Each instance now
+owns its state — including its own settings form:
 
 ```js
-import { Egbolt } from "d3-celestial-modern";
+import { Egbolt } from "celestial-chart";
+
 const a = new Egbolt({ container: "map-a", projection: "orthographic" }, { onallo: true });
 const b = new Egbolt({ container: "map-b", projection: "mollweide" },   { onallo: true });
 ```
 
-vagy böngészőben, a régi módon — de már **egyetlen fájlból, külső D3 nélkül**:
+**TypeScript types ship with the package.** Projection and coordinate-system
+names are union types, so the editor offers all 69.
 
-```html
-<script src="build/celestial.min.js"></script>
+**Astronomical fixes.**
+
+| | |
+|---|---|
+| [#148](https://github.com/ofrohn/d3-celestial/issues/148) | `horizontal.inverse()` lost the sign: **half** the sky above the horizon came back wrong, by up to 171°. |
+| [#130](https://github.com/ofrohn/d3-celestial/issues/130) | The phase computation was fine; two other things were not. `moon.js` added ecliptic perturbations directly to right ascension — a **1.5° error**, three lunar diameters (Meeus 13.a). And the terminator ellipse used a factor of 1.6 instead of 2, so a **full moon was drawn gibbous**. |
+| [#157](https://github.com/ofrohn/d3-celestial/issues/157) | The guard written for the 180° turn was unreachable (`Round(d,2)` never exceeds 3.14), so antipodal centre changes went through a degenerate great-circle interpolation — measured error up to 139°. |
+
+Plus, found while testing: every star rendered red after the D3 upgrade
+(`scaleQuantize` no longer accepts a descending domain); window resizing reset
+the user's zoom; the settings form was appended again on every `display()` call;
+`Celestial.ha()` returned hour angles outside any sane range; and the map failed
+to render at all when given neither a container element nor a width.
+
+## Backwards compatibility
+
+`Celestial.display(config)` behaves as before, including how successive calls
+accumulate settings. It now also returns the instance it created.
+
+Behaviour that intentionally differs — all of them bug fixes:
+
+- Moon right ascension and declination move by up to 1.5°; the terminator is drawn wider.
+- `horizontal.inverse()` returns the correct hemisphere.
+- `Celestial.ha()` returns `[0, 360)`.
+- SVG export clips paths to the output size (mercator produced `Infinity` coordinates, which browsers discard).
+- `Trig.normalize` / `normalize0` normalise inputs below −2π correctly.
+
+## How it is verified
+
+Projection is a deterministic function — `(RA, Dec, projection, rotation) → (x, y)` —
+so it can be pinned. `harness/` holds the output of the **pinned upstream v3 build**
+and compares the fork against it:
+
+```
+67 projections × 4 rotations × 413 sky points = 110 684 measured points
+maximum difference: 0.000 px
 ```
 
-| | fájlok | méret |
-|---|---:|---:|
-| upstream v3 (d3 + plugin + celestial) | 3 | 316 KB |
-| migrált, modulosítás előtt | 3 | 463 KB |
-| **most** | **1** | **291 KB** |
-
-### A migráció mérlege
-
-```
-110 684 mért pont — 67/67 vetítés max eltérés 0.000 px, 0 clipping-eltérés
-```
-
-A vetítési kimenet **bitre azonos** a D3 v3-as verzióval. (A 69 konfigurált
-vetítésből kettő az upstream szállított buildjében sincs benne — ott is hibát dob.) Három pontban a régi kód NaN-t adott
-(a vetítés antipódusa), az új definiált értéket — ez javulás.
-
-A migráció közben **nyolc hiba** került elő, amiből hatot a numerikus háló nem is fogott volna meg
-(színek, események, ablakátméretezés, betöltési lánc, SVG-export), mert az csak a geometriát méri.
-Egyik sem dobott kivételt — mind kézi végigpróbálásból jött elő.
-
-Vizuálisan hat nézetben mérve az eltérés **0,04–0,70%** a csillagok és feliratok peremén, azaz
-élsimítás. **44 tájolásra ellenőrizve a Tejút kitöltése is megegyezik** a v3-éval — nincs ismert
-vizuális regresszió.
-
-Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.md`](docs/02-migracio.md) ·
-[`docs/03-issuek.md`](docs/03-issuek.md)
-
-## Ellenőrzés
+Bit-identical, including the clipping state of every point. The harness checks
+itself too: it fails if two projections — or two rotations — produce the same
+output, because a net that measures nothing passes everything.
 
 ```bash
-npm install
-npm run ellenoriz     # build + 60 teszt + típusellenőrzés + a háló öntesztje + 27 böngészős állítás
+npm run ellenoriz    # build + 60 unit tests + types + 27 browser assertions, ~2 min
 ```
 
-Az `ellenoriz` headless Chromiumban végigméri a teljes vizsgálatot (~2 perc):
-mindkét referencia újragenerálása és összevetése, 12 kép + pixeldiff, interaktív
-füstpróba (zoom, forgatás, vetítésváltás, űrlap, SVG-export, két független
-térkép), konzolhiba-figyelés. Ugyanez fut CI-ben minden pusholásnál.
+The browser run regenerates both references, compares them, captures 12 screenshots
+with a pixel diff, and drives the real UI (zoom, drag-rotate, projection switching,
+forms, SVG export, two independent maps). It runs in CI on every push.
 
-Kézi vizsgálódáshoz:
+## Documentation
 
-```bash
-npm run szerver
-# http://127.0.0.1:8877/harness/referencia.html      a pinelt v3 mérése
-# http://127.0.0.1:8877/harness/referencia-uj.html   a migrált build mérése
-# http://127.0.0.1:8877/harness/vizualis.html#orthographic,180,55       régi kép
-# http://127.0.0.1:8877/harness/vizualis-uj.html#orthographic,180,55    új kép
-# http://127.0.0.1:8877/demo/teljes.html             teljes felület: űrlap, zoom, SVG-export
-```
+The full configuration is documented in the
+[upstream readme](https://github.com/ofrohn/d3-celestial#configuration) — the
+option names are unchanged. Type definitions in `types/celestial.d.ts` list them
+all, and a test keeps them from drifting from the code.
 
-## Mit old meg a modernizáció, és mit nem
+The migration itself is written up in Hungarian: [`docs/`](docs/) —
+what was measured, what broke, and why.
 
-**Megoldja** (7 issue egy csapásra): #147 (D3-frissítés), #141 (ES-modul), #86 (React), #81 (Node),
-#115 (webpack), #134 (`d3 is not defined`), és részben #96/#131 (több példány egy oldalon — ez a
-globális állapot problémája, amit egy osztály-alapú átírás szüntet meg).
+## License
 
-**Megoldja továbbá**: #96 és #131 (több példány egy oldalon) — az osztály-alapú felülettel.
-Több *interaktív* térkép is működik egy oldalon, mindegyik saját űrlappal
-([`demo/ket-urlap.html`](demo/ket-urlap.html)).
+BSD 3-Clause, inherited from d3-celestial. See [`LICENSE`](LICENSE) and
+[`NOTICE.md`](NOTICE.md).
 
-**Nem oldja meg**: a matematikai hibákat (#148, #130, #157) és a funkciókéréseket. Azok külön munkák
-— de a referencia-háló ezeket is biztonságossá teszi.
-
-## Amit a felmérés nem tud eldönteni
-
-A vetítések **vizuális** helyességét. A háló számokat hasonlít össze; hogy a Nagy Medve úgy néz-e ki,
-ahogy kell, azt **meg kell nézni**. A migráció minden fázisa után kell egy emberi pillantás — ezt
-semmilyen automatizmus nem váltja ki.
-
-Amit tehettünk: rögzítettük, hogy *most* hogy néz ki, és megismételtük a migrált verzióval. A
-[`docs/kepek/`](docs/kepek/) mappában hat-hat kép van (`d3v3-*` / `d3v7-*`), köztük a félteke-vágást
-és a Nagy Göncölt mutató orthographic nézet.
-
-A rögzítés eleinte **nem volt reprodukálható** — ugyanaz a verzió önmagához mérve 3–6%-os
-pixeleltérést adott. Három ok, mind a könyvtár állapotkezeléséből: az első `display()` az aktuális
-időből számol középpontot, az animált átmenet közben fényképeztünk, és a második `display()` más
-állapotot hagy maga után, mint az első. Ezek kikapcsolása után a zajszint **pontosan nulla** — csak
-innentől jelent bármit a régi és az új összevetése.
-
-## Licenc
-
-Az upstream BSD-3-Clause, a fork is az marad. Az `upstream/` mappa gitignore-olt; a
-[`harness/vendor/`](harness/vendor/) a vizsgált verzió pinelt másolatát tartalmazza, hogy a
-referencia reprodukálható legyen.
+This project is not affiliated with, nor endorsed by, Olaf Frohn or the D3 project.

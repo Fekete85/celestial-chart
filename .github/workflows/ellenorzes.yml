@@ -38,6 +38,14 @@ jobs:
             docs/kepek/*.png
           if-no-files-found: ignore
 
+      - name: a csomag telepíthető és importálható
+        run: |
+          npm pack
+          mkdir -p /tmp/proba && cd /tmp/proba && npm init -y >/dev/null
+          npm i --no-audit --no-fund "$GITHUB_WORKSPACE"/celestial-chart-*.tgz
+          node --input-type=module -e 'const m = await import("celestial-chart"); if (typeof m.default !== "object" || typeof m.Egbolt !== "function") { console.error("ESM import hibás"); process.exit(1) } console.log("ESM ok, verzió:", m.default.version)'
+          node -e 'const m = require("celestial-chart"); if (!(m.default || m.Celestial)) { console.error("CJS require hibás"); process.exit(1) } console.log("CJS ok")'
+
       - name: a mérések nem térhetnek el a rögzítettektől
         run: |
           git diff --stat -- harness/referencia-*.json docs/kepek/

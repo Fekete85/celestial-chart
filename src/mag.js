@@ -6,7 +6,8 @@
 // mi értékelődik ki előbb. Ez a fájl semmit nem importál, tehát mindig elsőként
 // fut le, és mire bárki hozzányúl, már létezik.
 export var Celestial = {
-  version: '0.8.0-dev',
+  // A csomag verziójával kell egyeznie — teszt őrzi (test/csomag.teszt.mjs).
+  version: '0.8.0',
   container: null,
   data: []
 };

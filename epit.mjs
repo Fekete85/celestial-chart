@@ -9,8 +9,13 @@
 import fs from "node:fs";
 import * as esbuild from "esbuild";
 
-const FEJLEC = "// d3-celestial modernizált fork — BSD-3-Clause, lásd LICENSE\n" +
-               "// Eredeti: Copyright 2015-2020 Olaf Frohn https://github.com/ofrohn\n";
+// A BSD-3-Clause 2. pontja szerint a bináris terjesztésnek reprodukálnia kell a
+// szerzői jogi közlést. A teljes szöveg a LICENSE fájlban van (a csomag része),
+// ide a közlés és a hivatkozás kerül.
+const FEJLEC =
+  "// celestial-chart — BSD-3-Clause. Teljes licenc: LICENSE, közlemények: NOTICE.md\n" +
+  "// Copyright (c) 2015 Olaf Frohn (d3-celestial), (c) 2026 Fekete László\n" +
+  "// Tartalmazza: d3-* és versor modulok, (c) Mike Bostock, ISC\n";
 
 const KOZOS = {
   bundle: true,
