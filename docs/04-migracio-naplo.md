@@ -699,7 +699,49 @@ A: orthographic → hammer      B: mollweide → mollweide
 Külön űrlap-elem, külön űrlapfelület, külön SVG-export, 67-67 mező,
 5044-5044 csillag, 0 konzolhiba. Ez most állandó ellenőrzés a füstpróbában.
 
-## 13. Hol tart a lépéssorrend
+## 13. TypeScript-típusok
+
+A `types/celestial.d.ts` a publikus felületet írja le. Két dolgot csináltunk
+másképp, mint ahogy egy .d.ts általában készül.
+
+### A Config törzse generált
+
+A könyvtárnak **~110 beállítása** van, öt szint mélyen. Kézzel átgépelve az
+első naptól kezdve csúszna. Ezért a `src/config.js` alapértelmezéseiből
+generáltuk, egy finomító táblával azokra a mezőkre, ahol a típus nem derül ki
+az alapértékből (`center`, `geopos`, `daterange`, a `null` alapértelmezésűek).
+
+A vetítés-unió is generált: mind a 69 név szerepel, tehát a szerkesztő
+felkínálja őket.
+
+### A típus nem csúszhat el
+
+Egy `.d.ts` a legcsendesebb hazugság: lefordul, senki nem futtatja, és lassan
+eltávolodik a kódtól. Ugyanaz az elv kellett rá, mint a referencia-hálóra —
+**mérjük, ne higgyük**. A `test/tipusok.teszt.mjs` négy állítást tesz:
+
+| | |
+|---|---|
+| minden futásidejű beállítás szerepel a típusban | kiüt, ha új beállítás kerül a `config.js`-be |
+| a típus nem talál ki nem létező beállítást | kiüt, ha a `.d.ts`-ben elgépelünk egy nevet |
+| a vetítés-unió pontosan a támogatottakat sorolja | mindkét irányban |
+| a transzformáció-unió teljes | |
+
+A detektort mindkét irányban kipróbáltuk: `config.js`-be tett új kulcsra és a
+`.d.ts`-be tett kitalált névre is megbukik.
+
+### A fordítás is ellenőrzés
+
+`types/proba/hasznalat.ts` valódi használatot ír le — a régi globális felületet,
+két független példányt, az űrlapot, a vetítés használatát —, és `strict` módban
+fordul. A `npm run tipus` ezt futtatja, és a CI is.
+
+Ez fogta ki az első változat hibáját: a `CelestialFelulet extends Partial<Egbolt>`
+technikailag pontos volt (a metódusok tényleg csak a `display()` után léteznek),
+de minden hívás `?.`-ot igényelt volna. A típus most jelenlévőnek mutatja őket,
+és a dokumentáció mondja meg, mikortól.
+
+## 14. Hol tart a lépéssorrend
 
 | # | Lépés | Állapot |
 |---|---|---|

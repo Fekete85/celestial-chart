@@ -22,7 +22,7 @@ jobs:
       # Chrome-ját (nincs letöltés), CI-ben a Playwright sajátját.
       - run: npx playwright install --with-deps chromium
 
-      - name: build + tesztek + referencia-háló + vizuális összevetés + füstpróba
+      - name: build + tesztek + típusellenőrzés + referencia-háló + vizuális összevetés + füstpróba
         run: npm run ellenoriz
 
       # A háló és a képek a futás során újragenerálódnak. Ha bármelyik

@@ -110,9 +110,21 @@ Az 1–6. lépés elkészült. Az eredmény és a közben talált hibák: [`docs
 ### Használat
 
 ```js
-import Celestial from "d3-celestial-modern";     // ES-modul
+import Celestial from "d3-celestial-modern";           // ES-modul
 const { Celestial } = require("d3-celestial-modern");  // CommonJS
 ```
+
+**TypeScript-típusok** a csomagban vannak — nem kell `@types` csomag. A vetítés-
+és koordinátarendszer-nevek unió típusok, tehát a szerkesztő felkínálja őket:
+
+```ts
+import Celestial, { Egbolt, Config } from "d3-celestial-modern";
+Celestial.display({ projection: "mollweide", transform: "galactic" });
+//                               ^ a 69 támogatott név egyike
+```
+
+A típus nem csúszhat el a kódtól: teszt méri, hogy minden futásidejű beállítás
+szerepel-e benne, és hogy nem talál-e ki nem létezőt.
 
 Több független térkép egy oldalon (upstream #96, #131):
 
@@ -159,7 +171,7 @@ Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.m
 
 ```bash
 npm install
-npm run ellenoriz     # build + 49 teszt + a háló öntesztje + 23 böngészős állítás
+npm run ellenoriz     # build + 60 teszt + típusellenőrzés + a háló öntesztje + 27 böngészős állítás
 ```
 
 Az `ellenoriz` headless Chromiumban végigméri a teljes vizsgálatot (~2 perc):
