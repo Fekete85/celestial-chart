@@ -573,7 +573,75 @@ táblájához (`hatano`, `wagner7`, `healpix`, `wiechel`, `twoPointEquidistant`,
 és `mercator` kontrollként), és külön teszt szól, ha egy jövőbeli
 d3-geo-projection feleslegessé teszi valamelyik saját másolatot.
 
-## 11. Hol tart a lépéssorrend
+## 11. Maradék upstream hibák
+
+Négy tétel, mind a „kis, tiszta függvény, tesztlefedettség nélkül" osztályból —
+ugyanabból, amelyik a #157-et is adta.
+
+### `Celestial.ha()` — elírt normálás
+
+```js
+var ha = getMST(dt, lng) - ra;
+if (ha < 180) ha = ha + 360;      // 100° óraszögből 460° lett
+```
+
+A `getMST` és az `ra` is `[0,360)`, tehát a különbség `(-360, 360)` — nullánál
+kisebb értéket kell körbeforgatni. **Ugyanabban a fájlban, két sorral feljebb**
+a `horizontal()` helyesen `if (ha < 0)`-t ír. Publikus felület, a könyvtárban
+semmi nem hívja.
+
+A teszt nem a képletből indul, hanem a jelentésből: az óraszög akkor nulla,
+amikor az objektum a délkörön áll (azimut 0° vagy 180°). Ezt a `horizontal()`-ból
+keressük meg, tehát a két függvény egymáshoz mérve is konzisztens marad.
+
+### `getWidth()` — nem létező metódus
+
+```js
+else w = window.getBoundingClientRect().width - margin[0]*2;
+```
+
+A `window`-nak nincs `getBoundingClientRect` metódusa. Ez az ág akkor fut, ha
+**nincs konténer-elem és nincs megadott szélesség** — vagyis a legegyszerűbb
+kezdő használatnál. Reprodukálva: a `display()` kivétellel elszállt, canvas és
+csillagok nélkül. A térkép ilyenkor a `body`-ba kerül, tehát a `document.body`
+szélessége a mérvadó. Javítás után 1469 px, 5044 csillag.
+
+Ez most állandó ellenőrzés a füstpróbában (`harness/nincs-container.html`).
+
+### `Trig.normalize` / `normalize0` — lappangó
+
+```js
+normalize:  ((val + 2π) % 2π)          // −30 → −4,867
+normalize0: ((val + 3π) % 2π) − π
+```
+
+A JS `%` megtartja az osztandó előjelét, ezért egyetlen eltolás csak akkor elég,
+ha a bemenet nem megy −2π (illetve −3π) alá. A közepes pályaelemek J2000-től
+távolodva nagyra nőnek — ott a régi képlet nem normált szöget adott.
+
+**Lappangó, nem aktív**: a Hold pozíciója 1700 és 2300 között végig értelmes
+marad. A javítás után is az — ez bizonyítja, hogy a működő eseteken nem
+változtat.
+
+### `Trig.spherical` és társai — halott kód
+
+A `Trig.spherical`, `tanh`, `acosh` és `distance` metódusokat a könyvtárban
+semmi nem hívja. A `spherical` ráadásul **nem inverze** a `cartesian`-nak:
+`atan` van benne `atan2` helyett (elveszti a kvadránst, és x = 0 esetén nullával
+oszt), a visszaadott második érték pedig pólustávolság, nem szélesség.
+
+Nem nyúltunk hozzá — nincs hívója —, de kommentben jelölve, hogy ne épüljön rá
+új kód. A `tanh`, `asinh`, `acosh`, `sinh`, `cosh` viszont **helyes**: teszt méri
+őket a beépített `Math.*` megfelelőikhez.
+
+### `cassini`, `quincuncial`
+
+Kikerültek a listáról: kiderült, hogy **nem migrációs regresszió** — a
+`d3.geo.projection` szállított upstream buildjében sincsenek benne, ott is
+`TypeError`. A referencia-háló ezt is méri: mindkét oldal 67 sikeres vetítést
+jelent a 69-ből.
+
+## 12. Hol tart a lépéssorrend
 
 | # | Lépés | Állapot |
 |---|---|---|

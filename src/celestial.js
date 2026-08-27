@@ -1000,7 +1000,11 @@ export class Egbolt {
     var w = 0;
     if (isNumber(cfg.width) && cfg.width > 0) w = cfg.width;
     else if (parent) w = parent.getBoundingClientRect().width - margin[0] *2;
-    else w = window.getBoundingClientRect().width - margin[0]*2;
+    // Nincs konténer-elem: a térkép a body-ba kerül, tehát a body szélessége a
+    // mérvadó. Eredetileg window.getBoundingClientRect() állt itt, ami nem
+    // létező metódus — konténer és megadott szélesség nélkül a térkép meg sem
+    // jelent, kivétellel elszállt a display().
+    else w = document.body.getBoundingClientRect().width - margin[0]*2;
     //if (isNumber(cfg.background.width)) w -= cfg.background.width;
     return w;
   }

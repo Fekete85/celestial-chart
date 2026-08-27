@@ -81,9 +81,15 @@ function getMST(dt, lng)
 }
 
 Celestial.horizontal = horizontal;
+// Óraszög fokban, [0, 360) tartományban.
+//
+// A feltétel eredetileg `ha < 180` volt, ami elírás: a getMST [0,360)-t ad, az
+// ra is annyi, tehát a különbség (-360, 360) — nullánál kisebb értéket kell
+// körbeforgatni. A `180`-nal például egy 100°-os óraszögből 460° lett. Két
+// sorral feljebb, a horizontal()-ban ugyanez a normálás helyesen szerepel.
 Celestial.ha = function(dt, lng, ra) {
   var ha = getMST(dt, lng) - ra;
-  if (ha < 180) ha = ha + 360;
+  if (ha < 0) ha = ha + 360;
   return ha;
 };
 

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>d3-celestial — konténer és szélesség nélkül</title>
+<style>body { margin: 0; background: #000; }</style>
+</head>
+<body>
+<!-- Szándékosan NINCS #celestial-map elem és nincs megadott szélesség: ilyenkor
+     a könyvtár a body-ba rajzol, és a szélességet magának kell kitalálnia.
+     Ezt az ágat a getWidth() korábban a nem létező window.getBoundingClientRect()
+     hívással kezelte. -->
+<script src="../build/celestial.js"></script>
+<script>
+window.__hiba = null;
+try {
+  Celestial.display({
+    datapath: "../harness/data/",
+    interactive: false, form: false, controls: false, location: false,
+    follow: "center", disableAnimations: true,
+    stars: { limit: 5 }, dsos: { show: false }, planets: { show: false },
+    constellations: { names: false, lines: true, bounds: false },
+    mw: { show: true }, lines: { graticule: { show: true } }
+  });
+} catch (e) { window.__hiba = e.message; }
+</script>
+</body>
+</html>

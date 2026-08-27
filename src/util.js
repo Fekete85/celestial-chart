@@ -164,12 +164,23 @@ var Trig = {
   tanh: function (val) { return 2.0 / (1.0 + Math.exp(-2.0 * val)) - 1.0; },
   asinh: function (val) { return Math.log(val + Math.sqrt(val * val + 1)); },
   acosh: function (val) { return Math.log(val + Math.sqrt(val * val - 1)); },
-  normalize0: function(val) {  return ((val + Math.PI*3) % (Math.PI*2)) - Math.PI; },
-  normalize: function(val) {  return ((val + Math.PI*2) % (Math.PI*2)); },  
+  // A JS `%` megtartja az osztandó előjelét, ezért egyetlen eltolás csak akkor
+  // elég, ha a bemenet nem megy −2π (illetve −3π) alá. A közepes pályaelemek
+  // J2000-től távolodva viszont nagyra nőnek, ott a régi képlet negatív, azaz
+  // nem normált szöget adott. A kétszeres eltolás minden bemenetre helyes.
+  normalize0: function(val) { return (((val + Math.PI) % (Math.PI*2)) + Math.PI*2) % (Math.PI*2) - Math.PI; },
+  normalize: function(val) { return ((val % (Math.PI*2)) + Math.PI*2) % (Math.PI*2); },
+
   cartesian: function(p) {
     var ϕ = p[0], θ = halfπ - p[1], r = p[2];
     return {"x": r * Math.sin(θ) * Math.cos(ϕ), "y": r * Math.sin(θ) * Math.sin(ϕ), "z": r * Math.cos(θ)};
   },
+  // FIGYELEM: az alábbi négy metódust a könyvtárban semmi nem hívja.
+  // A `spherical` ráadásul nem inverze a `cartesian`-nak: `atan` van benne
+  // `atan2` helyett (elveszti a kvadránst, és x = 0 esetén osztás nullával),
+  // a visszaadott második érték pedig pólustávolság, nem szélesség. Nem
+  // nyúltunk hozzá, mert nincs hívója — de ne épüljön rá új kód anélkül, hogy
+  // előbb helyrerakná valaki.
   spherical: function(p) {
     var r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z),
         θ = Math.atan(p.y / p.x),

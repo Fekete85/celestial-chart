@@ -179,6 +179,19 @@ async function fustproba(lap) {
     ket.csillagA + " / " + ket.csillagB + " csillag");
   allit("térképenként egy tároló", ket.tarolok === 2, ket.tarolok + " db");
 
+  // Konténer-elem és megadott szélesség nélkül: a térkép a body-ba kerül, és a
+  // szélességet magának kell kitalálnia. Ez az ág korábban kivétellel elszállt.
+  await lap.goto(`http://127.0.0.1:${PORT}/harness/nincs-container.html`, { waitUntil: "load" });
+  await lap.waitForTimeout(7000);
+  const alap = await lap.evaluate(() => {
+    const c = document.querySelector("body canvas");
+    return { hiba: window.__hiba, szeles: c ? c.width : 0,
+             csillagok: document.querySelectorAll("body container .star").length };
+  });
+  allit("konténer és szélesség nélkül is megjelenik",
+    !alap.hiba && alap.szeles > 200 && alap.csillagok > 1000,
+    alap.hiba || alap.szeles + " px, " + alap.csillagok + " csillag");
+
   allit("nincs konzolhiba", hibak.length === 0, hibak.slice(0, 3).join(" | "));
 }
 

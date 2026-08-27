@@ -112,3 +112,32 @@ test("horizontal() előre irány: ismert értékek", () => {
 test("Celestial.horizontal ki van adva", () => {
   assert.equal(Celestial.horizontal, horizontal);
 });
+
+/* Celestial.ha() — óraszög. A könyvtárban semmi nem hívja, de publikus felület.
+ * A helyességet nem a képletből, hanem a jelentéséből ellenőrizzük: az óraszög
+ * akkor nulla, amikor az objektum a délkörön áll (azimut 0° vagy 180°). */
+test("Celestial.ha a [0,360) tartományban ad óraszöget", () => {
+  const rosszak = [];
+  for (let ra = 0; ra < 360; ra += 15) {
+    const ha = Celestial.ha(DT, BUDAPEST[1], ra);
+    if (!(ha >= 0 && ha < 360)) rosszak.push(`RA ${ra}° → ${ha.toFixed(1)}°`);
+  }
+  assert.deepEqual(rosszak.slice(0, 5), [], `${rosszak.length} érték esik a tartományon kívülre`);
+});
+
+test("az óraszög nulla, amikor az objektum a délkörön van", () => {
+  // Megkeressük, melyik RA áll épp a délkörön: ott az azimut 0° vagy 180°.
+  let delkorRa = null, legjobb = 1e9;
+  for (let ra = 0; ra < 360; ra += 0.05) {
+    const az = horizontal(DT, [ra, 20], BUDAPEST)[1];
+    const eltres = Math.min(Math.abs(az), Math.abs(az - 180), Math.abs(az - 360));
+    if (eltres < legjobb) { legjobb = eltres; delkorRa = ra; }
+  }
+  assert.ok(legjobb < 0.1, "nem találtunk délkörön álló pontot");
+
+  const ha = Celestial.ha(DT, BUDAPEST[1], delkorRa);
+  const delkortol = Math.min(ha, Math.abs(ha - 180), Math.abs(ha - 360));
+  assert.ok(delkortol < 0.5,
+    `a délkörön (RA ${delkorRa.toFixed(2)}°) az óraszög ${ha.toFixed(2)}°, ` +
+    `pedig 0°-nak vagy 180°-nak kellene lennie`);
+});
