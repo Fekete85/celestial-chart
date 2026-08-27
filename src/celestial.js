@@ -7,7 +7,7 @@ import { form } from "./form.js";
 import { exportSVG } from "./svg.js";
 import { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets } from "./get.js";
 import { geo } from "./location.js";
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { poles, projectionTween } from "./projection.js";
 import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
 import { Round, has, interpolateAngle, isArray, isNumber, loadJson, px } from "./util.js";
@@ -24,21 +24,21 @@ var ANIMDISTANCE = 0.035,  // Rotation animation threshold, ~2deg in radians
 // az aktuális állapotot. Egy oldalon egy űrlap van, tehát ez pontosan a régi
 // viselkedés; a térképek rajzolása viszont már példányonként külön állapoton
 // megy, és ettől lehet több független térkép egy oldalon (#96, #131).
-export var aktualis = null;
+export var current = null;
 
 // Egy égtérkép-példány.
 //
-// A törzs változatlanul az eredeti `Celestial.display` teste: az addig is
+// A törzs változatlanul az original `Celestial.display` teste: az addig is
 // konstruktorként volt megírva (a végén `this.clip = ...`, `this.rotate = ...`),
 // csak `Celestial`-ként hívva — vagyis a `this` maga a globális objektum volt.
 // Ettől lett egyetlen térkép egy oldalon (upstream #96, #131). Osztályként a
 // felület ugyanaz, de minden hívás saját `this`-t kap.
-export class Egbolt {
+export class SkyMap {
   // config: a szokásos beállítás-objektum
-  // opciok.onallo: ha igaz, a térkép CSAK az alapértelmezésekből és a kapott
+  // options.standalone: ha igaz, a térkép CSAK az baseértelmezésekből és a got
   //   configból épül, nem a felhalmozott globális beállításból — több független
   //   térképhez ez kell. Enélkül a régi viselkedés marad.
-  constructor(config, opciok) {
+  constructor(config, options) {
   var animationID,
       container = null,
       animations = [], 
@@ -52,24 +52,24 @@ export class Egbolt {
   var cfg, mapProjection, parentElement, zoom, map, circle, daylight,
       starnames = {}, dsonames = {};
 
-  var alap = (opciok && opciok.onallo) ? settings : undefined;
+  var base = (options && options.standalone) ? settings : undefined;
 
   // Az alábbi négy változó a rajzolás közben ÚJRA ÉRTÉKET KAP (cfg = cfg.set(…),
   // mapProjection = projectionTween(…), container = …append("container")).
   // Egyszerű értékadással a példányon a régi érték ragadna be — a
-  // Celestial.mapProjection például egy vetítésváltás után elavult lenne.
+  // Celestial.mapProjection például egy vetítésváltás urlPathán elavult lenne.
   // Getterrel mindig a friss belső állapot látszik.
-  var peldany = this;
+  var instance = this;
 
-  // Elemkeresés a térkép saját szülőelemén belül. Korábban a util.js-ben volt,
+  // Elemkeresés a térkép saját szülőelén belül. Korábban a util.js-ben volt,
   // egy közös "aktuális térkép" mutatón át — két térkép egymás elemeit találta
   // volna meg.
   function $(id) { return document.querySelector(parentElement + " #" + id); }
   ["cfg", "mapProjection", "container", "map", "parentElement", "starnames", "dsonames"]
-    .forEach(function (nev) {
-      Object.defineProperty(peldany, nev, {
+    .forEach(function (name_) {
+      Object.defineProperty(instance, name_, {
         get: function () {
-          switch (nev) {
+          switch (name_) {
             case "cfg": return cfg;
             case "mapProjection": return mapProjection;
             case "container": return container;
@@ -83,11 +83,11 @@ export class Egbolt {
       });
     });
 
-  aktualis = this;
+  current = this;
 
 
   //Mash config with default settings, todo: if globalConfig exists, make another one
-  cfg = settings.set(config, alap).applyDefaults(config, alap);
+  cfg = settings.set(config, base).applyDefaults(config, base);
   if (isNumber(cfg.zoomextend)) zoomextent = cfg.zoomextend;
   if (isNumber(cfg.zoomlevel)) zoomlevel = cfg.zoomlevel;
   //if (cfg.disableAnimations) ANIMDISTANCE = Infinity;
@@ -130,10 +130,10 @@ export class Egbolt {
   // térkép egy oldalon ne egymás mezőit írja.
   //
   // Már itt létre kell jönnie: a zoom beállítása (lentebb) azonnal kivált egy
-  // redraw()-t, az pedig hívja az urlap.setCenter()-t. Maguk a mezőkeresések
+  // redraw()-t, az pedig hívja az formApi.setCenter()-t. Maguk a mezőreqések
   // védve vannak a hiányzó űrlap ellen, de az objektumnak léteznie kell.
-  var urlap = form(this);
-  this.urlap = urlap;
+  var formApi = form(this);
+  this.form = formApi;
 
   mapProjection = Celestial.projection(cfg.projection).rotate(rotation).translate([canvaswidth/2, canvasheight/2]).scale(scale * zoomlevel);
     
@@ -174,7 +174,7 @@ export class Egbolt {
   // A v7-ben a listener első paramétere az eseményobjektum, a v3-ban a datum
   // (itt undefined) volt. Közvetlenül átadva a resize(set) „nem változott,
   // ne csinálj semmit" védőága soha nem lépne életbe, és minden átméretezési
-  // esemény visszaállítaná a felhasználó nagyítását.
+  // esemény backállítaná a felhasználó nagyítását.
   d3.select(window).on('resize', function () { resize(); });
 
   if (cfg.interactive === true && cfg.controls === true && $("celestial-zoomin") === null) {
@@ -193,8 +193,8 @@ export class Egbolt {
 
   if (cfg.location === true || cfg.formFields.location === true) {
     d3.select(parentElement + " #location").style("display", "inline-block");
-    urlap.fldEnable("horizon-show", projectionSetting.clip);
-    urlap.fldEnable("daylight-show", !projectionSetting.clip);
+    formApi.fldEnable("horizon-show", projectionSetting.clip);
+    formApi.fldEnable("daylight-show", !projectionSetting.clip);
   }
 
   function load() {
@@ -212,12 +212,12 @@ export class Egbolt {
         container.append("path").datum(graticule).attr("class", "graticule"); 
         if (has(cfg.lines.graticule, "lon") && cfg.lines.graticule.lon.pos.length > 0) 
           container.selectAll(parentElement + " .gridvalues_lon")
-            .data(getGridValues("lon", cfg.lines.graticule.lon.pos, peldany))
+            .data(getGridValues("lon", cfg.lines.graticule.lon.pos, instance))
             .enter().append("path")
             .attr("class", "graticule_lon"); 
         if (has(cfg.lines.graticule, "lat") && cfg.lines.graticule.lat.pos.length > 0) 
           container.selectAll(parentElement + " .gridvalues_lat")
-            .data(getGridValues("lat", cfg.lines.graticule.lat.pos, peldany))
+            .data(getGridValues("lat", cfg.lines.graticule.lat.pos, instance))
             .enter().append("path")
             .attr("class", "graticule_lat"); 
       } else {
@@ -258,7 +258,7 @@ export class Egbolt {
          .enter().append("text")
          .attr("class", "constname");
          
-      peldany.constellations = getConstellationList(con);
+      instance.constellations = getConstellationList(con);
       redraw();
     });
 
@@ -287,7 +287,7 @@ export class Egbolt {
          .enter().append("path")
          .attr("class", "constline");
 
-      urlap.listConstellations();
+      formApi.listConstellations();
       redraw();
     });
     
@@ -336,7 +336,7 @@ export class Egbolt {
     loadJson(path + filename("planets"), function(error, json) {
       if (error) return console.warn(error);
       
-      var pl = getPlanets(json, peldany);
+      var pl = getPlanets(json, instance);
 
       container.selectAll(parentElement + " .planets")
          .data(pl)
@@ -418,7 +418,7 @@ export class Egbolt {
     if (o === 0) oTween = function () { return rot[2]; };
     else oTween = interpolateAngle(cFrom[2], cfg.center[2]);
     // A Round(d,2) legfeljebb 3.14 lehet (π kerekítve), ezért a korábbi
-    // "d > 3.14" feltétel soha nem teljesült — a védőág pont abban az egyetlen
+    // "d > 3.14" condétel soha nem fullült — a védőág pont abban az egyetlen
     // esetben nem tüzelt, amiért megírták. A kiindulópontot bökjük meg, nem a
     // célt: így a végpont bitre pontos marad és ismételt hívásnál sem halmozódik. (#157)
     if (d >= 3.14) cFrom = [cFrom[0] + 0.01, cFrom[1], cFrom[2]]; //180deg turn is ambiguous
@@ -490,8 +490,8 @@ export class Egbolt {
     }
     
     if (cfg.location || cfg.formFields.location) { 
-      urlap.fldEnable("horizon-show", prj.clip);
-      urlap.fldEnable("daylight-show", !prj.clip);
+      formApi.fldEnable("horizon-show", prj.clip);
+      formApi.fldEnable("daylight-show", !prj.clip);
     }
     
     mapProjection = projectionTween(prjFrom, prjTo);
@@ -549,7 +549,7 @@ export class Egbolt {
     }
     cfg.center = [-rot[0], -rot[1], rot[2]];
     
-    urlap.setCenter(cfg.center, cfg.transform);
+    formApi.setCenter(cfg.center, cfg.transform);
     clear();
     
     drawOutline();
@@ -558,14 +558,14 @@ export class Egbolt {
     if (cfg.mw.show) { 
       container.selectAll(parentElement + " .mw").each(function(d) {
         setStyle(cfg.mw.style); map(d);
-        if (rosszIranyu(false)) { setStyle(cfg.mw.style); map(megforditva(d)); }
+        if (wrongWinding(false)) { setStyle(cfg.mw.style); map(reversed(d)); }
         context.fill();
       });
       // paint mw-outside in background color
       if (cfg.transform !== "supergalactic" && cfg.background.opacity > 0.95)
         container.selectAll(parentElement + " .mwbg").each(function(d) {
           setStyle(cfg.background); map(d);
-          if (rosszIranyu(true)) { setStyle(cfg.background); map(megforditva(d)); }
+          if (wrongWinding(true)) { setStyle(cfg.background); map(reversed(d)); }
           context.fill();
         });
     }
@@ -730,7 +730,7 @@ export class Egbolt {
     }
     
     if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && projectionSetting.clip) {
-      var sol = getPlanet("sol", undefined, peldany);
+      var sol = getPlanet("sol", undefined, instance);
       if (sol) {
         var up = Celestial.zenith(),
             solpos = sol.ephemeris.pos,
@@ -794,7 +794,7 @@ export class Egbolt {
     return projectionSetting.clip && d3.geoDistance(cfg.center, coords) > halfπ ? 0 : 1;
   }
 
-  // A d3-geo bizonyos forgatásoknál a Tejút poligonjának KOMPLEMENTERÉT tölti ki:
+  // A d3-geo bizonyos forgatásoknál a Tejút poligonjának KOMPLEMENTERÉT tölti out:
   // a térkép beszürkül, a Tejút feketén látszik. Jellemzően akkor, amikor a sáv a
   // korong pereme felé kerül. A gömbi poligon belsejének eldöntése ott numerikusan
   // törékeny — az ol1 körvonal vékony héj: 1,697π területű külső gyűrű, benne egy
@@ -807,28 +807,28 @@ export class Egbolt {
   //
   // A már felépített útvonalat kérdezzük meg (isPointInPath), és ha az ítélet
   // ellentmond a tudottnak, a megfordított gyűrűkkel rajzoljuk újra.
-  function galaktikusPolus() {
+  function galacticPole() {
     var p = transformDeg(poles.galactic, euler[cfg.transform]);
     if (!clip(p)) p = [p[0] + 180, -p[1]];   // a másik pólus látszik
     return mapProjection(p);
   }
 
-  function rosszIranyu(vart) {
-    var pt = galaktikusPolus();
+  function wrongWinding(expected) {
+    var pt = galacticPole();
     if (!pt || !isFinite(pt[0]) || !isFinite(pt[1])) return false;
     // Az isPointInPath eszközkoordinátában várja a pontot, a kontextuson viszont
     // setTransform(pixelRatio, ...) van — ezért kell a szorzás.
-    return context.isPointInPath(pt[0] * pixelRatio, pt[1] * pixelRatio) !== vart;
+    return context.isPointInPath(pt[0] * pixelRatio, pt[1] * pixelRatio) !== expected;
   }
 
-  function megforditva(d) {
-    if (!d.megforditottMasolat) {
-      d.megforditottMasolat = { type: d.type, geometry: { type: d.geometry.type,
+  function reversed(d) {
+    if (!d.reversedCopy) {
+      d.reversedCopy = { type: d.type, geometry: { type: d.geometry.type,
         coordinates: d.geometry.coordinates.map(function (pol) {
-          return pol.map(function (gyuru) { return gyuru.slice().reverse(); });
+          return pol.map(function (ring) { return ring.slice().reverse(); });
         })}};
     }
-    return d.megforditottMasolat;
+    return d.reversedCopy;
   }
 
   function setStyle(s) {
@@ -1014,7 +1014,7 @@ export class Egbolt {
     var w = 0;
     if (isNumber(cfg.width) && cfg.width > 0) w = cfg.width;
     else if (parent) w = parent.getBoundingClientRect().width - margin[0] *2;
-    // Nincs konténer-elem: a térkép a body-ba kerül, tehát a body szélessége a
+    // Nincs konténer-el: a térkép a body-ba kerül, tehát a body szélessége a
     // mérvadó. Eredetileg window.getBoundingClientRect() állt itt, ami nem
     // létező metódus — konténer és megadott szélesség nélkül a térkép meg sem
     // jelent, kivétellel elszállt a display().
@@ -1063,7 +1063,7 @@ export class Egbolt {
   // A saját térképét exportálja. Közvetlenül a modulfüggvényt hívja, nem a
   // Celestial.exportSVG-t: a visszafelé kompatibilis felület ezt a metódust
   // másolja magára, tehát azon keresztül önmagát hívná.
-  this.exportSVG = function (callback) { return exportSVG(peldany, callback); };
+  this.exportSVG = function (callback) { return exportSVG(instance, callback); };
   this.metrics = function() {
     return {"width": width, "height": height, "margin": margin, "scale": mapProjection.scale()};
   };
@@ -1138,35 +1138,35 @@ export class Egbolt {
 //
 // A `Celestial.display(config)` ugyanúgy viselkedik, mint eddig: létrehoz egy
 // példányt, és annak a felületét kiteríti magára. A különbség, hogy a példány
-// most vissza is kapható — `var egbolt = Celestial.display(cfg)` —, és ezzel
+// now_ back is kapható — `var sky = Celestial.display(cfg)` —, és ezzel
 // több térkép is kezelhető egy oldalon.
-// Két név a betöltés UTÁN kap értéket (a csillagképlista, illetve a kiválasztott
+// Két név a betöltés UTÁN kap értétwo (a csillagképlista, illetve a kiválasztott
 // csillagkép), amikor a globális felület már lemásolódott. Ezekre továbbító
 // hozzáférés kerül, hogy a Celestial.constellations a régi módon működjön.
-["constellations", "constellation"].forEach(function (nev) {
-  Object.defineProperty(Celestial, nev, {
-    get: function () { return aktualis ? aktualis[nev] : undefined; },
-    set: function (ertek) { if (aktualis) aktualis[nev] = ertek; },
+["constellations", "constellation"].forEach(function (name_) {
+  Object.defineProperty(Celestial, name_, {
+    get: function () { return current ? current[name_] : undefined; },
+    set: function (value_) { if (current) current[name_] = value_; },
     enumerable: true, configurable: true
   });
 });
 
 Celestial.display = function (config) {
-  var peldany = new Egbolt(config);
+  var instance = new SkyMap(config);
   // Tulajdonság-leírókkal másolunk, nem értékkel: a példányon több tulajdonság
   // getter (cfg, mapProjection, container, …), és értékmásolás esetén a
-  // Celestial.mapProjection egy vetítésváltás után elavulna.
-  Object.defineProperties(peldany, {});
-  var leirok = Object.getOwnPropertyDescriptors(peldany);
-  for (var kulcs in leirok) {
+  // Celestial.mapProjection egy vetítésváltás urlPathán elavulna.
+  Object.defineProperties(instance, {});
+  var descriptors = Object.getOwnPropertyDescriptors(instance);
+  for (var key_ in descriptors) {
     // a továbbító hozzáféréssel ellátott neveket nem írjuk felül
-    if (kulcs === "constructor" || kulcs === "constellations" || kulcs === "constellation") continue;
-    Object.defineProperty(Celestial, kulcs, leirok[kulcs]);
+    if (key_ === "constructor" || key_ === "constellations" || key_ === "constellation") continue;
+    Object.defineProperty(Celestial, key_, descriptors[key_]);
   }
-  return peldany;
+  return instance;
 };
  
-// A CommonJS-export helyét a build vette át: a build/celestial.cjs és a
-// build/celestial.mjs a beágyazó igénye szerinti alakban adja ki a Celestialt.
+// A CommonJS-export siteét a build vette át: a build/celestial.cjs és a
+// build/celestial.mjs a beágyazó igénye szerinti alakban adja out a Celestialt.
 
 export { Celestial };

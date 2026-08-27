@@ -1,4 +1,4 @@
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { has } from "./util.js";
 
 //Add more JSON data to the map

@@ -1,9 +1,9 @@
 import * as d3 from "./d3.js";
 import { formats, formats_all, globalConfig, settings } from "./config.js";
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { exportSVG } from "./svg.js";
 import { euler, transformDeg } from "./transform.js";
-import { findPos, has, isArray, isNumber, isObject, px, stilusok } from "./util.js";
+import { findPos, has, isArray, isNumber, isObject, px, styles_ } from "./util.js";
 
 // Egy térkép beállító-űrlapja.
 //
@@ -11,8 +11,8 @@ import { findPos, has, isArray, isNumber, isObject, px, stilusok } from "./util.
 // segédfüggvényei (fldEnable, setCenter, $form, …) is ebben a lezárásban élnek.
 // Korábban modulszintű függvények voltak, egy közös "aktuális térkép" mutatón
 // át — így két interaktív térkép egy oldalon egymás mezőit írta volna.
-function form(egbolt) {
-  var cfg = egbolt.cfg;
+function form(sky) {
+  var cfg = sky.cfg;
   var config = settings.set(cfg); 
 
   var depends = {
@@ -154,44 +154,44 @@ function form(egbolt) {
 
   function showAdvanced(showit) {
     var vis = showit ? "inline-block" : "none";
-    d3.select(egbolt.parentElement + " ~ #celestial-form").selectAll(".advanced").style("display", vis);
-    d3.select(egbolt.parentElement + " ~ #celestial-form").selectAll("#label-propername").style("display", showit ? "none" : "inline-block");
+    d3.select(sky.parentElement + " ~ #celestial-form").selectAll(".advanced").style("display", vis);
+    d3.select(sky.parentElement + " ~ #celestial-form").selectAll("#label-propername").style("display", showit ? "none" : "inline-block");
   }
 
   function setVisibility(cfg, which) {
      var vis, fld;
      if (!has(cfg, "formFields")) return;
      if (which && has(cfg.formFields, which)) {
-       stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
+       styles_(d3.select(sky.parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
        return;
      }
      // Special case for backward compatibility
      if (cfg.form === false && cfg.location === true) {
-       d3.select(egbolt.parentElement + " ~ #celestial-form").style("display", "inline-block");
+       d3.select(sky.parentElement + " ~ #celestial-form").style("display", "inline-block");
        for (fld in cfg.formFields) {
         if (!has(cfg.formFields, fld)) continue;
          if (fld === "location") continue;
-         stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
+         styles_(d3.select(sky.parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
        }
        return;
      }
      // hide if not desired
-     if (cfg.form === false) d3.select(egbolt.parentElement + " ~ #celestial-form").style("display", "none"); 
+     if (cfg.form === false) d3.select(sky.parentElement + " ~ #celestial-form").style("display", "none"); 
   
      for (fld in cfg.formFields) {
        if (!has(cfg.formFields, fld)) continue;
        if (fld === "location") continue;
        vis = cfg.formFields[fld] === false ? "none" : "block";
-       stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
+       styles_(d3.select(sky.parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
      }
      
   }
 
   function listConstellations() {
-    var sel = d3.select(egbolt.parentElement + " ~ #celestial-form").select("#constellation"),
-        list = [], selected = 0, id, name, config = egbolt.cfg;
+    var sel = d3.select(sky.parentElement + " ~ #celestial-form").select("#constellation"),
+        list = [], selected = 0, id, name, config = sky.cfg;
       
-    egbolt.container.selectAll(".constname").each( function(d, i) {
+    sky.container.selectAll(".constname").each( function(d, i) {
       id = d.id;
       if (id === config.constellation) selected = i;
       name = d.properties[config.constellations.namesType];
@@ -211,22 +211,22 @@ function form(egbolt) {
     sel.property("selectedIndex", selected);
     //$form("constellation").firstChild.disabled = true;
   
-    //egbolt.constellations = list;
+    //sky.constellations = list;
   }
 
-  function $form(id) { return document.querySelector(egbolt.parentElement + " ~ #celestial-form" + " #" + id); }
+  function $form(id) { return document.querySelector(sky.parentElement + " ~ #celestial-form" + " #" + id); }
 
 
   var prj = Celestial.projections(), leo = Celestial.eulerAngles();
-  var div = d3.select(egbolt.parentElement + " ~ #celestial-form");
+  var div = d3.select(sky.parentElement + " ~ #celestial-form");
   //if div doesn't exist, create it
   if (div.size() < 1) {
     //var container = (config.container || "celestial-map");
-    div = d3.select(egbolt.parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
+    div = d3.select(sky.parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
   } else {
-    // A meglévő űrlapot kiürítjük, mielőtt újraépítjük. Enélkül minden
-    // Celestial.display() hívás hozzáfűzött egy újabb teljes űrlapot: hat hívás
-    // után 469 mező volt 67 helyett, azonos id-kkel — a $("...") lekérdezések
+    // A meglévő űrlapot outürítjük, mielőtt újraépítjük. Enélkül minden
+    // Celestial.display() hívás hozzáfűzött egy újabb full űrlapot: hat hívás
+    // urlPathán 469 mező volt 67 helyett, same id-kkel — a $("...") lekérdezések
     // pedig mindig az elsőt találták meg. (#96, #131 tünete.)
     div.selectAll("*").remove();
   }
@@ -509,7 +509,7 @@ function form(egbolt) {
 
   col.append("input").attr("type", "button").attr("id", "download-png").attr("value", "PNG Image").on("click", function() {
     var a = d3.select("body").append("a").node(), 
-        canvas = document.querySelector(egbolt.parentElement + ' canvas');
+        canvas = document.querySelector(sky.parentElement + ' canvas');
     a.download = getFilename(".png");
     a.rel = "noopener";
     a.href = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
@@ -532,7 +532,7 @@ function form(egbolt) {
         w = src.value;
     if (testNumber(src) === false) return; 
     config.width = w;
-    egbolt.resize({width:w});
+    sky.resize({width:w});
   }
   
   function reload() {
@@ -542,7 +542,7 @@ function form(egbolt) {
     if (cx !== null) config.center[0] = cx; 
     config.transform = trans;
     settings.set(config);
-    egbolt.reload(config);
+    sky.reload(config);
   }  
   
   function reproject() {
@@ -550,13 +550,13 @@ function form(egbolt) {
     if (!src) return;
     config.projection = src.value; 
     settings.set(config);
-    egbolt.reproject(config);
+    sky.reproject(config);
   }
   
   function turn() {
     if (testNumber(this) === false) return;   
     if (getCenter() === false) return;
-    egbolt.rotate(config);
+    sky.rotate(config);
   }
 
   function getCenter() {
@@ -581,7 +581,7 @@ function form(egbolt) {
   function getFilename(ext) {
     var dateFormat = d3.timeFormat("%Y%m%dT%H%M%S%Z"),
         filename = "d3-celestial",
-        dt = egbolt.date();
+        dt = sky.date();
     if (dt) filename += dateFormat(dt);
     return filename + ext;
   }
@@ -596,37 +596,37 @@ function form(egbolt) {
     var z, anims = [],
         config = globalConfig;
     if (id === "---") { 
-      egbolt.constellation = null;
-      z = egbolt.zoomBy();
+      sky.constellation = null;
+      z = sky.zoomBy();
       if (z !== 1) {
         anims.push({param:"zoom", value:1/z, duration:0});
       }
-      egbolt.animate(anims, false);    
-      //egbolt.redraw();
+      sky.animate(anims, false);    
+      //sky.redraw();
       return;
     }
-    if (!isObject(egbolt.constellations) || !has(egbolt.constellations, id)) return;
+    if (!isObject(sky.constellations) || !has(sky.constellations, id)) return;
     
-    var con = egbolt.constellations[id];
+    var con = sky.constellations[id];
     //transform according to settings
     var center = transformDeg(con.center, euler[config.transform]);
     config.center = center;
     setCenter(config.center, config.transform);
     //config.lines.graticule.lat.pos = [Round(con.center[0])];
     //config.lines.graticule.lon.pos = [Round(con.center[1])];
-    //egbolt.apply(config);
+    //sky.apply(config);
 
     //if zoomed, zoom out
-    z = egbolt.zoomBy();
+    z = sky.zoomBy();
     if (z !== 1) anims.push({param:"zoom", value:1/z, duration:0});
     //rotate
     anims.push({param:"center", value:center, duration:0});
     //and zoom in
     var sc = 1 + (360/con.scale); // > 10 ? 10 : con.scale;
     anims.push({param:"zoom", value:sc, duration:0});
-    egbolt.constellation = id;
+    sky.constellation = id;
     //Object.assign(globalConfig, config);   
-    egbolt.animate(anims, false);    
+    sky.animate(anims, false);    
   }
   
   function apply() {
@@ -660,7 +660,7 @@ function form(egbolt) {
 
     getCenter();
     Object.assign(globalConfig, config);
-    egbolt.apply(config);
+    sky.apply(config);
   }
 
   function set(prop, val) {
@@ -697,7 +697,7 @@ function form(egbolt) {
     
   function update() {
     // Update all form fields
-    d3.selectAll(egbolt.parentElement + " ~ #celestial-form input, " + egbolt.parentElement + " ~  #celestial-form select").each( function(d, i) {
+    d3.selectAll(sky.parentElement + " ~ #celestial-form input, " + sky.parentElement + " ~  #celestial-form select").each( function(d, i) {
       if (this === undefined) return;
       var id = this.id;
 
@@ -742,9 +742,9 @@ function form(egbolt) {
     }   
   }
     
-  egbolt.updateForm  = update;
-  egbolt.showConstellation = showCon;
-  egbolt.setLanguage = function(lang) {
+  sky.updateForm  = update;
+  sky.showConstellation = showCon;
+  sky.setLanguage = function(lang) {
     var cfg = settings.set();
     if (formats_all[config.culture].indexOf(lang) !== -1) cfg = setLanguage(lang);
     return cfg;    
@@ -778,7 +778,7 @@ function form(egbolt) {
 // Error notification
 function popError(nd, err) {
   var p = findPos(nd);
-  stilusok(d3.select("#error").html(err), {top:px(p[1] + nd.offsetHeight + 1), left:px(p[0]), opacity:1});
+  styles_(d3.select("#error").html(err), {top:px(p[1] + nd.offsetHeight + 1), left:px(p[0]), opacity:1});
   nd.focus();
 }
 
@@ -795,7 +795,7 @@ function testNumber(node) {
     v = parseFloat(v);
     if (v < node.min || v > node.max ) { popError(node, node.title + " must be between " + (node.min + adj) + " and " + (+node.max - adj)); return false; }
   }
-  stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0}); 
+  styles_(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0}); 
   return true; 
 }
 
@@ -811,7 +811,7 @@ function testColor(node) {
     if (v === "") return true;
     if (v.search(/^#[0-9A-F]{6}$/i) === -1) { popError(node, node.title + ": not a color value"); return false; }
   }
-  stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0});
+  styles_(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0});
   return true;
 }
 

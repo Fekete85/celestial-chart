@@ -1,4 +1,4 @@
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { functor } from "./util.js";
 
 var Canvas = {}; 

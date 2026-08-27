@@ -1,4 +1,4 @@
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { eulerAngles } from "./projection.js";
 
 var τ = Math.PI*2,

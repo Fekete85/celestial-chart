@@ -9,9 +9,9 @@ function pad(n) { return n < 10 ? '0' + n : n; }
 
 // A csupasz `hasOwnProperty` a globális objektumon keresztül oldódott fel; modulban
 // ez félrevezető, ezért explicit.
-var sajatja = Object.prototype.hasOwnProperty;
-function has(o, key) { return o !== null && sajatja.call(o, key); }
-function when(o, key, val) { return o !== null && sajatja.call(o, key) ? o[key] : val; }
+var hasOwn = Object.prototype.hasOwnProperty;
+function has(o, key) { return o !== null && hasOwn.call(o, key); }
+function when(o, key, val) { return o !== null && hasOwn.call(o, key) ? o[key] : val; }
 function isNumber(n) { return n !== null && !isNaN(parseFloat(n)) && isFinite(n); }
 function isArray(o) { return o !== null && Object.prototype.toString.call(o) === "[object Array]"; }
 function isObject(o) { var type = typeof o;  return type === 'function' || type === 'object' && !!o; }
@@ -20,55 +20,55 @@ function isFunction(o) { return typeof o == 'function' || false; }
 // abból konstans függvényt gyártott.
 function functor(o) { return isFunction(o) ? o : function() { return o; }; }
 
-// A d3.json a v5 óta Promise-t ad vissza, nem callbacket hív. A hívási helyek
+// A d3.json a v5 óta Promise-t ad back, nem callbacket hív. A hívási helyek
 // szerkezetét megtartjuk — a régi (error, json) alak marad —, mert így a
 // betöltési logika változatlan, és a D3-csere hatása elkülöníthető marad.
-// A d3-queue külön csomag volt, a v5 óta nincs karbantartva. A könyvtár a
+// A d3-queue külön pkg volt, a v5 óta nincs karbantartva. A könyvtár a
 // felületéből ennyit használ: defer(fn) a feladat felvételére, await(cb) a
-// végére. A defer-ek mind szinkronban, az await előtt futnak le.
-// A v3-as selection.classed({nev: logikai, ...}) alak a v4-ben megszűnt;
+// végére. A defer-ek all_ szinkronban, az await előtt futnak le.
+// A v3-as selection.classed({name_: logikai, ...}) alak a v4-ben megszűnt;
 // a v7 csak classed(nevek, logikai) párost ismer.
-function osztalyoz(sel, obj) {
+function classes_(sel, obj) {
   for (var k in obj) { if (has(obj, k)) sel.classed(k, obj[k]); }
   return sel;
 }
 
 // Ugyanez az attr és a style objektum-alakjára: a v3 elfogadott egy egész
-// tulajdonságtömböt, a v4+ csak (nev, ertek) párt. Ha ez kezeletlen marad, a
-// hívás GETTERKÉNT fut le, és a lánc következő tagja már nem szelekción dolgozik
+// tulajdonságtömböt, a v4+ csak (name_, value_) párt. Ha ez kezeletlen marad, a
+// hívás GETTERKÉNT running le, és a lánc következő tagja már nem szelekción dolgozik
 // — némán, kivétel nélkül, egészen az első használatig.
-function attrok(sel, obj) {
+function attrs(sel, obj) {
   for (var k in obj) { if (has(obj, k)) sel.attr(k, obj[k]); }
   return sel;
 }
 
-function stilusok(sel, obj) {
+function styles_(sel, obj) {
   for (var k in obj) { if (has(obj, k)) sel.style(k, obj[k]); }
   return sel;
 }
 
-function feladatsor(parhuzamos) {
-  var feladatok = [], fut = 0, kovetkezo = 0, hiba = null, kesz = null;
+function taskQueue(concurrency) {
+  var tasks = [], running = 0, next = 0, error_ = null, done = null;
 
-  function inditsUjat() {
-    while (!hiba && fut < parhuzamos && kovetkezo < feladatok.length) {
-      fut++;
-      feladatok[kovetkezo++](function (e) {
-        fut--;
-        if (e && !hiba) { hiba = e; return kesz(hiba); }
-        if (hiba) return;
-        if (fut === 0 && kovetkezo === feladatok.length) return kesz(null);
-        inditsUjat();
+  function startNext() {
+    while (!error_ && running < concurrency && next < tasks.length) {
+      running++;
+      tasks[next++](function (e) {
+        running--;
+        if (e && !error_) { error_ = e; return done(error_); }
+        if (error_) return;
+        if (running === 0 && next === tasks.length) return done(null);
+        startNext();
       });
     }
   }
 
   return {
-    defer: function (fn) { feladatok.push(fn); return this; },
+    defer: function (fn) { tasks.push(fn); return this; },
     await: function (cb) {
-      kesz = cb;
-      if (!feladatok.length) cb(null);
-      else inditsUjat();
+      done = cb;
+      if (!tasks.length) cb(null);
+      else startNext();
       return this;
     }
   };
@@ -77,7 +77,7 @@ function feladatsor(parhuzamos) {
 function loadJson(url, callback) {
   return d3.json(url).then(
     function(json) { callback(null, json); },
-    function(error) { callback(error || new Error("betöltés sikertelen: " + url)); }
+    function(error) { callback(error || new Error("betöltés failed: " + url)); }
   );
 }
 function isValidDate(d) { return d && d instanceof Date && !isNaN(d); }
@@ -162,7 +162,7 @@ var Trig = {
   tanh: function (val) { return 2.0 / (1.0 + Math.exp(-2.0 * val)) - 1.0; },
   asinh: function (val) { return Math.log(val + Math.sqrt(val * val + 1)); },
   acosh: function (val) { return Math.log(val + Math.sqrt(val * val - 1)); },
-  // A JS `%` megtartja az osztandó előjelét, ezért egyetlen eltolás csak akkor
+  // A JS `%` megtartja az osztandó előmarkét, ezért egyetlen eltolás csak akkor
   // elég, ha a bemenet nem megy −2π (illetve −3π) alá. A közepes pályaelemek
   // J2000-től távolodva viszont nagyra nőnek, ott a régi képlet negatív, azaz
   // nem normált szöget adott. A kétszeres eltolás minden bemenetre helyes.
@@ -270,4 +270,4 @@ function poligonContains(polygon, point) {
   return (angle < -epsilon || angle < epsilon && sum < -epsilon) ^ (winding & 1);
 }
 
-export { Round, Trig, attrok, dateDiff, dateParse, feladatsor, findPos, functor, has, hasParent, interpolateAngle, isArray, isNumber, isObject, isValidDate, loadJson, osztalyoz, pad, px, stilusok };
+export { Round, Trig, attrs, dateDiff, dateParse, taskQueue, findPos, functor, has, hasParent, interpolateAngle, isArray, isNumber, isObject, isValidDate, loadJson, classes_, pad, px, styles_ };

@@ -9,10 +9,10 @@ tűréssel — ugyanazt kell adnia.
 ```bash
 cd harness
 python3 -m http.server 8877
-# majd böngészőben: http://127.0.0.1:8877/referencia.html
+# majd böngészőben: http://127.0.0.1:8877/reference.html
 ```
 
-Az oldal lefuttatja a mérést, és felkínálja a `referencia-d3v3.json` letöltését.
+Az oldal lefuttatja a mérést, és felkínálja a `reference-d3v3.json` letöltését.
 
 **Böngészőben fut, nem Node-ban** — a d3-celestial DOM-ot és canvas-t igényel.
 
@@ -20,13 +20,13 @@ A mérés lefutott. Két referencia van a repóban:
 
 | | |
 |---|---|
-| `referencia-d3v3.json` | a pinelt upstream (D3 3.5.17) — `referencia.html` |
-| `referencia-d3v7.json` | a migrált build (D3 7.9.0) — `referencia-uj.html` |
+| `reference-d3v3.json` | a pinelt upstream (D3 3.5.17) — `reference.html` |
+| `reference-d3v7.json` | a migrált build (D3 7.9.0) — `reference-new.html` |
 
 Összevetve: **25/25 vetítés, max eltérés 0.000 px** — a vetítési kimenet bitre azonos.
 
 ```bash
-node osszehasonlit.mjs referencia-d3v3.json referencia-d3v7.json
+node osszehasonlit.mjs reference-d3v3.json reference-d3v7.json
 ```
 
 ## Mit mér
@@ -66,12 +66,12 @@ A háló csak akkor ér valamit, ha bizonyíthatóan **mér is valamit**. A gene
 ## Vizuális alapállapot
 
 A háló számokat hasonlít össze. Hogy a Nagy Medve *úgy néz-e ki, ahogy kell*, azt meg kell nézni —
-ehhez van a `vizualis.html`, ami a generátorral ellentétben minden réteget megjelenít
+ehhez van a `visual.html`, ami a generátorral ellentétben minden réteget megjelenít
 (csillagok m≤6, csillagképnevek és -vonalak, Tejút, ekliptika, koordinátaháló).
 
 ```bash
 python3 -m http.server 8877
-# http://127.0.0.1:8877/vizualis.html
+# http://127.0.0.1:8877/visual.html
 # a vetítés váltása a konzolból: valt("orthographic", [180, 55])
 ```
 
@@ -94,7 +94,7 @@ mérve 3–6%-os pixeleltérést adott. Három ok, mind a könyvtár állapotkez
 | a második `display()` más állapotot hagy maga után, mint az első (#96/#131) | oldalanként egy `display()` |
 
 Ezek után a zajszint **pontosan nulla**: ugyanaz a verzió kétszer futtatva bitre azonos képet ad.
-Az összevetéshez a `kepdiff.html` van, ami két PNG-t pixelenként hasonlít össze.
+Az összevetéshez a `image-diff.html` van, ami két PNG-t pixelenként hasonlít össze.
 
 A rögzített képek a [`docs/kepek/`](../docs/kepek/) mappában, `d3v3-` és `d3v7-` előtaggal:
 
@@ -113,7 +113,7 @@ képsort egymás mellé tenni. Ezt semmilyen automatizmus nem váltja ki.
 ## Az #148 issue ellenőrzése
 
 ```bash
-node issue-148-ellenorzes.mjs
+node issue-148-check.mjs
 ```
 
 Round-trip teszt a `horizontal()` / `horizontal.inverse()` párosra: ha mindkettő helyes, az oda-vissza
@@ -126,14 +126,14 @@ Eredmény: az eredeti kód a horizont fölötti pontok **50%-át** rosszul adja 
 
 | | |
 |---|---|
-| `referencia.html` + `referencia.js` | a generátor |
-| `referencia-uj.html` | ugyanaz a generátor a migrált buildre — **csak a buildet tölti be**, külső D3 nélkül |
-| `referencia-d3v3.json` | **a rögzített referencia** — ehhez méri magát a migrált verzió (712 KB) |
-| `referencia-d3v7.json` | a migrált build kimenete |
-| `referencia-minta.json` | a formátum bemutatása, olvasható méretben |
+| `reference.html` + `reference.js` | a generátor |
+| `reference-new.html` | ugyanaz a generátor a migrált buildre — **csak a buildet tölti be**, külső D3 nélkül |
+| `reference-d3v3.json` | **a rögzített referencia** — ehhez méri magát a migrált verzió (712 KB) |
+| `reference-d3v7.json` | a migrált build kimenete |
+| `reference-sample.json` | a formátum bemutatása, olvasható méretben |
 | `osszehasonlit.mjs` | a két referencia diffje (`--onteszt` a saját érvényességére) |
-| `vizualis.html` / `vizualis-uj.html` | a vizuális összevetés oldalai |
-| `kepdiff.html` | két PNG pixelenkénti összevetése |
-| `issue-148-ellenorzes.mjs` | a #148 numerikus vizsgálata (Node) |
+| `visual.html` / `visual-new.html` | a vizuális összevetés oldalai |
+| `image-diff.html` | két PNG pixelenkénti összevetése |
+| `issue-148-check.mjs` | a #148 numerikus vizsgálata (Node) |
 | `vendor/` | a vizsgált verzió pinelt másolata — hogy a referencia reprodukálható legyen |
 | `data/` | minimális adatkészlet (a `display()` akkor is betölt, ha minden réteg rejtett) |

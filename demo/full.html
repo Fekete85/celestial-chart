@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>d3-celestial — full felület (D3 v7)</title>
+<link rel="stylesheet" href="../celestial.css">
+<style>body { font: 14px sans-serif; margin: 12px; } #naplo { font: 12px monospace; white-space: pre-wrap; background:#f4f4f4; padding:8px; margin-top:8px; }</style>
+</head>
+<body>
+<noscript>Ehhez az oldalhoz JavaScript kell.</noscript>
+<p id="figyelmeztetes" style="display:none; background:#fee; border:1px solid #c00; padding:10px 14px; border-radius:6px">
+  <strong>Ez az oldal HTTP-n keresztül működik, <code>file://</code>-ról nem.</strong>
+  A csillagadatokat a <code>d3.json</code> tölti be, ami a v7-ben <code>fetch</code>-et használ — azt a
+  böngésző file-protokollon blokkolja. Indítsd a repó gyökeréből:
+  <code>npm run szerver</code>, majd nyisd meg:
+  <code>http://127.0.0.1:8877/demo/full.html</code>
+</p>
+<div id="celestial-map"></div>
+<div id="naplo"></div>
+
+<!-- A build magában hordozza a D3-at: nincs szükség külön script-tagre. -->
+<script src="../build/celestial.js"></script>
+<script>
+/* Az interaktív felület füstpróbája: zoom, űrlap, helymeghatározás,
+ * dátumválasztó, SVG-export. Ezeket a reference-háló nem méri — ott
+ * interactive:false, form:false —, tehát külön kell megnézni őtwo. */
+if (location.protocol === "file:") {
+  document.getElementById("figyelmeztetes").style.display = "block";
+}
+
+window.__hibak = [];
+window.onerror = function (uz, f, s, o, e) { window.__hibak.push(String(uz) + " @" + s); };
+var eredetiHiba = console.error;
+console.error = function () { window.__hibak.push([].join.call(arguments, " ")); eredetiHiba.apply(console, arguments); };
+
+Celestial.display({
+  container: "celestial-map",
+  width: 700,
+  projection: "airy",
+  transform: "equatorial",
+  // A repóban lévő minimális adatkészlet. A full (43 MB) az upstreamé; ha az
+  // is kell, állítsd át ../upstream/data/-ra.
+  datapath: "../harness/data/",
+  interactive: true,
+  form: true,
+  controls: true,
+  location: true,
+  formFields: { location: true, general: true, stars: true, dsos: true, constellations: true, lines: true, other: true, download: true },
+  planets: { show: true },
+  stars: { limit: 6 },
+  mw: { show: true }
+});
+</script>
+</body>
+</html>

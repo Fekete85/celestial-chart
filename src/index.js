@@ -1,8 +1,8 @@
 // ESM belépési pont.
 //
 //   import Celestial from "celestial-chart";              // a régi, globális felület
-//   import { Egbolt } from "celestial-chart";             // több független térképhez
+//   import { SkyMap } from "celestial-chart";             // több független térképhez
 //
-import { Celestial, Egbolt } from "./celestial.js";
-export { Celestial, Egbolt };
+import { Celestial, SkyMap } from "./celestial.js";
+export { Celestial, SkyMap };
 export default Celestial;

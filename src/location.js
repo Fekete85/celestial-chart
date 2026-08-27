@@ -4,18 +4,18 @@ import { formats, settings } from "./config.js";
 import { datetimepicker } from "./datetimepicker.js";
 import { testNumber } from "./form.js";
 import { horizontal } from "./horizontal.js";
-import { Celestial } from "./mag.js";
-import { Round, has, hasParent, isArray, isNumber, isValidDate, loadJson, pad, stilusok } from "./util.js";
+import { Celestial } from "./core.js";
+import { Round, has, hasParent, isArray, isNumber, isValidDate, loadJson, pad, styles_ } from "./util.js";
 
 var geoInfo = null;
 
 // Helymeghatározás és időbeállítás egy térképhez. A példányt kapja, mert az
 // űrlapmezői annak az űrlapján élnek.
-function geo(egbolt) {
-  var cfg = egbolt.cfg;
-  var $form = egbolt.urlap.$form,
-      enable = egbolt.urlap.enable,
-      showAdvanced = egbolt.urlap.showAdvanced;
+function geo(sky) {
+  var cfg = sky.cfg;
+  var $form = sky.form.$form,
+      enable = sky.form.enable,
+      showAdvanced = sky.form.showAdvanced;
   var dtFormat = d3.timeFormat("%Y-%m-%d %H:%M:%S"),
       // a v3 formázója maga tudott visszafelé is; a v7-ben külön függvény
       dtParse = d3.timeParse("%Y-%m-%d %H:%M:%S"),
@@ -25,9 +25,9 @@ function geo(egbolt) {
       localZone = -date.getTimezoneOffset(),
       timeZone = localZone,
       config = settings.set(cfg),
-      frm = d3.select(egbolt.parentElement + " ~ #celestial-form form").insert("div", "div#general").attr("id", "loc");
+      frm = d3.select(sky.parentElement + " ~ #celestial-form form").insert("div", "div#general").attr("id", "loc");
 
-  var dtpick = new datetimepicker(egbolt, function(date, tz) { 
+  var dtpick = new datetimepicker(sky, function(date, tz) { 
     $form("datetime").value = dateFormat(date, tz); 
     timeZone = tz;
     go(); 
@@ -175,7 +175,7 @@ function geo(egbolt) {
     config.planets.symbolType = $form("planets-symbolType").value;    
     enable($form("planets-show"));
 
-    egbolt.apply(config);
+    sky.apply(config);
   }
 
   function go() {
@@ -187,7 +187,7 @@ function geo(egbolt) {
 
     date = dtParse($form("datetime").value.slice(0,-6));
 
-    //egbolt.apply(config);
+    //sky.apply(config);
 
     if (!isNaN(lon) && !isNaN(lat)) {
       if (lat !== geopos[0] || lon !== geopos[1]) {
@@ -203,9 +203,9 @@ function geo(egbolt) {
       zenith = Celestial.getPoint(horizontal.inverse(dtc, [90, 0], geopos), config.transform);
       zenith[2] = 0;
       if (config.follow === "zenith") {
-        egbolt.rotate({center:zenith});
+        sky.rotate({center:zenith});
       } else {
-        egbolt.redraw();
+        sky.redraw();
       }
     }
   }
@@ -242,9 +242,9 @@ function geo(egbolt) {
     }); 
   }
 
-  egbolt.dateFormat = dateFormat;
+  sky.dateFormat = dateFormat;
   
-  egbolt.date = function (dt, tz) { 
+  sky.date = function (dt, tz) { 
     if (!dt) return date;  
     if (isValidTimezone(tz)) timeZone = tz;
     Object.assign(config, settings.set());
@@ -253,7 +253,7 @@ function geo(egbolt) {
     $form("datetime").value = dateFormat(dt, timeZone); 
     go();
   };
-  egbolt.timezone = function (tz) { 
+  sky.timezone = function (tz) { 
     if (!tz) return timeZone;  
     if (isValidTimezone(tz)) timeZone = tz;
     Object.assign(config, settings.set());
@@ -261,8 +261,8 @@ function geo(egbolt) {
     $form("datetime").value = dateFormat(date, timeZone); 
     go();
   };
-  egbolt.position = function () { return geopos; };
-  egbolt.location = function (loc, tz) {
+  sky.position = function () { return geopos; };
+  sky.location = function (loc, tz) {
     if (!loc || loc.length < 2) return geopos;
     if (isValidLocation(loc)) {
       geopos = loc.slice();
@@ -273,7 +273,7 @@ function geo(egbolt) {
     }
   };
   //{"date":dt, "location":loc, "timezone":tz}
-  egbolt.skyview = function (cfg) {
+  sky.skyview = function (cfg) {
     if (!cfg) return {"date": date, "location": geopos, "timezone": timeZone};
     var valid = false;
     if (dtpick.isVisible()) dtpick.hide();
@@ -295,14 +295,14 @@ function geo(egbolt) {
         return;
       }
     }
-    //egbolt.updateForm();
+    //sky.updateForm();
     if (valid === false) return {"date": date, "location": geopos, "timezone": timeZone};
     if (config.follow === "zenith") go();
-    else egbolt.redraw();
+    else sky.redraw();
   };  
-  egbolt.dtLoc = egbolt.skyview;
-  egbolt.zenith = function () { return zenith; };
-  egbolt.nadir = function () {
+  sky.dtLoc = sky.skyview;
+  sky.zenith = function () { return zenith; };
+  sky.nadir = function () {
     var b = -zenith[1],
         l = zenith[0] + 180;
     if (l > 180) l -= 360;    
@@ -310,7 +310,7 @@ function geo(egbolt) {
   };
 
   if (has(config, "formFields") && (config.location === true || config.formFields.location === true)) {
-    stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#location"), {"display": "inline-block"});
+    styles_(d3.select(sky.parentElement + " ~ #celestial-form").select("#location"), {"display": "inline-block"});
   }
   //only if appropriate
   if (isValidLocation(geopos) && (config.location === true || config.formFields.location === true) && config.follow === "zenith")

@@ -1,31 +1,31 @@
-// A vetítések nyers függvényeit névből oldjuk fel, ezért itt névtérként kell a
-// két csomag — ez az egyetlen hely a könyvtárban, ahol dinamikus a hozzáférés.
+// A vetítések raw_ függvényeit névből oldjuk fel, ezért itt névtérként kell a
+// két pkg — ez az egyetlen site a könyvtárban, ahol dinamikus a hozzáférés.
 import * as d3geo from "d3-geo";
 import * as d3geoproj from "d3-geo-projection";
 import * as d3 from "./d3.js";
 import { projections } from "./config.js";
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { has } from "./util.js";
 
-// A d3 v3 a `d3.geo.<nev>.raw` alakot használta; a v7-ben ez `d3.geo<Nev>Raw`,
+// A d3 v3 a `d3.geo.<name_>.raw` alakot használta; a v7-ben ez `d3.geo<Nev>Raw`,
 // és néhány vetítés át is lett nevezve. A kivételek itt vannak felsorolva —
 // ami nem szerepel a táblában, azt a névkonvenció adja.
-var RAW_ATNEVEZES = {
+var RAW_RENAMES = {
   "naturalEarth": "geoNaturalEarth1Raw"   // a v3 plugin Natural Earth I-et adott
 };
 
 // Néhány vetítés raw függvénye másképp értelmezi a paraméterét a v4-ben.
-// A config.js értékei a v3-hoz vannak kalibrálva, ezért itt igazítjuk őket.
-var ARG_ATVALTAS = {
+// A config.js értékei a v3-hoz vannak kalibrálva, ezért itt igazítjuk őtwo.
+var ARG_ADAPT = {
   // A v4-es twoPointEquidistantRaw első dolga: `z0 *= 2`. A v3 közvetlenül
-  // használta, tehát felezni kell, hogy ugyanaz a vetítés jöjjön ki.
+  // használta, tehát felezni kell, hogy ugyanaz a vetítés jöjjön out.
   "twoPointEquidistant": function (z) { return z / 2; }
 };
 
 // A d3-geo-projection v4-ből két vetítés raw függvénye kimaradt, pedig a v3-as
 // pluginban megvolt. A képletek innen származnak, változtatás nélkül — a
-// test/vetitesek.teszt.mjs a v3-as kimenethez méri őket, 1e-10 tűréssel.
-var POTOLT_RAW = {
+// test/projections.test.mjs a v3-as kimenethez méri őtwo, 1e-10 tűréssel.
+var LOCAL_RAW = {
   "hatano": (function () {
     var eps = 1e-6, halfPi = Math.PI / 2;
     function hatano(l, f) {
@@ -113,16 +113,16 @@ var POTOLT_RAW = {
   })()
 };
 
-// A vetítés nyers függvényének feloldása névből, a paraméter-átváltással
+// A vetítés raw_ függvényének feloldása névből, a paraméter-átváltással
 // együtt. Kiadva, mert a tesztek a pinelt v3-as kimenethez ehhez mérnek.
-function rawVetites(nev, arg) {
-  var raw = has(POTOLT_RAW, nev) ? POTOLT_RAW[nev]
+function rawProjection(name_, arg) {
+  var raw = has(LOCAL_RAW, name_) ? LOCAL_RAW[name_]
           : (function () {
-              var kulcs = RAW_ATNEVEZES[nev] || ("geo" + nev.charAt(0).toUpperCase() + nev.slice(1) + "Raw");
-              return d3geoproj[kulcs] || d3geo[kulcs];
+              var key_ = RAW_RENAMES[name_] || ("geo" + name_.charAt(0).toUpperCase() + name_.slice(1) + "Raw");
+              return d3geoproj[key_] || d3geo[key_];
             })();
   if (!raw || arg === undefined || arg === null) return raw;
-  return raw(has(ARG_ATVALTAS, nev) ? ARG_ATVALTAS[nev](arg) : arg);
+  return raw(has(ARG_ADAPT, name_) ? ARG_ADAPT[name_](arg) : arg);
 }
 
 //Flipped projection generated on the fly
@@ -132,7 +132,7 @@ Celestial.projection = function(projection) {
   if (!has(projections, projection)) { throw new Error("Projection not supported: " + projection); }
   p = projections[projection];
 
-  raw = rawVetites(projection, p.arg);
+  raw = rawProjection(projection, p.arg);
   if (!raw) { throw new Error("Projection not supported: " + projection); }
 
   // Az égboltot tükrözve nézzük: kívülről befelé, nem belülről kifelé. Ezt a
@@ -145,9 +145,9 @@ Celestial.projection = function(projection) {
   // csak a végeredmény x-koordinátájában. A becsomagolás ettől független.
   forward = function (l, f) { return raw(-l, f); };
   forward.invert = function (x, y) {
-    var koord = raw.invert && raw.invert(x, y);
-    if (koord) koord[0] = -koord[0];
-    return koord;
+    var coord = raw.invert && raw.invert(x, y);
+    if (coord) coord[0] = -coord[0];
+    return coord;
   };
   return d3.geoProjection(forward);
 };
@@ -199,4 +199,4 @@ var poles = {
 Celestial.eulerAngles = function () { return eulerAngles; };
 Celestial.poles = function () { return poles; };
 
-export { eulerAngles, poles, projectionTween, rawVetites };
+export { eulerAngles, poles, projectionTween, rawProjection };

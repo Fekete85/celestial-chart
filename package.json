@@ -54,14 +54,14 @@
     "types/celestial.d.ts"
   ],
   "scripts": {
-    "teszt": "node --test test/*.teszt.mjs",
-    "epit": "node epit.mjs",
-    "onteszt": "node harness/osszehasonlit.mjs --onteszt harness/referencia-d3v3.json",
-    "ellenoriz": "npm run epit && npm run teszt && npm run tipus && npm run onteszt && npm run halo:mind",
-    "szerver": "node harness/szerver.mjs",
-    "halo": "node harness/halo.mjs",
-    "halo:mind": "node harness/halo.mjs --mind",
-    "tipus": "tsc -p types/proba/tsconfig.json"
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "types": "tsc -p types/check/tsconfig.json",
+    "selftest": "node harness/compare.mjs --selftest harness/reference-d3v3.json",
+    "check": "node harness/verify.mjs",
+    "check:all": "node harness/verify.mjs --all",
+    "verify": "npm run build && npm run test && npm run types && npm run selftest && npm run check:all",
+    "serve": "node harness/server.mjs"
   },
   "dependencies": {
     "d3-dispatch": "^3.0.1",

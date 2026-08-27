@@ -2,18 +2,18 @@ import * as d3 from "./d3.js";
 
 import { bvcolor, formats, projections, settings } from "./config.js";
 import { getData, getGridValues, getMwbackground, getPlanet } from "./get.js";
-import { Celestial } from "./mag.js";
+import { Celestial } from "./core.js";
 import { poles } from "./projection.js";
 import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
-import { Round, attrok, feladatsor, functor, has, isArray, loadJson } from "./util.js";
+import { Round, attrs, taskQueue, functor, has, isArray, loadJson } from "./util.js";
 
 // SVG-export egy térképről. A példányt kapja, hogy a saját konfigurációjából,
 // tárolójából és névtábláiból dolgozzon.
-function exportSVG(egbolt, kesz, fname) {
+function exportSVG(sky, done, fname) {
   var doc = d3.select("body").append("div").attr("id", "d3-celestial-svg").attr("style", "display: none"),
       svg = d3.select("#d3-celestial-svg").append("svg"), //.attr("style", "display: none"),
       m = Celestial.metrics(),
-      cfg = egbolt.cfg,
+      cfg = sky.cfg,
       path = cfg.datapath,
       proj = projections[cfg.projection],
       rotation = getAngles(cfg.center),
@@ -31,7 +31,7 @@ function exportSVG(egbolt, kesz, fname) {
   if (proj.clip) {
     projection.clipAngle(90);
   }
-  // A kimenet fix méretű, tehát a lapon kívüli rész úgysem látszik — viszont
+  // A output fix méretű, tehát a lapon kívüli rész úgysem látszik — viszont
   // vágás nélkül nem-véges koordináták kerülnek az útvonalakba. A mercator
   // háttérköre például a pólusokat is tartalmazza, ott a vetítés ±végtelen, és
   // az `Infinity` az SVG `d` attribútumában érvénytelen: a böngésző az egész
@@ -50,7 +50,7 @@ function exportSVG(egbolt, kesz, fname) {
 
   for (var i=0; i<groupNames.length; i++) {
      // inkscape:groupmode="layer", inkscape:label="Ebene 1" 
-    groups[groupNames[i]] = attrok(svg.append('g'),
+    groups[groupNames[i]] = attrs(svg.append('g'),
       {"id": groupNames[i], ":inkscape:groupmode": "layer", ":inkscape:label": groupNames[i]});
     styles[groupNames[i]] = {};
   }
@@ -59,7 +59,7 @@ function exportSVG(egbolt, kesz, fname) {
   
   var map = d3.geoPath().projection(projection);
 
-  var q = feladatsor(2);
+  var q = taskQueue(2);
   
   groups.background.append("path").datum(circle).attr("class", "background").attr("d", map); 
   styles.background.fill = cfg.background.fill;
@@ -75,23 +75,23 @@ function exportSVG(egbolt, kesz, fname) {
       styles.gridLines = svgStyle(cfg.lines.graticule);
     }
     if (has(cfg.lines.graticule, "lon") && cfg.lines.graticule.lon.pos.length > 0) {
-      var jlon = {type: "FeatureCollection", features: getGridValues("lon", cfg.lines.graticule.lon.pos, egbolt)};      
+      var jlon = {type: "FeatureCollection", features: getGridValues("lon", cfg.lines.graticule.lon.pos, sky)};      
       groups.gridvaluesLon.selectAll(".gridvalues_lon")
         .data(jlon.features)
         .enter().append("text")
         .attr("transform", function(d, i) { return point(d.geometry.coordinates); })
         .text( function(d) { return d.properties.value; } )
-        .call(function (v) { attrok(v, {dy: ".5em", dx: "-.75em", "class": "gridvaluesLon"}); });
+        .call(function (v) { attrs(v, {dy: ".5em", dx: "-.75em", "class": "gridvaluesLon"}); });
       styles.gridvaluesLon = svgTextStyle(cfg.lines.graticule.lon); 
     }
     if (has(cfg.lines.graticule, "lat") && cfg.lines.graticule.lat.pos.length > 0) {
-      var jlat = {type: "FeatureCollection", features: getGridValues("lat", cfg.lines.graticule.lat.pos, egbolt)};
+      var jlat = {type: "FeatureCollection", features: getGridValues("lat", cfg.lines.graticule.lat.pos, sky)};
       groups.gridvaluesLat.selectAll(".gridvalues_lat")
         .data(jlat.features)
         .enter().append("text")
         .attr("transform", function(d, i) { return point(d.geometry.coordinates); })
         .text( function(d) { return d.properties.value; } )
-        .call(function (v) { attrok(v, {dy: "-.5em", dx: "-.75em", "class": "gridvaluesLat"}); });
+        .call(function (v) { attrs(v, {dy: "-.5em", dx: "-.75em", "class": "gridvaluesLat"}); });
        styles.gridvaluesLat = svgTextStyle(cfg.lines.graticule.lat); 
     }
   }
@@ -282,7 +282,7 @@ function exportSVG(egbolt, kesz, fname) {
             .enter().append("text")
             .attr("transform", function(d) { return point(d.geometry.coordinates); })
             .text( function(d) { return starDesignation(d.id); })
-            .call(function (v) { attrok(v, {dy: ".85em", dx: ".35em", "class": "starDesignations"}); });
+            .call(function (v) { attrs(v, {dy: ".85em", dx: ".35em", "class": "starDesignations"}); });
           styles.starDesignations = svgTextStyle(cfg.stars.designationStyle);
         }
         if (cfg.stars.propername) { 
@@ -293,7 +293,7 @@ function exportSVG(egbolt, kesz, fname) {
             .enter().append("text")
             .attr("transform", function(d) { return point(d.geometry.coordinates); })
             .text( function(d) { return starPropername(d.id); })
-            .call(function (v) { attrok(v, {dy: "-.5em", dx: "-.35em", "class": "starNames"}); });
+            .call(function (v) { attrs(v, {dy: "-.5em", dx: "-.35em", "class": "starNames"}); });
 
           styles.starNames = svgTextStyle(cfg.stars.propernameStyle);
         }
@@ -349,7 +349,7 @@ function exportSVG(egbolt, kesz, fname) {
             .attr("class", function(d) { return "dsoNames " + d.properties.type; })
             .attr("transform", function(d) { return point(d.geometry.coordinates); })
             .text( function(d) { return dsoName(d); })
-            .call(function (v) { attrok(v, {dy: "-.5em", dx: ".35em"}); });
+            .call(function (v) { attrs(v, {dy: "-.5em", dx: ".35em"}); });
                
           styles.dsoNames = {"fill-opacity": cfg.dsos.style.opacity,
                     "font": cfg.dsos.nameStyle.font,
@@ -372,7 +372,7 @@ function exportSVG(egbolt, kesz, fname) {
           o = Celestial.origin(dt).spherical(),
           jp = {type: "FeatureCollection", features: []},
           jlun = {type: "FeatureCollection", features: []};
-      egbolt.container.selectAll(".planet").each(function(d) {
+      sky.container.selectAll(".planet").each(function(d) {
         var id = d.id(), r = 12,
             p = d(dt).equatorial(o);
             
@@ -401,7 +401,7 @@ function exportSVG(egbolt, kesz, fname) {
          .attr("transform", function(d) { return point(d.geometry.coordinates); })
          .text( function(d) { return d.properties.symbol; })
          .attr("class", function(d) { return "planets " + d.id; })
-         .call(function (v) { attrok(v, {dy: ".35em"}); });
+         .call(function (v) { attrs(v, {dy: ".35em"}); });
       }
       // Special case for Moon crescent
       if (jlun.features.length > 0) {
@@ -412,7 +412,7 @@ function exportSVG(egbolt, kesz, fname) {
            .attr("transform", function(d) { return point(d.geometry.coordinates); })
            .text( function(d) { return d.properties.symbol; })
            .attr("class", function(d) { return "planets " + d.id; })
-           .call(function (v) { attrok(v, {dy: ".35em"}); });
+           .call(function (v) { attrs(v, {dy: ".35em"}); });
         } else {
           var rl = has(cfg.planets.symbols.lun, "size") ? (cfg.planets.symbols.lun.size - 1) * adapt : 11 * adapt; 
           groups.planets.selectAll(".dmoon")
@@ -445,7 +445,7 @@ function exportSVG(egbolt, kesz, fname) {
          .enter().append("text")
          .attr("transform", function(d) { return point(d.geometry.coordinates); })
          .text( function(d) { return d.properties.name; })
-         .call(function (v) { attrok(v, {dy: ".85em", dx: "-.35em"}); })
+         .call(function (v) { attrs(v, {dy: ".85em", dx: "-.35em"}); })
          .attr("class", function(d) { return "planetNames " + d.id; });
         if (jlun.features.length > 0) {
           groups.planetNames.selectAll(".moonname")
@@ -453,7 +453,7 @@ function exportSVG(egbolt, kesz, fname) {
            .enter().append("text")
            .attr("transform", function(d) { return point(d.geometry.coordinates); })
            .text( function(d) { return d.properties.name; })
-           .call(function (v) { attrok(v, {dy: ".85em", dx: "-.35em"}); })
+           .call(function (v) { attrs(v, {dy: ".85em", dx: "-.35em"}); })
            .attr("class", function(d) { return "planetNames " + d.id; });
         }
       }
@@ -465,7 +465,7 @@ function exportSVG(egbolt, kesz, fname) {
   
   if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && proj.clip) {
     q.defer(function(callback) {
-      var sol = getPlanet("sol", undefined, egbolt);
+      var sol = getPlanet("sol", undefined, sky);
       if (sol) {
         var up = Celestial.zenith(),
             solpos = sol.ephemeris.pos,
@@ -619,7 +619,7 @@ function exportSVG(egbolt, kesz, fname) {
   function dsoSymbol(p) {
     var size = dsoSize(p.mag, p.dim) || 9,
         type = dsoShape(p.type);
-    var beepitett = szimbolumTipus(type);
+    var beepitett = builtinSymbol(type);
     if (beepitett) {
       return d3.symbol().type(beepitett).size(size)();
     } else {
@@ -640,8 +640,8 @@ function exportSVG(egbolt, kesz, fname) {
   function dsoName(d) {
     //return p[cfg.dsos.namesType]; 
     var lang = cfg.dsos.namesType, id = d.id;
-    if (lang === "desig" || !has(egbolt.dsonames, id)) return d.properties.desig;
-    return has(egbolt.dsonames[id], lang) ? egbolt.dsonames[id][lang] : d.properties.desig; 
+    if (lang === "desig" || !has(sky.dsonames, id)) return d.properties.desig;
+    return has(sky.dsonames[id], lang) ? sky.dsonames[id][lang] : d.properties.desig; 
   }
 
   function dsoColor(p) {
@@ -650,14 +650,14 @@ function exportSVG(egbolt, kesz, fname) {
   }
  
   function starDesignation(id) {
-    if (!has(egbolt.starnames, id)) return "";
-    return egbolt.starnames[id][cfg.stars.designationType]; 
+    if (!has(sky.starnames, id)) return "";
+    return sky.starnames[id][cfg.stars.designationType]; 
   }
 
   function starPropername(id) {
     var lang = cfg.stars.propernameType;
-    if (!has(egbolt.starnames, id)) return "";
-    return has(egbolt.starnames[id], lang) ? egbolt.starnames[id][lang] : egbolt.starnames[id].name; 
+    if (!has(sky.starnames, id)) return "";
+    return has(sky.starnames[id], lang) ? sky.starnames[id][lang] : sky.starnames[id].name; 
   }
 
   function starSize(mag) {
@@ -758,8 +758,8 @@ function exportSVG(egbolt, kesz, fname) {
       a.href = URL.createObjectURL(blob);
       a.click();
       d3.select(a).remove();
-    } else if (kesz !== null) {
-      kesz(svg.node().outerHTML);
+    } else if (done !== null) {
+      done(svg.node().outerHTML);
     }
     d3.select("#d3-celestial-svg").remove();
   });
@@ -826,8 +826,8 @@ var customSvgSymbols = new Map(Object.entries({
 // A v3-ban a szimbólum típusa szöveg volt ("circle"), a v7-ben objektum.
 // Függvényben oldjuk fel, nem modulszintű táblában: így az svg.js betöltéskor
 // nem hivatkozik a d3-ra, és Node-ból is tesztelhető marad.
-function szimbolumTipus(nev) {
-  switch (nev) {
+function builtinSymbol(name_) {
+  switch (name_) {
     case "circle": return d3.symbolCircle;
     case "cross": return d3.symbolCross;
     case "diamond": return d3.symbolDiamond;
