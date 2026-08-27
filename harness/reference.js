@@ -219,7 +219,7 @@
     // Download: the reference file goes into the repo, and the migrated version
     // measures itself against it. We save it from the browser, because the
     // generation runs in the browser too — d3-celestial needs a DOM and a canvas.
-    var button = document.getElementById("letolt");
+    var button = document.getElementById("download");
     if (button) {
       button.disabled = false;
       button.addEventListener("click", function () {
@@ -230,7 +230,7 @@
         a.click();
         URL.revokeObjectURL(a.href);
       });
-      document.getElementById("letolt-info").textContent =
+      document.getElementById("download-info").textContent =
         " (" + Math.round(JSON.stringify(reference).length / 1024) + " KB)";
     }
 

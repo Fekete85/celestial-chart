@@ -19,8 +19,8 @@
   gets its own — the lower form drives the lower map, the upper one the upper map.
 </p>
 
-<div class="fel"><h2>A — orthographic</h2><div id="terkep-a"></div></div>
-<div class="fel"><h2>B — mollweide</h2><div id="terkep-b"></div></div>
+<div class="fel"><h2>A — orthographic</h2><div id="map-a"></div></div>
+<div class="fel"><h2>B — mollweide</h2><div id="map-b"></div></div>
 <div id="statusEl">Loading…</div>
 
 <script type="module">
@@ -40,15 +40,15 @@ const COMMON = {
 };
 
 const a = new SkyMap(Object.assign({}, COMMON, {
-  container: "terkep-a", projection: "orthographic", center: [180, 55, 0] }), { standalone: true });
+  container: "map-a", projection: "orthographic", center: [180, 55, 0] }), { standalone: true });
 const b = new SkyMap(Object.assign({}, COMMON, {
-  container: "terkep-b", projection: "mollweide", center: [0, 0, 0] }), { standalone: true });
+  container: "map-b", projection: "mollweide", center: [0, 0, 0] }), { standalone: true });
 
 window.__a = a; window.__b = b;
 
 setTimeout(function () {
-  const urlapA = document.querySelector("#terkep-a ~ #celestial-form");
-  const urlapB = document.querySelector("#terkep-b ~ #celestial-form");
+  const urlapA = document.querySelector("#map-a ~ #celestial-form");
+  const urlapB = document.querySelector("#map-b ~ #celestial-form");
   document.getElementById("statusEl").textContent =
     "A: " + a.cfg.projection + ", scale " + Math.round(a.mapProjection.scale()) + "\n" +
     "B: " + b.cfg.projection + ", scale " + Math.round(b.mapProjection.scale()) + "\n" +

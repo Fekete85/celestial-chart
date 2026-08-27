@@ -18,8 +18,8 @@
   page. With the class-based interface every instance gets its own state.
 </p>
 <div class="row">
-  <div class="box"><h2>A — orthographic, Ursa Major</h2><div id="terkep-a"></div></div>
-  <div class="box"><h2>B — mollweide, whole sky</h2><div id="terkep-b"></div></div>
+  <div class="box"><h2>A — orthographic, Ursa Major</h2><div id="map-a"></div></div>
+  <div class="box"><h2>B — mollweide, whole sky</h2><div id="map-b"></div></div>
 </div>
 <div id="statusEl">Loading…</div>
 
@@ -45,11 +45,11 @@ const COMMON = {
 // `standalone: true` is the point: the instance builds only on the defaults and on
 // its own config, not on the accumulated global settings.
 const a = new SkyMap(Object.assign({}, COMMON, {
-  container: "terkep-a", projection: "orthographic", center: [180, 55, 0]
+  container: "map-a", projection: "orthographic", center: [180, 55, 0]
 }), { standalone: true });
 
 const b = new SkyMap(Object.assign({}, COMMON, {
-  container: "terkep-b", projection: "mollweide", center: [0, 0, 0]
+  container: "map-b", projection: "mollweide", center: [0, 0, 0]
 }), { standalone: true });
 
 window.__a = a; window.__b = b;

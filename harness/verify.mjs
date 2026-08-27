@@ -187,8 +187,8 @@ async function smokeTest(page) {
   const two = await page.evaluate(() => ({
     separateCfg: window.__a && window.__b ? window.__a.cfg !== window.__b.cfg : false,
     separateProjection: window.__a && window.__b ? window.__a.mapProjection !== window.__b.mapProjection : false,
-    starsA: document.querySelectorAll("#terkep-a container .star").length,
-    starsB: document.querySelectorAll("#terkep-b container .star").length,
+    starsA: document.querySelectorAll("#map-a container .star").length,
+    starsB: document.querySelectorAll("#map-b container .star").length,
     containers: document.querySelectorAll("container").length
   }));
   check("two maps with separate state", two.separateCfg && two.separateProjection);
@@ -202,8 +202,8 @@ async function smokeTest(page) {
   const separate = await page.evaluate(() => ({
     separateForm: window.__a.form !== window.__b.form,
     formElements: document.querySelectorAll("#celestial-form").length,
-    fieldsA: document.querySelectorAll("#terkep-a ~ #celestial-form input, #terkep-a ~ #celestial-form select").length,
-    fieldsB: document.querySelectorAll("#terkep-b ~ #celestial-form input, #terkep-b ~ #celestial-form select").length
+    fieldsA: document.querySelectorAll("#map-a ~ #celestial-form input, #map-a ~ #celestial-form select").length,
+    fieldsB: document.querySelectorAll("#map-b ~ #celestial-form input, #map-b ~ #celestial-form select").length
   }));
   check("two maps, two separate settings forms", separate.separateForm && separate.formElements === 2,
     separate.formElements + " form elements");
@@ -212,7 +212,7 @@ async function smokeTest(page) {
 
   const before = await page.evaluate(() => [window.__a.cfg.projection, window.__b.cfg.projection]);
   await page.evaluate(() => {
-    const s = document.querySelector("#terkep-a ~ #celestial-form #projection");
+    const s = document.querySelector("#map-a ~ #celestial-form #projection");
     s.value = "hammer"; s.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await page.waitForTimeout(6000);

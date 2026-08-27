@@ -4,3 +4,6 @@ harness/reference-*.json.tmp
 .DS_Store
 build/
 demo/*.svg
+site/html/celestial.min.js
+site/html/celestial.css
+site/html/data/

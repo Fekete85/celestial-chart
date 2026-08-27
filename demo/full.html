@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <title>d3-celestial — full interface (D3 v7)</title>
 <link rel="stylesheet" href="../celestial.css">
-<style>body { font: 14px sans-serif; margin: 12px; } #naplo { font: 12px monospace; white-space: pre-wrap; background:#f4f4f4; padding:8px; margin-top:8px; }</style>
+<style>body { font: 14px sans-serif; margin: 12px; } #log { font: 12px monospace; white-space: pre-wrap; background:#f4f4f4; padding:8px; margin-top:8px; }</style>
 </head>
 <body>
 <noscript>This page requires JavaScript.</noscript>
-<p id="figyelmeztetes" style="display:none; background:#fee; border:1px solid #c00; padding:10px 14px; border-radius:6px">
+<p id="warning" style="display:none; background:#fee; border:1px solid #c00; padding:10px 14px; border-radius:6px">
   <strong>This page works over HTTP, not from <code>file://</code>.</strong>
   The star data is loaded by <code>d3.json</code>, which in v7 uses <code>fetch</code> — and the
   browser blocks that on the file protocol. Start it from the root of the repo:
@@ -16,7 +16,7 @@
   <code>http://127.0.0.1:8877/demo/full.html</code>
 </p>
 <div id="celestial-map"></div>
-<div id="naplo"></div>
+<div id="log"></div>
 
 <!-- The build carries D3 inside it: no separate script tag is needed. -->
 <script src="../build/celestial.js"></script>
@@ -25,13 +25,13 @@
  * date picker, SVG export. The reference net does not measure these — there
  * interactive:false, form:false — so they have to be checked separately. */
 if (location.protocol === "file:") {
-  document.getElementById("figyelmeztetes").style.display = "block";
+  document.getElementById("warning").style.display = "block";
 }
 
-window.__hibak = [];
-window.onerror = function (uz, f, s, o, e) { window.__hibak.push(String(uz) + " @" + s); };
-var eredetiHiba = console.error;
-console.error = function () { window.__hibak.push([].join.call(arguments, " ")); eredetiHiba.apply(console, arguments); };
+window.__errors = [];
+window.onerror = function (uz, f, s, o, e) { window.__errors.push(String(uz) + " @" + s); };
+var originalError = console.error;
+console.error = function () { window.__errors.push([].join.call(arguments, " ")); originalError.apply(console, arguments); };
 
 Celestial.display({
   container: "celestial-map",

@@ -1,0 +1,37 @@
+# Static demo/landing page for celestial-chart.
+#
+# There is no application here: nginx serves index.html, one JS bundle and the
+# star catalogues. The pattern follows ~/csillag — public, no auth, per-IP rate
+# limit — because this page is meant to be visited by anyone.
+
+services:
+  celestial:
+    image: nginx:1.27-alpine
+    container_name: celestial
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Budapest
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      # Per-IP rate limit, Traefik's default remote-address strategy. No
+      # ipStrategy.depth: there is no upstream CDN, and depth would hand the
+      # limit over to the spoofable X-Forwarded-For header.
+      - "traefik.http.middlewares.celestial-rl.ratelimit.average=60"
+      - "traefik.http.middlewares.celestial-rl.ratelimit.period=1m"
+      - "traefik.http.middlewares.celestial-rl.ratelimit.burst=40"
+      - "traefik.http.routers.celestial.rule=Host(`celestial.blackit.hu`)"
+      - "traefik.http.routers.celestial.entrypoints=websecure"
+      - "traefik.http.routers.celestial.tls=true"
+      - "traefik.http.routers.celestial.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.celestial.middlewares=security-headers@docker,celestial-rl@docker"
+      - "traefik.http.services.celestial.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
