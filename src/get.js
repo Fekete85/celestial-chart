@@ -1,4 +1,4 @@
-import { cfg } from "./celestial.js";
+import { aktualis } from "./celestial.js";
 import { Kepler } from "./kepler.js";
 import { Celestial } from "./mag.js";
 import { euler, transformDeg } from "./transform.js";
@@ -28,7 +28,7 @@ function getPlanets(d) {
   
   for (var key in d) {
     if (!has(d, key)) continue;
-    if (cfg.planets.which.indexOf(key) === -1) continue;
+    if (aktualis.cfg.planets.which.indexOf(key) === -1) continue;
     var dat = Kepler().id(key);
     if (has(d[key], "parent")) dat.parentBody(d[key].parent);
     dat.elements(d[key].elements[0]).params(d[key]);
@@ -111,18 +111,18 @@ function getGridValues(type, loc) {
     switch (loc[i]) {
       case "center": 
         if (type === "lat")
-          lines = lines.concat(getLine(type, cfg.center[0], "N"));
+          lines = lines.concat(getLine(type, aktualis.cfg.center[0], "N"));
         else
-          lines = lines.concat(getLine(type, cfg.center[1], "S")); 
+          lines = lines.concat(getLine(type, aktualis.cfg.center[1], "S")); 
         break;
       case "outline": 
         if (type === "lon") { 
-          lines = lines.concat(getLine(type, cfg.center[1]-89.99, "S"));
-          lines = lines.concat(getLine(type, cfg.center[1]+89.99, "N"));
+          lines = lines.concat(getLine(type, aktualis.cfg.center[1]-89.99, "S"));
+          lines = lines.concat(getLine(type, aktualis.cfg.center[1]+89.99, "N"));
         } else {
 					// TODO: hemi
-          lines = lines.concat(getLine(type, cfg.center[0]-179.99, "E"));
-          lines = lines.concat(getLine(type, cfg.center[0]+179.99, "W"));
+          lines = lines.concat(getLine(type, aktualis.cfg.center[0]-179.99, "E"));
+          lines = lines.concat(getLine(type, aktualis.cfg.center[0]+179.99, "W"));
         }
         break;
       default: if (isNumber(loc[i])) {
@@ -155,7 +155,7 @@ function getLine(type, loc, orient) {
       tp = type,
       res = [],
       lr = loc;
-  if (cfg.transform === "equatorial" && tp === "lon") tp = "ra";
+  if (aktualis.cfg.transform === "equatorial" && tp === "lon") tp = "ra";
   
   if (tp === "ra") {
     min = 0; max = 23; step = 1;

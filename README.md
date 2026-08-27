@@ -114,6 +114,14 @@ import Celestial from "d3-celestial-modern";     // ES-modul
 const { Celestial } = require("d3-celestial-modern");  // CommonJS
 ```
 
+Több független térkép egy oldalon (upstream #96, #131):
+
+```js
+import { Egbolt } from "d3-celestial-modern";
+const a = new Egbolt({ container: "map-a", projection: "orthographic" }, { onallo: true });
+const b = new Egbolt({ container: "map-b", projection: "mollweide" },   { onallo: true });
+```
+
 vagy böngészőben, a régi módon — de már **egyetlen fájlból, külső D3 nélkül**:
 
 ```html
@@ -169,6 +177,8 @@ npm run szerver
 **Megoldja** (7 issue egy csapásra): #147 (D3-frissítés), #141 (ES-modul), #86 (React), #81 (Node),
 #115 (webpack), #134 (`d3 is not defined`), és részben #96/#131 (több példány egy oldalon — ez a
 globális állapot problémája, amit egy osztály-alapú átírás szüntet meg).
+
+**Megoldja továbbá**: #96 és #131 (több példány egy oldalon) — az osztály-alapú felülettel.
 
 **Nem oldja meg**: a matematikai hibákat (#148, #130, #157) és a funkciókéréseket. Azok külön munkák
 — de a referencia-háló ezeket is biztonságossá teszi.

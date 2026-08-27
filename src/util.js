@@ -1,8 +1,8 @@
 import * as d3 from "./d3.js";
-import { parentElement } from "./celestial.js";
+import { aktualis } from "./celestial.js";
 import { deg2rad, halfπ, τ } from "./transform.js";
 
-function $(id) { return document.querySelector(parentElement + " #" + id); }
+function $(id) { return document.querySelector(aktualis.parentElement + " #" + id); }
 function px(n) { return n + "px"; } 
 function Round(x, dg) { return(Math.round(Math.pow(10,dg)*x)/Math.pow(10,dg)); }
 function sign(x) { return x ? x < 0 ? -1 : 1 : 0; }

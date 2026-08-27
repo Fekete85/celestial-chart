@@ -1,5 +1,5 @@
 import * as d3 from "./d3.js";
-import { parentElement } from "./celestial.js";
+import { aktualis } from "./celestial.js";
 import { formats, formats_all, globalConfig, settings } from "./config.js";
 import { Celestial } from "./mag.js";
 import { exportSVG } from "./svg.js";
@@ -11,11 +11,17 @@ function form(cfg) {
   var config = settings.set(cfg); 
 
   var prj = Celestial.projections(), leo = Celestial.eulerAngles();
-  var div = d3.select(parentElement + " ~ #celestial-form");
+  var div = d3.select(aktualis.parentElement + " ~ #celestial-form");
   //if div doesn't exist, create it
   if (div.size() < 1) {
     //var container = (config.container || "celestial-map");
-    div = d3.select(parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
+    div = d3.select(aktualis.parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
+  } else {
+    // A meglévő űrlapot kiürítjük, mielőtt újraépítjük. Enélkül minden
+    // Celestial.display() hívás hozzáfűzött egy újabb teljes űrlapot: hat hívás
+    // után 469 mező volt 67 helyett, azonos id-kkel — a $("...") lekérdezések
+    // pedig mindig az elsőt találták meg. (#96, #131 tünete.)
+    div.selectAll("*").remove();
   }
   var ctrl = div.append("div").attr("class", "ctrl");
   var frm = ctrl.append("form").attr("id", "params").attr("name", "params").attr("method", "get").attr("action" ,"#");
@@ -296,7 +302,7 @@ function form(cfg) {
 
   col.append("input").attr("type", "button").attr("id", "download-png").attr("value", "PNG Image").on("click", function() {
     var a = d3.select("body").append("a").node(), 
-        canvas = document.querySelector(parentElement + ' canvas');
+        canvas = document.querySelector(aktualis.parentElement + ' canvas');
     a.download = getFilename(".png");
     a.rel = "noopener";
     a.href = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
@@ -484,7 +490,7 @@ function form(cfg) {
     
   function update() {
     // Update all form fields
-    d3.selectAll(parentElement + " ~ #celestial-form input, " + parentElement + " ~  #celestial-form select").each( function(d, i) {
+    d3.selectAll(aktualis.parentElement + " ~ #celestial-form input, " + aktualis.parentElement + " ~  #celestial-form select").each( function(d, i) {
       if (this === undefined) return;
       var id = this.id;
 
@@ -724,8 +730,8 @@ function setLimits() {
 //"stars-designationType", "stars-propernameType", "stars-size", "stars-exponent", "stars-size", "stars-exponent", //"constellations-namesType", "planets-namesType", "planets-symbolType"
 function showAdvanced(showit) {
   var vis = showit ? "inline-block" : "none";
-  d3.select(parentElement + " ~ #celestial-form").selectAll(".advanced").style("display", vis);
-  d3.select(parentElement + " ~ #celestial-form").selectAll("#label-propername").style("display", showit ? "none" : "inline-block");
+  d3.select(aktualis.parentElement + " ~ #celestial-form").selectAll(".advanced").style("display", vis);
+  d3.select(aktualis.parentElement + " ~ #celestial-form").selectAll("#label-propername").style("display", showit ? "none" : "inline-block");
 }
 
 
@@ -733,33 +739,33 @@ function setVisibility(cfg, which) {
    var vis, fld;
    if (!has(cfg, "formFields")) return;
    if (which && has(cfg.formFields, which)) {
-     stilusok(d3.select(parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
+     stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
      return;
    }
    // Special case for backward compatibility
    if (cfg.form === false && cfg.location === true) {
-     d3.select(parentElement + " ~ #celestial-form").style("display", "inline-block");
+     d3.select(aktualis.parentElement + " ~ #celestial-form").style("display", "inline-block");
      for (fld in cfg.formFields) {
       if (!has(cfg.formFields, fld)) continue;
        if (fld === "location") continue;
-       stilusok(d3.select(parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
+       stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
      }
      return;
    }
    // hide if not desired
-   if (cfg.form === false) d3.select(parentElement + " ~ #celestial-form").style("display", "none"); 
+   if (cfg.form === false) d3.select(aktualis.parentElement + " ~ #celestial-form").style("display", "none"); 
 
    for (fld in cfg.formFields) {
      if (!has(cfg.formFields, fld)) continue;
      if (fld === "location") continue;
      vis = cfg.formFields[fld] === false ? "none" : "block";
-     stilusok(d3.select(parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
+     stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
    }
    
 }
 
 function listConstellations() {
-  var sel = d3.select(parentElement + " ~ #celestial-form").select("#constellation"),
+  var sel = d3.select(aktualis.parentElement + " ~ #celestial-form").select("#constellation"),
       list = [], selected = 0, id, name, config = globalConfig;
     
   Celestial.container.selectAll(".constname").each( function(d, i) {
@@ -785,6 +791,6 @@ function listConstellations() {
   //Celestial.constellations = list;
 }
 
-function $form(id) { return document.querySelector(parentElement + " ~ #celestial-form" + " #" + id); }
+function $form(id) { return document.querySelector(aktualis.parentElement + " ~ #celestial-form" + " #" + id); }
 
 export { $form, enable, fldEnable, form, listConstellations, setCenter, showAdvanced, testNumber };

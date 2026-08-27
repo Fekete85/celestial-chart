@@ -15,22 +15,73 @@ var ANIMDISTANCE = 0.035,  // Rotation animation threshold, ~2deg in radians
     ANIMSCALE = 1.4,       // Zoom animation threshold, scale factor
     ANIMINTERVAL_R = 2000, // Rotation duration scale in ms
     ANIMINTERVAL_P = 2500, // Projection duration in ms
-    ANIMINTERVAL_Z = 1500, // Zoom duration scale in ms
-    zoomextent = 10,       // Default maximum extent of zoom (max/min)
-    zoomlevel = 1;         // Default zoom level, 1 = 100%
+    ANIMINTERVAL_Z = 1500; // Projection duration in ms
 
-var cfg, mapProjection, parentElement, zoom, map, circle, daylight, starnames = {}, dsonames = {};
+// A legutóbb létrehozott térkép.
+//
+// A beépített űrlap, a helymeghatározás és az SVG-export ezen keresztül éri el
+// az aktuális állapotot. Egy oldalon egy űrlap van, tehát ez pontosan a régi
+// viselkedés; a térképek rajzolása viszont már példányonként külön állapoton
+// megy, és ettől lehet több független térkép egy oldalon (#96, #131).
+export var aktualis = null;
 
-// Show it all, with the given config, otherwise with default settings
-Celestial.display = function(config) {
+// Egy égtérkép-példány.
+//
+// A törzs változatlanul az eredeti `Celestial.display` teste: az addig is
+// konstruktorként volt megírva (a végén `this.clip = ...`, `this.rotate = ...`),
+// csak `Celestial`-ként hívva — vagyis a `this` maga a globális objektum volt.
+// Ettől lett egyetlen térkép egy oldalon (upstream #96, #131). Osztályként a
+// felület ugyanaz, de minden hívás saját `this`-t kap.
+export class Egbolt {
+  // config: a szokásos beállítás-objektum
+  // opciok.onallo: ha igaz, a térkép CSAK az alapértelmezésekből és a kapott
+  //   configból épül, nem a felhalmozott globális beállításból — több független
+  //   térképhez ez kell. Enélkül a régi viselkedés marad.
+  constructor(config, opciok) {
   var animationID,
-      container = Celestial.container,
+      container = null,
       animations = [], 
       current = 0, 
-      repeat = false;
-  
+      repeat = false,
+      zoomextent = 10,       // Default maximum extent of zoom (max/min)
+      zoomlevel = 1;         // Default zoom level, 1 = 100%
+
+  // Példány-állapot. Korábban modulszintű változók voltak, ezért osztozott
+  // rajtuk minden térkép egy oldalon.
+  var cfg, mapProjection, parentElement, zoom, map, circle, daylight,
+      starnames = {}, dsonames = {};
+
+  var alap = (opciok && opciok.onallo) ? settings : undefined;
+
+  // Az alábbi négy változó a rajzolás közben ÚJRA ÉRTÉKET KAP (cfg = cfg.set(…),
+  // mapProjection = projectionTween(…), container = …append("container")).
+  // Egyszerű értékadással a példányon a régi érték ragadna be — a
+  // Celestial.mapProjection például egy vetítésváltás után elavult lenne.
+  // Getterrel mindig a friss belső állapot látszik.
+  var peldany = this;
+  ["cfg", "mapProjection", "container", "map", "parentElement", "starnames", "dsonames"]
+    .forEach(function (nev) {
+      Object.defineProperty(peldany, nev, {
+        get: function () {
+          switch (nev) {
+            case "cfg": return cfg;
+            case "mapProjection": return mapProjection;
+            case "container": return container;
+            case "map": return map;
+            case "parentElement": return parentElement;
+            case "starnames": return starnames;
+            default: return dsonames;
+          }
+        },
+        enumerable: true, configurable: true
+      });
+    });
+
+  aktualis = this;
+
+
   //Mash config with default settings, todo: if globalConfig exists, make another one
-  cfg = settings.set(config).applyDefaults(config);
+  cfg = settings.set(config, alap).applyDefaults(config, alap);
   if (isNumber(cfg.zoomextend)) zoomextent = cfg.zoomextend;
   if (isNumber(cfg.zoomlevel)) zoomlevel = cfg.zoomlevel;
   //if (cfg.disableAnimations) ANIMDISTANCE = Infinity;
@@ -89,8 +140,12 @@ Celestial.display = function(config) {
   map = d3.geoPath().projection(mapProjection).context(context);
    
   //parent div with id #celestial-map or body
-  if (container) container.selectAll(parentElement + " *").remove();
-  else container = d3.select(parentElement).append("container");
+  // A tárolót a SAJÁT szülőn belül keressük meg. Korábban a globális
+  // Celestial.container-t vette át, ezért egy második térkép az elsőébe
+  // rajzolt volna (#96, #131).
+  container = d3.select(parentElement).select("container");
+  if (container.empty()) container = d3.select(parentElement).append("container");
+  else container.selectAll(parentElement + " *").remove();
 
   if (cfg.interactive) {
     canvas.call(zoom);
@@ -984,10 +1039,8 @@ Celestial.display = function(config) {
 
   
   // Exported objects and functions for adding data
-  this.container = container;
+  //
   this.clip = clip;
-  this.map = map;
-  this.mapProjection = mapProjection;
   this.context = context;
   this.metrics = function() {
     return {"width": width, "height": height, "margin": margin, "scale": mapProjection.scale()};
@@ -1056,9 +1109,30 @@ Celestial.display = function(config) {
     this.date = function() { console.log("Celestial.date() needs config.location = true to work." ); };
   */
   load();
+  }
+}
+
+// Visszafelé kompatibilis felület.
+//
+// A `Celestial.display(config)` ugyanúgy viselkedik, mint eddig: létrehoz egy
+// példányt, és annak a felületét kiteríti magára. A különbség, hogy a példány
+// most vissza is kapható — `var egbolt = Celestial.display(cfg)` —, és ezzel
+// több térkép is kezelhető egy oldalon.
+Celestial.display = function (config) {
+  var peldany = new Egbolt(config);
+  // Tulajdonság-leírókkal másolunk, nem értékkel: a példányon több tulajdonság
+  // getter (cfg, mapProjection, container, …), és értékmásolás esetén a
+  // Celestial.mapProjection egy vetítésváltás után elavulna.
+  Object.defineProperties(peldany, {});
+  var leirok = Object.getOwnPropertyDescriptors(peldany);
+  for (var kulcs in leirok) {
+    if (kulcs === "constructor") continue;
+    Object.defineProperty(Celestial, kulcs, leirok[kulcs]);
+  }
+  return peldany;
 };
  
 // A CommonJS-export helyét a build vette át: a build/celestial.cjs és a
 // build/celestial.mjs a beágyazó igénye szerinti alakban adja ki a Celestialt.
 
-export { Celestial, cfg, dsonames, parentElement, starnames };
+export { Celestial };

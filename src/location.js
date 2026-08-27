@@ -1,5 +1,5 @@
 import * as d3 from "./d3.js";
-import { parentElement } from "./celestial.js";
+import { aktualis } from "./celestial.js";
 import { formats, settings } from "./config.js";
 import { datetimepicker } from "./datetimepicker.js";
 import { $form, enable, showAdvanced, testNumber } from "./form.js";
@@ -19,7 +19,7 @@ function geo(cfg) {
       localZone = -date.getTimezoneOffset(),
       timeZone = localZone,
       config = settings.set(cfg),
-      frm = d3.select(parentElement + " ~ #celestial-form form").insert("div", "div#general").attr("id", "loc");
+      frm = d3.select(aktualis.parentElement + " ~ #celestial-form form").insert("div", "div#general").attr("id", "loc");
 
   var dtpick = new datetimepicker(config, function(date, tz) { 
     $form("datetime").value = dateFormat(date, tz); 
@@ -304,7 +304,7 @@ function geo(cfg) {
   };
 
   if (has(config, "formFields") && (config.location === true || config.formFields.location === true)) {
-    stilusok(d3.select(parentElement + " ~ #celestial-form").select("#location"), {"display": "inline-block"});
+    stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#location"), {"display": "inline-block"});
   }
   //only if appropriate
   if (isValidLocation(geopos) && (config.location === true || config.formFields.location === true) && config.follow === "zenith")

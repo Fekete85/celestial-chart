@@ -161,9 +161,15 @@ var settings = {
     nameStyle: { fill: "#cccccc", font: "14px 'Lucida Sans Unicode', 'DejaVu Sans', sans-serif", align: "right", baseline: "top" },
     namesType: "en"  // Language in which the name is displayed, options desig, ar, cn, en, fr, de, gr, il, in, it, jp, lat, ru, es
   },
-  set: function(cfg) {  // Override defaults with values of cfg
+  // Az `alap` paraméter az, ami a példányosítást lehetővé teszi: enélkül minden
+  // hívás a modulszintű globalConfig-ból indult, tehát a második térkép örökölte
+  // az elsőét (upstream #96, #131). Ha kap alapot, azt használja kiindulásnak,
+  // és nem is ír vissza a globálisba — így két térkép nem lát bele egymáséba.
+  // Alap nélkül a régi viselkedés marad, hogy a Celestial.settings() működjön.
+  set: function(cfg, alap) {  // Override defaults with values of cfg
     var prop, key, config = {}, res = {};
-    if (Object.entries(globalConfig).length === 0) Object.assign(config, this);
+    if (alap) Object.assign(config, alap);
+    else if (Object.entries(globalConfig).length === 0) Object.assign(config, this);
     else Object.assign(config, globalConfig);
     if (!cfg) return config; 
     for (prop in config) {
@@ -191,12 +197,15 @@ var settings = {
     res.constellations.lineStyle.opacity = arrayfy(res.constellations.lineStyle.opacity);
     res.constellations.lineStyle.stroke = arrayfy(res.constellations.lineStyle.stroke);
     
-    Object.assign(globalConfig, res);
+    if (!alap) Object.assign(globalConfig, res);
     return res;
   },
-  applyDefaults: function(cfg) {
+  applyDefaults: function(cfg, alap) {
     var res = {};
-    Object.assign(res, globalConfig);
+    // A láncban ez a set() eredményén hívódik, tehát `this` a már összefésült
+    // konfiguráció. Az önálló ágon innen kell folytatni — a globalConfig-ból
+    // indulva a hívó beállításai elvesznének.
+    Object.assign(res, alap ? this : globalConfig);
     // Nothing works without these
     res.stars.size = res.stars.size || 7;  
     res.stars.exponent = res.stars.exponent || -0.28;
@@ -265,7 +274,7 @@ var settings = {
     res.constellations.lineStyle.opacity = arrayfy(res.constellations.lineStyle.opacity);
     res.constellations.lineStyle.stroke = arrayfy(res.constellations.lineStyle.stroke);
 
-    Object.assign(globalConfig, res);
+    if (!alap) Object.assign(globalConfig, res);
     return res; 
   }
 };

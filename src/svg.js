@@ -1,5 +1,5 @@
 import * as d3 from "./d3.js";
-import { dsonames, starnames } from "./celestial.js";
+import { aktualis } from "./celestial.js";
 import { bvcolor, formats, projections, settings } from "./config.js";
 import { getData, getGridValues, getMwbackground, getPlanet } from "./get.js";
 import { Celestial } from "./mag.js";
@@ -632,8 +632,8 @@ function exportSVG(fname) {
   function dsoName(d) {
     //return p[cfg.dsos.namesType]; 
     var lang = cfg.dsos.namesType, id = d.id;
-    if (lang === "desig" || !has(dsonames, id)) return d.properties.desig;
-    return has(dsonames[id], lang) ? dsonames[id][lang] : d.properties.desig; 
+    if (lang === "desig" || !has(aktualis.dsonames, id)) return d.properties.desig;
+    return has(aktualis.dsonames[id], lang) ? aktualis.dsonames[id][lang] : d.properties.desig; 
   }
 
   function dsoColor(p) {
@@ -642,14 +642,14 @@ function exportSVG(fname) {
   }
  
   function starDesignation(id) {
-    if (!has(starnames, id)) return "";
-    return starnames[id][cfg.stars.designationType]; 
+    if (!has(aktualis.starnames, id)) return "";
+    return aktualis.starnames[id][cfg.stars.designationType]; 
   }
 
   function starPropername(id) {
     var lang = cfg.stars.propernameType;
-    if (!has(starnames, id)) return "";
-    return has(starnames[id], lang) ? starnames[id][lang] : starnames[id].name; 
+    if (!has(aktualis.starnames, id)) return "";
+    return has(aktualis.starnames[id], lang) ? aktualis.starnames[id][lang] : aktualis.starnames[id].name; 
   }
 
   function starSize(mag) {

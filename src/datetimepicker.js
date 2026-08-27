@@ -1,5 +1,5 @@
 import * as d3 from "./d3.js";
-import { parentElement } from "./celestial.js";
+import { aktualis } from "./celestial.js";
 import { $form, testNumber } from "./form.js";
 import { dateDiff, isNumber, osztalyoz, px, stilusok } from "./util.js";
 
@@ -14,7 +14,7 @@ var datetimepicker = function(cfg, callback) {
       dateParse = d3.timeParse("%Y-%m-%d"),
       dtrange = cfg.daterange || [];
     
-  var picker = d3.select(parentElement + " ~ #celestial-form").append("div").attr("id", "celestial-date");
+  var picker = d3.select(aktualis.parentElement + " ~ #celestial-form").append("div").attr("id", "celestial-date");
   nav("left");
   monSel();
   yrSel();
@@ -30,7 +30,7 @@ var datetimepicker = function(cfg, callback) {
   function daySel() {
     var mo = $form("mon").value, yr = $form("yr").value,
         curdt = new Date(yr, mo, 1),
-        cal = d3.select(parentElement + " ~ #celestial-form").select("#cal"),
+        cal = d3.select(aktualis.parentElement + " ~ #celestial-form").select("#cal"),
         today = new Date();
     yr = parseInt(yr);   
     mo = parseInt(mo);   
@@ -64,7 +64,7 @@ var datetimepicker = function(cfg, callback) {
   }
 
   function fillYrSel() { 
-    var sel = d3.select(parentElement + " ~ #celestial-form").select("select#yr"),
+    var sel = d3.select(aktualis.parentElement + " ~ #celestial-form").select("select#yr"),
         year = date.getFullYear(),
         selected = 0,
         years = getYears(date);
@@ -184,9 +184,9 @@ var datetimepicker = function(cfg, callback) {
       date.setTime(dt.valueOf());
       select("tz", tz);
       set();
-      stilusok(d3.select(parentElement + " ~ #celestial-form").select("#celestial-date"),
+      stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#celestial-date"),
                {"top": px(top), "left": px(left), "opacity": 1});  
-      d3.select(parentElement + " ~ #celestial-form").select("#datepick").classed("active", true);
+      d3.select(aktualis.parentElement + " ~ #celestial-form").select("#datepick").classed("active", true);
     } else {
       vanish();
     }
@@ -194,7 +194,7 @@ var datetimepicker = function(cfg, callback) {
   
   this.isVisible = function () {
     if (!document.getElementById("datepick")) return false;
-    return d3.select(parentElement + " ~ #celestial-form").select("#datepick").classed("active") === true;
+    return d3.select(aktualis.parentElement + " ~ #celestial-form").select("#datepick").classed("active") === true;
   };
 
   this.hide = function () {
@@ -202,9 +202,9 @@ var datetimepicker = function(cfg, callback) {
   };
   
   function vanish() {
-    d3.select(parentElement + " ~ #celestial-form").select("#celestial-date").style("opacity", 0);
+    d3.select(aktualis.parentElement + " ~ #celestial-form").select("#celestial-date").style("opacity", 0);
     stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0}); 
-    d3.select(parentElement + " ~ #celestial-form").select("#datepick").classed("active", false);
+    d3.select(aktualis.parentElement + " ~ #celestial-form").select("#datepick").classed("active", false);
     setTimeout(function () { $form("celestial-date").style.top = px(-9999); }, 600);    
   }
   

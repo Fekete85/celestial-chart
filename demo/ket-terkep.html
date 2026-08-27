@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>d3-celestial — két független térkép</title>
+<style>
+  body { font: 14px sans-serif; margin: 16px; }
+  .sor { display: flex; gap: 24px; flex-wrap: wrap; }
+  .doboz { border: 1px solid #ddd; padding: 8px; border-radius: 6px; }
+  h2 { font-size: 14px; margin: 0 0 6px; font-weight: 600; }
+  #allapot { margin-top: 12px; font: 12px monospace; white-space: pre-wrap; background: #f4f4f4; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>Két független térkép egy oldalon</h1>
+<p>
+  Az upstream #96 és #131 issue: a könyvtár globális állapotot tartott, ezért egy oldalon
+  csak egy térkép működött. Az osztály-alapú felülettel mindegyik példány saját állapotot kap.
+</p>
+<div class="sor">
+  <div class="doboz"><h2>A — orthographic, Nagy Medve</h2><div id="terkep-a"></div></div>
+  <div class="doboz"><h2>B — mollweide, teljes égbolt</h2><div id="terkep-b"></div></div>
+</div>
+<div id="allapot">Betöltés…</div>
+
+<script type="module">
+import { Egbolt } from "../build/celestial.mjs";
+
+const KOZOS = {
+  width: 470,
+  datapath: "../harness/data/",
+  interactive: false, form: false, controls: false, location: false,
+  follow: "center", disableAnimations: true, orientationfixed: false,
+  date: new Date(Date.UTC(2026, 7, 26, 20, 0, 0)),
+  stars: { limit: 5, colors: true, names: false, designation: false },
+  dsos: { show: true, limit: 5, names: false },
+  planets: { show: false },
+  constellations: { names: true, namesType: "iau", lines: true, bounds: false },
+  mw: { show: true },
+  lines: { graticule: { show: true } },
+  horizon: { show: false }, daylight: { show: false },
+  background: { fill: "#000000", stroke: "#000000" }
+};
+
+// Az `onallo: true` a lényeg: a példány csak az alapértelmezésekre és a saját
+// configjára épül, nem a felhalmozott globális beállításra.
+const a = new Egbolt(Object.assign({}, KOZOS, {
+  container: "terkep-a", projection: "orthographic", center: [180, 55, 0]
+}), { onallo: true });
+
+const b = new Egbolt(Object.assign({}, KOZOS, {
+  container: "terkep-b", projection: "mollweide", center: [0, 0, 0]
+}), { onallo: true });
+
+window.__a = a; window.__b = b;
+
+setTimeout(function () {
+  document.getElementById("allapot").textContent =
+    "A: " + a.cfg.projection + "  középpont " + JSON.stringify(a.cfg.center.map(Math.round)) +
+      "  lépték " + Math.round(a.mapProjection.scale()) + "\n" +
+    "B: " + b.cfg.projection + "  középpont " + JSON.stringify(b.cfg.center.map(Math.round)) +
+      "  lépték " + Math.round(b.mapProjection.scale()) + "\n" +
+    "külön állapot: " + (a.cfg !== b.cfg) + " · külön vetítés: " + (a.mapProjection !== b.mapProjection) +
+      " · külön tároló: " + (a.container.node() !== b.container.node());
+}, 4000);
+</script>
+</body>
+</html>

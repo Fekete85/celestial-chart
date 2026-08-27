@@ -441,7 +441,89 @@ upstream #134 („d3 is not defined"). A build négy alakot ad:
   vetítésváltás, SVG-export, 0 hiba.
 - Node-ban `import` és `require` alakban is betölthető.
 
-## 9. Hol tart a lépéssorrend
+## 9. Osztály-alapú átírás — több térkép egy oldalon
+
+Az upstream #96 és #131: a könyvtár globális állapotot tartott, ezért egy oldalon
+csak egy térkép működött.
+
+### A kiindulás jobb volt, mint vártuk
+
+A `Celestial.display()` **már addig is konstruktorként volt megírva** — a végén
+`this.container = …`, `this.clip = …`, `this.rotate = …` sorokkal. Csak éppen
+`Celestial.display(config)` alakban hívva, tehát a `this` maga a globális
+objektum volt. A váz megvolt; három dolog blokkolta a példányosítást.
+
+**1. Modulszintű állapot.** A `cfg`, `mapProjection`, `parentElement`, `zoom`,
+`map`, `circle`, `daylight`, `starnames`, `dsonames`, `zoomextent`, `zoomlevel`
+a modul tetején éltek, tehát minden térkép osztozott rajtuk. Bekerültek a
+konstruktorba.
+
+**2. A közös konfiguráció.** A `settings.set()` egy modulszintű `globalConfig`-ba
+írt és onnan olvasott, így a második térkép örökölte az elsőét. Kapott egy
+opcionális `alap` paramétert: ha van, abból indul és nem ír vissza a globálisba.
+Enélkül a régi viselkedés marad, hogy a `Celestial.settings()` működjön.
+
+**3. A közös tároló.** A konstruktor a globális `Celestial.container`-t vette át,
+tehát a második térkép az elsőébe rajzolt volna. Most a saját szülőjén belül
+keresi meg.
+
+### Getterek, nem értékmásolás
+
+A `cfg`, `mapProjection`, `container` és `map` a rajzolás közben **újra értéket
+kap** (`cfg = cfg.set(…)`, `mapProjection = projectionTween(…)`). Egyszerű
+`this.x = x` értékadással a példányon a régi érték ragadna be — a
+`Celestial.mapProjection` például egy vetítésváltás után elavult lenne. Ezek
+most getterek, és a visszafelé kompatibilis felület is **tulajdonság-leírókkal**
+másol, nem értékkel, tehát a liveness megmarad. Ez egy meglévő, lappangó
+elavulási hibát is megszüntet.
+
+### Amit közben kifogott a mérés
+
+A `Celestial.display()` ismételt hívása **minden alkalommal hozzáfűzött egy
+újabb teljes űrlapot**: hat hívás után 469 mező volt 67 helyett, azonos
+`id`-kkel — a `$("…")` lekérdezések pedig mindig az elsőt találták meg. A
+`form()` most kiüríti a meglévő űrlapot, mielőtt újraépíti.
+
+### Visszafelé kompatibilitás
+
+A `Celestial.display(config)` felülete és viselkedése változatlan — beleértve
+azt is, hogy az egymást követő hívások a felhalmozott globális beállításra
+épülnek. Annyi a különbség, hogy most vissza is ad egy példányt.
+
+```js
+// a régi mód, változatlanul
+Celestial.display({ container: "map", projection: "aitoff" });
+
+// több független térkép
+import { Egbolt } from "d3-celestial-modern";
+const a = new Egbolt({ container: "map-a", projection: "orthographic" }, { onallo: true });
+const b = new Egbolt({ container: "map-b", projection: "mollweide" },   { onallo: true });
+```
+
+Az `onallo: true` a lényeg: a példány csak az alapértelmezésekre és a saját
+configjára épül, nem a felhalmozott globálisra.
+
+### Ellenőrzés
+
+- **A referencia-háló bitre azonos** minden részlépés után: 25/25 vetítés,
+  max eltérés 0,000 px.
+- `demo/ket-terkep.html`: két térkép egy oldalon, külön vetítéssel és
+  középponttal — külön `cfg`, külön `mapProjection`, külön tároló, mindkettőben
+  a maga 5044 csillaga, egyetlen `container` elem térképenként.
+- `demo/teljes.html`: a teljes régi felület — zoom, húzásos forgatás, négy
+  vetítésváltás, két transzformáció, űrlaphasználat, `Celestial.rotate`,
+  `Celestial.apply`, SVG-export. 0 konzolhiba, és az űrlap végig 67 mező marad.
+- 44 teszt zöld.
+
+### Ami még hátra van ebből
+
+A beépített űrlap, a helymeghatározás és az SVG-export az **aktuális** (legutóbb
+létrehozott) térképen dolgozik, egy modulszintű `aktualis` mutatón keresztül.
+Egy oldalon egy űrlap van, tehát ez a régi viselkedés — de ha valaki két
+*interaktív* térképet akar saját űrlappal, ezeket is át kell adni példányonként.
+A rajzolás viszont már teljesen példány-alapú.
+
+## 10. Hol tart a lépéssorrend
 
 | # | Lépés | Állapot |
 |---|---|---|
@@ -451,5 +533,8 @@ upstream #134 („d3 is not defined"). A build négy alakot ad:
 | 4 | `d3.geo.*` → `d3-geo` + `d3-geo-projection` | **kész**, 25/25 bitre azonos |
 | 5 | ES-modulok, tree-shaking | **kész**, 463 KB / 3 fájl → 291 KB / 1 fájl |
 | 6 | `form.js` / `svg.js` — migrálás vagy elhagyás | migrálva, működik |
+
+Ezen felül: **osztály-alapú felület** (`Egbolt`), több független térkép egy
+oldalon — az upstream #96 és #131.
 
 Vetítések: **67/69 működik, ugyanannyi, mint az upstreamben.** Tesztek: 44, mind zöld.
