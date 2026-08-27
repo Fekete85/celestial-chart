@@ -29,6 +29,12 @@ function exportSVG(fname) {
   if (proj.clip) {
     projection.clipAngle(90);
   }
+  // A kimenet fix méretű, tehát a lapon kívüli rész úgysem látszik — viszont
+  // vágás nélkül nem-véges koordináták kerülnek az útvonalakba. A mercator
+  // háttérköre például a pólusokat is tartalmazza, ott a vetítés ±végtelen, és
+  // az `Infinity` az SVG `d` attribútumában érvénytelen: a böngésző az egész
+  // útvonalat eldobja. A clipExtent postclip, tehát a clipAngle mellett áll meg.
+  projection.clipExtent([[0, 0], [m.width, m.height]]);
   circle = d3.geoCircle().radius(179.95).center(center);
 
   svg.attr("width", m.width).attr("height", m.height);
@@ -364,7 +370,7 @@ function exportSVG(fname) {
           o = Celestial.origin(dt).spherical(),
           jp = {type: "FeatureCollection", features: []},
           jlun = {type: "FeatureCollection", features: []};
-      Celestial.container.selectAll(".planet").each(function(d) {
+      aktualis.container.selectAll(".planet").each(function(d) {
         var id = d.id(), r = 12,
             p = d(dt).equatorial(o);
             

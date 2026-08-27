@@ -1,0 +1,45 @@
+name: ellenőrzés
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ellenoriz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # A böngészős ellenőrzés headless Chromiumot használ. Helyben a rendszer
+      # Chrome-ját (nincs letöltés), CI-ben a Playwright sajátját.
+      - run: npx playwright install --with-deps chromium
+
+      - name: build + tesztek + referencia-háló + vizuális összevetés + füstpróba
+        run: npm run ellenoriz
+
+      # A háló és a képek a futás során újragenerálódnak. Ha bármelyik
+      # megváltozott, az érdemi eltérés — a diffet fel kell tölteni.
+      - name: eltérés esetén a friss mérések feltöltése
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meresek
+          path: |
+            harness/referencia-d3v3.json
+            harness/referencia-d3v7.json
+            docs/kepek/*.png
+          if-no-files-found: ignore
+
+      - name: a mérések nem térhetnek el a rögzítettektől
+        run: |
+          git diff --stat -- harness/referencia-*.json docs/kepek/
+          git diff --quiet -- harness/referencia-*.json docs/kepek/ \
+            || (echo "A rögzített mérések eltérnek a friss futástól — nézd meg a feltöltött artifactot." && exit 1)

@@ -23,7 +23,10 @@ function betolt(ut) {
  * NaN-t is rögzíthet — a JSON ilyenkor [null, null, jelző] alakot ad —, ez a
  * régi kód definiálatlan viselkedése, nem koordináta. */
 function ervenyes(p) {
-  return Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "number";
+  // Number.isFinite, nem `typeof === "number"`: a NaN is szám. JSON-on át
+  // null-lá alakul, a böngészőből közvetlenül viszont NaN-ként érkezik — így a
+  // forrástól függetlenül ugyanaz a döntés.
+  return Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]);
 }
 
 /* Egy vetítés egy forgatásának összevetése. */
@@ -207,8 +210,13 @@ function onteszt(ut) {
   return bukas === 0;
 }
 
-const argv = process.argv.slice(2);
-if (argv[0] === "--onteszt") {
+// Csak közvetlen futtatáskor lépünk a parancssori ágra: a halo.mjs importálja
+// az osszehasonlit() függvényt, és ott nem szabad kilépni a folyamatból.
+const kozvetlen = import.meta.url === `file://${process.argv[1]}`;
+const argv = kozvetlen ? process.argv.slice(2) : [];
+if (!kozvetlen) {
+  // importálva: nincs teendő
+} else if (argv[0] === "--onteszt") {
   process.exit(onteszt(argv[1] || "referencia-d3v3.json") ? 0 : 1);
 } else if (argv.length >= 2) {
   const ti = argv.indexOf("--tures");

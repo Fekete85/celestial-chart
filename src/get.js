@@ -48,7 +48,7 @@ function getPlanet(id, dt) {
 
   var o = Celestial.origin(dt).spherical(), res;
      
-  Celestial.container.selectAll(".planet").each(function(d) {
+  aktualis.container.selectAll(".planet").each(function(d) {
     if (id === d.id()) {
       res = d(dt).equatorial(o);
     }

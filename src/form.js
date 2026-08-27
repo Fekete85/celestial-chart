@@ -766,9 +766,9 @@ function setVisibility(cfg, which) {
 
 function listConstellations() {
   var sel = d3.select(aktualis.parentElement + " ~ #celestial-form").select("#constellation"),
-      list = [], selected = 0, id, name, config = globalConfig;
+      list = [], selected = 0, id, name, config = aktualis.cfg;
     
-  Celestial.container.selectAll(".constname").each( function(d, i) {
+  aktualis.container.selectAll(".constname").each( function(d, i) {
     id = d.id;
     if (id === config.constellation) selected = i;
     name = d.properties[config.constellations.namesType];
