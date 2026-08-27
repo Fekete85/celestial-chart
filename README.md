@@ -6,6 +6,9 @@ the Milky Way and planets, in 67 map projections, rendered to canvas with SVG ex
 A modernised fork of [d3-celestial](https://github.com/ofrohn/d3-celestial) by
 Olaf Frohn, whose last release was in 2022 and which is pinned to D3 v3.
 
+**Live demo: [celestial.blackit.hu](https://celestial.blackit.hu)** — pick a
+projection, drag to rotate, scroll to zoom.
+
 ```bash
 npm install celestial-chart
 ```
@@ -105,12 +108,35 @@ itself too: it fails if two projections — or two rotations — produce the sam
 output, because a net that measures nothing passes everything.
 
 ```bash
-npm run verify    # build + 66 unit tests + types + 27 browser assertions, ~2 min
+npm run verify    # build + 66 unit tests + types + 28 browser assertions, ~2 min
 ```
 
 The browser run regenerates both references, compares them, captures 12 screenshots
 with a pixel diff, and drives the real UI (zoom, drag-rotate, projection switching,
 forms, SVG export, two independent maps). It runs in CI on every push.
+
+## Trying it locally
+
+The data files are not in the npm package (they are large and they are the
+upstream project's catalogues), so the demos load them from `harness/data/`.
+They need a real HTTP server — in D3 v7 `d3.json` uses `fetch`, which the
+browser refuses on `file://`.
+
+```bash
+npm run serve       # then open http://127.0.0.1:8877/demo/full.html
+```
+
+| page | what it shows |
+|---|---|
+| [`demo/full.html`](demo/full.html) | the whole interface: settings form, controls, location, SVG export |
+| [`demo/module.html`](demo/module.html) | the same as an ES module import |
+| [`demo/two-maps.html`](demo/two-maps.html) | two independent maps on one page |
+| [`demo/two-forms.html`](demo/two-forms.html) | two maps, each with its own settings form |
+
+[`site/`](site/) is the landing page behind the live demo: the page itself, an
+nginx container and its Traefik labels. `node site/assemble.mjs` copies the
+built bundle, the stylesheet and the catalogues next to it, so the published
+page can never drift from what was actually built.
 
 ## Documentation
 
@@ -119,8 +145,8 @@ The full configuration is documented in the
 option names are unchanged. Type definitions in `types/celestial.d.ts` list them
 all, and a test keeps them from drifting from the code.
 
-The migration itself is written up in Hungarian: [`docs/`](docs/) —
-what was measured, what broke, and why.
+The migration itself is written up in [`docs/`](docs/) — what was measured,
+what broke, and why.
 
 ## License
 

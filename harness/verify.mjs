@@ -181,6 +181,17 @@ async function smokeTest(page) {
   check("SVG export runs", typeof svg === "string" && svg.indexOf("<svg") >= 0,
     svg ? (svg.indexOf("EXCEPTION") === 0 ? svg : Math.round(svg.length / 1024) + " KB") : "did not run");
 
+  // The ESM entry point, loaded by the browser as a module — the readme points
+  // people at this page, so it has to keep working.
+  await page.goto(`http://127.0.0.1:${PORT}/demo/module.html`, { waitUntil: "load" });
+  await page.waitForTimeout(9000);
+  const mod = await page.evaluate(() => ({
+    stars: document.querySelectorAll("container .star").length,
+    canvas: document.querySelectorAll("#celestial-map canvas").length
+  }));
+  check("ES module entry point draws", mod.stars > 1000 && mod.canvas === 1,
+    mod.stars + " stars, " + mod.canvas + " canvas");
+
   // Two independent maps on one page (#96, #131)
   await page.goto(`http://127.0.0.1:${PORT}/demo/two-maps.html`, { waitUntil: "load" });
   await page.waitForTimeout(9000);
