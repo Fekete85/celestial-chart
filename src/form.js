@@ -1,21 +1,228 @@
 import * as d3 from "./d3.js";
-import { aktualis } from "./celestial.js";
 import { formats, formats_all, globalConfig, settings } from "./config.js";
 import { Celestial } from "./mag.js";
 import { exportSVG } from "./svg.js";
 import { euler, transformDeg } from "./transform.js";
 import { findPos, has, isArray, isNumber, isObject, px, stilusok } from "./util.js";
 
-//display settings form in div with id "celestial-form"
-function form(cfg) {
+// Egy térkép beállító-űrlapja.
+//
+// A példányt kapja, nem a konfigurációt: az űrlap a térképhez tartozik, és a
+// segédfüggvényei (fldEnable, setCenter, $form, …) is ebben a lezárásban élnek.
+// Korábban modulszintű függvények voltak, egy közös "aktuális térkép" mutatón
+// át — így két interaktív térkép egy oldalon egymás mezőit írta volna.
+function form(egbolt) {
+  var cfg = egbolt.cfg;
   var config = settings.set(cfg); 
 
+  var depends = {
+    "stars-show": ["stars-limit", "stars-colors", "stars-style-fill", "stars-designation", "stars-propername", "stars-size", "stars-exponent"],
+    "stars-designation": ["stars-designationType", "stars-designationLimit"],
+    "stars-propername": ["stars-propernameLimit", "stars-propernameType"],
+    "dsos-show": ["dsos-limit", "dsos-colors", "dsos-style-fill", "dsos-names", "dsos-size", "dsos-exponent"],
+    "dsos-names": ["dsos-namesType", "dsos-nameLimit"],
+    "mw-show": ["mw-style-opacity", "mw-style-fill"],
+    "constellations-names": ["constellations-namesType"],
+    "planets-show": ["planets-symbolType", "planets-names"],
+    "planets-names": ["planets-namesType"]
+  };
+
+  function enable(source) {
+    var fld = source.id, off;
+    
+    switch (fld) {
+      case "stars-show": 
+        off = !$form(fld).checked;
+        for (var i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
+        /* falls through */
+      case "stars-designation": 
+        off = !$form("stars-designation").checked || !$form("stars-show").checked;
+        for (i=0; i< depends["stars-designation"].length; i++) { fldEnable(depends["stars-designation"][i], off); }
+        /* falls through */
+      case "stars-propername": 
+        off = !$form("stars-propername").checked || !$form("stars-show").checked;
+        for (i=0; i< depends["stars-propername"].length; i++) { fldEnable(depends["stars-propername"][i], off); }
+        break;
+      case "dsos-show": 
+        off = !$form(fld).checked;
+        for (i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
+        /* falls through */
+      case "dsos-names": 
+        off = !$form("dsos-names").checked || !$form("dsos-show").checked;      
+        for (i=0; i< depends["dsos-names"].length; i++) { fldEnable(depends["dsos-names"][i], off); }
+        break;
+      case "planets-show": 
+        off = !$form(fld).checked;
+        for (i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
+        /* falls through */
+      case "planets-names": 
+        off = !$form("planets-names").checked || !$form("planets-show").checked;      
+        for (i=0; i< depends["planets-names"].length; i++) { fldEnable(depends["planets-names"][i], off); }
+        break;
+      case "constellations-names": 
+      case "mw-show": 
+        off = !$form(fld).checked;
+        for (i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
+        break;
+    }  
+  }
+
+  function fldEnable(d, off) {
+    var node = $form(d);
+    if (!node) return;
+    node.disabled = off;
+    node.style.color = off ? "#999" : "#000";  
+    node.previousSibling.style.color = off ? "#999" : "#000";  
+    //if (node.previousSibling.previousSibling && node.previousSibling.previousSibling.tagName === "LABEL")
+    //  node.previousSibling.previousSibling.style.color = off ? "#999" : "#000";  
+  }
+
+  function setUnit(trans, old) {
+    var cx = $form("centerx");
+    if (!cx) return null;
+    
+    if (old) {
+      if (trans === "equatorial" && old !== "equatorial") {
+        cx.value = (cx.value/15).toFixed(1);
+        if (cx.value < 0) cx.value += 24;
+      } else if (trans !== "equatorial" && old === "equatorial") {
+        cx.value = (cx.value * 15).toFixed(1);
+        if (cx.value > 180) cx.value -= 360;
+      }
+    }
+    if (trans === 'equatorial') {
+      cx.min = "0";
+      cx.max = "24";
+      $form("cxunit").innerHTML = "h";
+    } else {
+      cx.min = "-180";
+      cx.max = "180";
+      $form("cxunit").innerHTML = "\u00b0";
+    }
+    return cx.value;
+  }
+
+  function setCenter(ctr, trans) {
+    var cx = $form("centerx"), cy = $form("centery"), cz = $form("centerz");
+    if (!cx || !cy) return;
+    
+    if (ctr === null || ctr.length < 1) ctr = [0,0,0]; 
+    if (ctr.length <= 2 || ctr[2] === undefined) ctr[2] = 0;
+    //config.center = ctr; 
+    if (trans !== "equatorial") cx.value = ctr[0].toFixed(1); 
+    else cx.value = ctr[0] < 0 ? (ctr[0] / 15 + 24).toFixed(1) : (ctr[0] / 15).toFixed(1); 
+    
+    cy.value = ctr[1].toFixed(1);
+    cz.value = ctr[2] !== null ? ctr[2].toFixed(1) : 0;
+    settings.set({center: ctr});
+  }
+
+  function setLimits() {
+    var t, rx = /\d+(\.\d+)?/g,
+        s, d, res = {s:6, d:6},
+        config =  Celestial.settings();
+  
+    d = config.dsos.data;
+    
+    //test dso limit
+    t = d.match(rx);
+    if (t !== null) {
+      res.d = parseFloat(t[t.length-1]);
+    }
+  
+    if (res.d !== 6) {
+      $form("dsos-limit").max = res.d;
+      $form("dsos-nameLimit").max = res.d;
+    }
+     
+     s = config.stars.data;
+    
+    //test star limit
+    t = s.match(rx);
+    if (t !== null) {
+      res.s = parseFloat(t[t.length-1]);
+    }
+  
+    if (res.s != 6) {
+      $form("stars-limit").max = res.s;
+      $form("stars-designationLimit").max = res.s;
+      $form("stars-propernameLimit").max = res.s;
+    }
+  
+    return res;
+  }
+
+  function showAdvanced(showit) {
+    var vis = showit ? "inline-block" : "none";
+    d3.select(egbolt.parentElement + " ~ #celestial-form").selectAll(".advanced").style("display", vis);
+    d3.select(egbolt.parentElement + " ~ #celestial-form").selectAll("#label-propername").style("display", showit ? "none" : "inline-block");
+  }
+
+  function setVisibility(cfg, which) {
+     var vis, fld;
+     if (!has(cfg, "formFields")) return;
+     if (which && has(cfg.formFields, which)) {
+       stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
+       return;
+     }
+     // Special case for backward compatibility
+     if (cfg.form === false && cfg.location === true) {
+       d3.select(egbolt.parentElement + " ~ #celestial-form").style("display", "inline-block");
+       for (fld in cfg.formFields) {
+        if (!has(cfg.formFields, fld)) continue;
+         if (fld === "location") continue;
+         stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
+       }
+       return;
+     }
+     // hide if not desired
+     if (cfg.form === false) d3.select(egbolt.parentElement + " ~ #celestial-form").style("display", "none"); 
+  
+     for (fld in cfg.formFields) {
+       if (!has(cfg.formFields, fld)) continue;
+       if (fld === "location") continue;
+       vis = cfg.formFields[fld] === false ? "none" : "block";
+       stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
+     }
+     
+  }
+
+  function listConstellations() {
+    var sel = d3.select(egbolt.parentElement + " ~ #celestial-form").select("#constellation"),
+        list = [], selected = 0, id, name, config = egbolt.cfg;
+      
+    egbolt.container.selectAll(".constname").each( function(d, i) {
+      id = d.id;
+      if (id === config.constellation) selected = i;
+      name = d.properties[config.constellations.namesType];
+      if (name !== id) name += " (" + id + ")";
+      list.push({o:id, n:name});
+    });
+    if (list.length < 1 || sel.length < 1) {
+      setTimeout(listConstellations, 1000);
+      return;
+    }
+    list = [{o:"---", n:"(Select constellation)"}].concat(list);
+    
+    sel.selectAll('option').remove();
+    sel.selectAll('option').data(list).enter().append('option')
+       .attr("value", function (d) { return d.o; })
+       .text(function (d) { return d.n; });
+    sel.property("selectedIndex", selected);
+    //$form("constellation").firstChild.disabled = true;
+  
+    //egbolt.constellations = list;
+  }
+
+  function $form(id) { return document.querySelector(egbolt.parentElement + " ~ #celestial-form" + " #" + id); }
+
+
   var prj = Celestial.projections(), leo = Celestial.eulerAngles();
-  var div = d3.select(aktualis.parentElement + " ~ #celestial-form");
+  var div = d3.select(egbolt.parentElement + " ~ #celestial-form");
   //if div doesn't exist, create it
   if (div.size() < 1) {
     //var container = (config.container || "celestial-map");
-    div = d3.select(aktualis.parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
+    div = d3.select(egbolt.parentElement).select(function() { return this.parentNode; }).append("div").attr("id", "celestial-form");
   } else {
     // A meglévő űrlapot kiürítjük, mielőtt újraépítjük. Enélkül minden
     // Celestial.display() hívás hozzáfűzött egy újabb teljes űrlapot: hat hívás
@@ -302,7 +509,7 @@ function form(cfg) {
 
   col.append("input").attr("type", "button").attr("id", "download-png").attr("value", "PNG Image").on("click", function() {
     var a = d3.select("body").append("a").node(), 
-        canvas = document.querySelector(aktualis.parentElement + ' canvas');
+        canvas = document.querySelector(egbolt.parentElement + ' canvas');
     a.download = getFilename(".png");
     a.rel = "noopener";
     a.href = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
@@ -325,7 +532,7 @@ function form(cfg) {
         w = src.value;
     if (testNumber(src) === false) return; 
     config.width = w;
-    Celestial.resize({width:w});
+    egbolt.resize({width:w});
   }
   
   function reload() {
@@ -335,7 +542,7 @@ function form(cfg) {
     if (cx !== null) config.center[0] = cx; 
     config.transform = trans;
     settings.set(config);
-    Celestial.reload(config);
+    egbolt.reload(config);
   }  
   
   function reproject() {
@@ -343,13 +550,13 @@ function form(cfg) {
     if (!src) return;
     config.projection = src.value; 
     settings.set(config);
-    Celestial.reproject(config);
+    egbolt.reproject(config);
   }
   
   function turn() {
     if (testNumber(this) === false) return;   
     if (getCenter() === false) return;
-    Celestial.rotate(config);
+    egbolt.rotate(config);
   }
 
   function getCenter() {
@@ -374,7 +581,7 @@ function form(cfg) {
   function getFilename(ext) {
     var dateFormat = d3.timeFormat("%Y%m%dT%H%M%S%Z"),
         filename = "d3-celestial",
-        dt = Celestial.date();
+        dt = egbolt.date();
     if (dt) filename += dateFormat(dt);
     return filename + ext;
   }
@@ -389,37 +596,37 @@ function form(cfg) {
     var z, anims = [],
         config = globalConfig;
     if (id === "---") { 
-      Celestial.constellation = null;
-      z = Celestial.zoomBy();
+      egbolt.constellation = null;
+      z = egbolt.zoomBy();
       if (z !== 1) {
         anims.push({param:"zoom", value:1/z, duration:0});
       }
-      Celestial.animate(anims, false);    
-      //Celestial.redraw();
+      egbolt.animate(anims, false);    
+      //egbolt.redraw();
       return;
     }
-    if (!isObject(Celestial.constellations) || !has(Celestial.constellations, id)) return;
+    if (!isObject(egbolt.constellations) || !has(egbolt.constellations, id)) return;
     
-    var con = Celestial.constellations[id];
+    var con = egbolt.constellations[id];
     //transform according to settings
     var center = transformDeg(con.center, euler[config.transform]);
     config.center = center;
     setCenter(config.center, config.transform);
     //config.lines.graticule.lat.pos = [Round(con.center[0])];
     //config.lines.graticule.lon.pos = [Round(con.center[1])];
-    //Celestial.apply(config);
+    //egbolt.apply(config);
 
     //if zoomed, zoom out
-    z = Celestial.zoomBy();
+    z = egbolt.zoomBy();
     if (z !== 1) anims.push({param:"zoom", value:1/z, duration:0});
     //rotate
     anims.push({param:"center", value:center, duration:0});
     //and zoom in
     var sc = 1 + (360/con.scale); // > 10 ? 10 : con.scale;
     anims.push({param:"zoom", value:sc, duration:0});
-    Celestial.constellation = id;
+    egbolt.constellation = id;
     //Object.assign(globalConfig, config);   
-    Celestial.animate(anims, false);    
+    egbolt.animate(anims, false);    
   }
   
   function apply() {
@@ -453,7 +660,7 @@ function form(cfg) {
 
     getCenter();
     Object.assign(globalConfig, config);
-    Celestial.apply(config);
+    egbolt.apply(config);
   }
 
   function set(prop, val) {
@@ -490,7 +697,7 @@ function form(cfg) {
     
   function update() {
     // Update all form fields
-    d3.selectAll(aktualis.parentElement + " ~ #celestial-form input, " + aktualis.parentElement + " ~  #celestial-form select").each( function(d, i) {
+    d3.selectAll(egbolt.parentElement + " ~ #celestial-form input, " + egbolt.parentElement + " ~  #celestial-form select").each( function(d, i) {
       if (this === undefined) return;
       var id = this.id;
 
@@ -535,80 +742,38 @@ function form(cfg) {
     }   
   }
     
-  Celestial.updateForm  = update;
-  Celestial.showConstellation = showCon;
-  Celestial.setLanguage = function(lang) {
+  egbolt.updateForm  = update;
+  egbolt.showConstellation = showCon;
+  egbolt.setLanguage = function(lang) {
     var cfg = settings.set();
     if (formats_all[config.culture].indexOf(lang) !== -1) cfg = setLanguage(lang);
     return cfg;    
   };
+  // A térkép saját űrlapfelülete. Korábban ezek modulszintű függvények
+  // voltak, egy közös "aktuális térkép" mutatón át — ezért két interaktív
+  // térkép egy oldalon egymás mezőit írta volna.
+  return {
+    "$form": $form,
+    "enable": enable,
+    "fldEnable": fldEnable,
+    "listConstellations": listConstellations,
+    "setCenter": setCenter,
+    "setLimits": setLimits,
+    "setVisibility": setVisibility,
+    "showAdvanced": showAdvanced
+  };
+
 }
 
 
 // Dependend fields relations
-var depends = {
-  "stars-show": ["stars-limit", "stars-colors", "stars-style-fill", "stars-designation", "stars-propername", "stars-size", "stars-exponent"],
-  "stars-designation": ["stars-designationType", "stars-designationLimit"],
-  "stars-propername": ["stars-propernameLimit", "stars-propernameType"],
-  "dsos-show": ["dsos-limit", "dsos-colors", "dsos-style-fill", "dsos-names", "dsos-size", "dsos-exponent"],
-  "dsos-names": ["dsos-namesType", "dsos-nameLimit"],
-  "mw-show": ["mw-style-opacity", "mw-style-fill"],
-  "constellations-names": ["constellations-namesType"],
-  "planets-show": ["planets-symbolType", "planets-names"],
-  "planets-names": ["planets-namesType"]
-};
+
 
 // De/activate fields depending on selection of dependencies
-function enable(source) {
-  var fld = source.id, off;
-  
-  switch (fld) {
-    case "stars-show": 
-      off = !$form(fld).checked;
-      for (var i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
-      /* falls through */
-    case "stars-designation": 
-      off = !$form("stars-designation").checked || !$form("stars-show").checked;
-      for (i=0; i< depends["stars-designation"].length; i++) { fldEnable(depends["stars-designation"][i], off); }
-      /* falls through */
-    case "stars-propername": 
-      off = !$form("stars-propername").checked || !$form("stars-show").checked;
-      for (i=0; i< depends["stars-propername"].length; i++) { fldEnable(depends["stars-propername"][i], off); }
-      break;
-    case "dsos-show": 
-      off = !$form(fld).checked;
-      for (i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
-      /* falls through */
-    case "dsos-names": 
-      off = !$form("dsos-names").checked || !$form("dsos-show").checked;      
-      for (i=0; i< depends["dsos-names"].length; i++) { fldEnable(depends["dsos-names"][i], off); }
-      break;
-    case "planets-show": 
-      off = !$form(fld).checked;
-      for (i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
-      /* falls through */
-    case "planets-names": 
-      off = !$form("planets-names").checked || !$form("planets-show").checked;      
-      for (i=0; i< depends["planets-names"].length; i++) { fldEnable(depends["planets-names"][i], off); }
-      break;
-    case "constellations-names": 
-    case "mw-show": 
-      off = !$form(fld).checked;
-      for (i=0; i< depends[fld].length; i++) { fldEnable(depends[fld][i], off); }
-      break;
-  }  
-}
+
 
 // Enable/disable field d to status off
-function fldEnable(d, off) {
-  var node = $form(d);
-  if (!node) return;
-  node.disabled = off;
-  node.style.color = off ? "#999" : "#000";  
-  node.previousSibling.style.color = off ? "#999" : "#000";  
-  //if (node.previousSibling.previousSibling && node.previousSibling.previousSibling.tagName === "LABEL")
-  //  node.previousSibling.previousSibling.style.color = off ? "#999" : "#000";  
-}
+
 
 // Error notification
 function popError(nd, err) {
@@ -650,147 +815,22 @@ function testColor(node) {
   return true;
 }
 
-function setUnit(trans, old) {
-  var cx = $form("centerx");
-  if (!cx) return null;
-  
-  if (old) {
-    if (trans === "equatorial" && old !== "equatorial") {
-      cx.value = (cx.value/15).toFixed(1);
-      if (cx.value < 0) cx.value += 24;
-    } else if (trans !== "equatorial" && old === "equatorial") {
-      cx.value = (cx.value * 15).toFixed(1);
-      if (cx.value > 180) cx.value -= 360;
-    }
-  }
-  if (trans === 'equatorial') {
-    cx.min = "0";
-    cx.max = "24";
-    $form("cxunit").innerHTML = "h";
-  } else {
-    cx.min = "-180";
-    cx.max = "180";
-    $form("cxunit").innerHTML = "\u00b0";
-  }
-  return cx.value;
-}
 
-function setCenter(ctr, trans) {
-  var cx = $form("centerx"), cy = $form("centery"), cz = $form("centerz");
-  if (!cx || !cy) return;
-  
-  if (ctr === null || ctr.length < 1) ctr = [0,0,0]; 
-  if (ctr.length <= 2 || ctr[2] === undefined) ctr[2] = 0;
-  //config.center = ctr; 
-  if (trans !== "equatorial") cx.value = ctr[0].toFixed(1); 
-  else cx.value = ctr[0] < 0 ? (ctr[0] / 15 + 24).toFixed(1) : (ctr[0] / 15).toFixed(1); 
-  
-  cy.value = ctr[1].toFixed(1);
-  cz.value = ctr[2] !== null ? ctr[2].toFixed(1) : 0;
-  settings.set({center: ctr});
-}
+
+
 
 // Set max input limits depending on data
-function setLimits() {
-  var t, rx = /\d+(\.\d+)?/g,
-      s, d, res = {s:6, d:6},
-      config =  Celestial.settings();
 
-  d = config.dsos.data;
-  
-  //test dso limit
-  t = d.match(rx);
-  if (t !== null) {
-    res.d = parseFloat(t[t.length-1]);
-  }
-
-  if (res.d !== 6) {
-    $form("dsos-limit").max = res.d;
-    $form("dsos-nameLimit").max = res.d;
-  }
-   
-   s = config.stars.data;
-  
-  //test star limit
-  t = s.match(rx);
-  if (t !== null) {
-    res.s = parseFloat(t[t.length-1]);
-  }
-
-  if (res.s != 6) {
-    $form("stars-limit").max = res.s;
-    $form("stars-designationLimit").max = res.s;
-    $form("stars-propernameLimit").max = res.s;
-  }
-
-  return res;
-}
 
 // Options only visible in advanced mode
 //"stars-designationType", "stars-propernameType", "stars-size", "stars-exponent", "stars-size", "stars-exponent", //"constellations-namesType", "planets-namesType", "planets-symbolType"
-function showAdvanced(showit) {
-  var vis = showit ? "inline-block" : "none";
-  d3.select(aktualis.parentElement + " ~ #celestial-form").selectAll(".advanced").style("display", vis);
-  d3.select(aktualis.parentElement + " ~ #celestial-form").selectAll("#label-propername").style("display", showit ? "none" : "inline-block");
-}
 
 
-function setVisibility(cfg, which) {
-   var vis, fld;
-   if (!has(cfg, "formFields")) return;
-   if (which && has(cfg.formFields, which)) {
-     stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#" + which), {"display": "none"});
-     return;
-   }
-   // Special case for backward compatibility
-   if (cfg.form === false && cfg.location === true) {
-     d3.select(aktualis.parentElement + " ~ #celestial-form").style("display", "inline-block");
-     for (fld in cfg.formFields) {
-      if (!has(cfg.formFields, fld)) continue;
-       if (fld === "location") continue;
-       stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#" + fld), {"display": "none"});     
-     }
-     return;
-   }
-   // hide if not desired
-   if (cfg.form === false) d3.select(aktualis.parentElement + " ~ #celestial-form").style("display", "none"); 
 
-   for (fld in cfg.formFields) {
-     if (!has(cfg.formFields, fld)) continue;
-     if (fld === "location") continue;
-     vis = cfg.formFields[fld] === false ? "none" : "block";
-     stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#" + fld), {"display": vis});     
-   }
-   
-}
 
-function listConstellations() {
-  var sel = d3.select(aktualis.parentElement + " ~ #celestial-form").select("#constellation"),
-      list = [], selected = 0, id, name, config = aktualis.cfg;
-    
-  aktualis.container.selectAll(".constname").each( function(d, i) {
-    id = d.id;
-    if (id === config.constellation) selected = i;
-    name = d.properties[config.constellations.namesType];
-    if (name !== id) name += " (" + id + ")";
-    list.push({o:id, n:name});
-  });
-  if (list.length < 1 || sel.length < 1) {
-    setTimeout(listConstellations, 1000);
-    return;
-  }
-  list = [{o:"---", n:"(Select constellation)"}].concat(list);
-  
-  sel.selectAll('option').remove();
-  sel.selectAll('option').data(list).enter().append('option')
-     .attr("value", function (d) { return d.o; })
-     .text(function (d) { return d.n; });
-  sel.property("selectedIndex", selected);
-  //$form("constellation").firstChild.disabled = true;
 
-  //Celestial.constellations = list;
-}
 
-function $form(id) { return document.querySelector(aktualis.parentElement + " ~ #celestial-form" + " #" + id); }
 
-export { $form, enable, fldEnable, form, listConstellations, setCenter, showAdvanced, testNumber };
+
+
+export { form, popError, testColor, testNumber };

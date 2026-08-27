@@ -179,6 +179,31 @@ async function fustproba(lap) {
     ket.csillagA + " / " + ket.csillagB + " csillag");
   allit("térképenként egy tároló", ket.tarolok === 2, ket.tarolok + " db");
 
+  // Két INTERAKTÍV térkép, külön űrlappal (#96, #131 utolsó darabja).
+  await lap.goto(`http://127.0.0.1:${PORT}/demo/ket-urlap.html`, { waitUntil: "load" });
+  await lap.waitForTimeout(11000);
+  const kulon = await lap.evaluate(() => ({
+    kulonUrlap: window.__a.urlap !== window.__b.urlap,
+    urlapElemek: document.querySelectorAll("#celestial-form").length,
+    mezokA: document.querySelectorAll("#terkep-a ~ #celestial-form input, #terkep-a ~ #celestial-form select").length,
+    mezokB: document.querySelectorAll("#terkep-b ~ #celestial-form input, #terkep-b ~ #celestial-form select").length
+  }));
+  allit("két térkép, két külön űrlap", kulon.kulonUrlap && kulon.urlapElemek === 2,
+    kulon.urlapElemek + " űrlap-elem");
+  allit("mindkét űrlap teljes", kulon.mezokA > 50 && kulon.mezokB > 50,
+    kulon.mezokA + " / " + kulon.mezokB + " mező");
+
+  const elotte = await lap.evaluate(() => [window.__a.cfg.projection, window.__b.cfg.projection]);
+  await lap.evaluate(() => {
+    const s = document.querySelector("#terkep-a ~ #celestial-form #projection");
+    s.value = "hammer"; s.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await lap.waitForTimeout(6000);
+  const utana = await lap.evaluate(() => [window.__a.cfg.projection, window.__b.cfg.projection]);
+  allit("az egyik űrlapja csak a saját térképét állítja",
+    utana[0] === "hammer" && utana[1] === elotte[1],
+    `A: ${elotte[0]} → ${utana[0]}, B: ${elotte[1]} → ${utana[1]}`);
+
   // Konténer-elem és megadott szélesség nélkül: a térkép a body-ba kerül, és a
   // szélességet magának kell kitalálnia. Ez az ág korábban kivétellel elszállt.
   await lap.goto(`http://127.0.0.1:${PORT}/harness/nincs-container.html`, { waitUntil: "load" });

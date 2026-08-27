@@ -641,7 +641,65 @@ Kikerültek a listáról: kiderült, hogy **nem migrációs regresszió** — a
 `TypeError`. A referencia-háló ezt is méri: mindkét oldal 67 sikeres vetítést
 jelent a 69-ből.
 
-## 12. Hol tart a lépéssorrend
+## 12. Az űrlap példányosítása — a #96/#131 lezárása
+
+Az osztály-alapú átírás után a **rajzolás** már példányonként ment, de a
+beépített űrlap, a helymeghatározás, a dátumválasztó és az SVG-export egy közös
+`aktualis` mutatón dolgozott. Két interaktív térkép egy oldalon egymás mezőit
+írta volna.
+
+### Miért lezárás, nem osztály
+
+Kézenfekvő lett volna osztályba tenni a form.js-t. Csakhogy a d3
+eseménykezelőiben a `this` a **DOM-elemet** jelenti (`testNumber(this)`), és egy
+metódusban ez ütközne. A lezárás (closure) mindkettőt megőrzi: a `this` marad a
+DOM-elem, az `egbolt` pedig lexikálisan látszik.
+
+Az elemzés megmutatta, hogy a form.js 13 felső szintű függvényéből **3 tiszta**
+(`popError`, `testNumber`, `testColor`) — ezek maradtak —, **9 példányfüggő**
+(197 sor), és mind a `$form`-on keresztül. Ezek beköltöztek a `form(egbolt)`
+lezárásába, ami egy felületet ad vissza; a példány `egbolt.urlap`-ként tartja.
+
+Ugyanígy: `geo(egbolt)`, `datetimepicker(egbolt, …)`, `exportSVG(egbolt, …)`,
+és a `get.js` három függvénye is megkapja a példányt. A `$(id)` a
+`celestial.js` lezárásába került — csak onnan használták.
+
+Az űrlap kezelői (`apply`, `reproject`, `rotate`, …) 37 helyen a globális
+`Celestial`-t hívták; ezek most `egbolt`-ot. A könyvtárszintű segédfüggvények
+(`Celestial.projections()`, `eulerAngles()`, `getPoint()`) globálisak maradtak —
+azok nem példány-állapot.
+
+### Két buktató, amit a mérés fogott ki
+
+**Sorrend.** A `redraw()` már a zoom beállításakor lefut, és hívja a
+`setCenter`-t. A régi kódban az modulszintű függvény volt, tehát mindig
+létezett; a mezőkeresés pedig védve van a hiányzó űrlap ellen. Most magának az
+`urlap` objektumnak kell léteznie — a létrehozása a vetítés felépítése elé
+került.
+
+**Végtelen rekurzió.** A visszafelé kompatibilis felület a példány
+tulajdonságait másolja a `Celestial`-ra — köztük az `exportSVG`-t. Ha az a
+`Celestial.exportSVG`-t hívja, önmagát hívja. A példány metódusa most
+közvetlenül a modulfüggvényt szólítja.
+
+**Késői értékek.** A csillagképlista a betöltés UTÁN kap értéket, amikor a
+globális felület már lemásolódott. Erre a két névre (`constellations`,
+`constellation`) továbbító hozzáférés került, hogy a `Celestial.constellations`
+a régi módon működjön.
+
+### A bizonyíték
+
+`demo/ket-urlap.html`: két interaktív térkép, mindegyik saját űrlappal. Az A
+térkép űrlapján vetítést váltva:
+
+```
+A: orthographic → hammer      B: mollweide → mollweide
+```
+
+Külön űrlap-elem, külön űrlapfelület, külön SVG-export, 67-67 mező,
+5044-5044 csillag, 0 konzolhiba. Ez most állandó ellenőrzés a füstpróbában.
+
+## 13. Hol tart a lépéssorrend
 
 | # | Lépés | Állapot |
 |---|---|---|
@@ -652,7 +710,7 @@ jelent a 69-ből.
 | 5 | ES-modulok, tree-shaking | **kész**, 463 KB / 3 fájl → 291 KB / 1 fájl |
 | 6 | `form.js` / `svg.js` — migrálás vagy elhagyás | migrálva, működik |
 
-Ezen felül: **osztály-alapú felület** (`Egbolt`), több független térkép egy
-oldalon — az upstream #96 és #131.
+Ezen felül: **osztály-alapú felület** (`Egbolt`), több független *interaktív*
+térkép egy oldalon, saját űrlappal — az upstream #96 és #131 lezárva.
 
 Vetítések: **67/69 működik, ugyanannyi, mint az upstreamben.** Tesztek: 44, mind zöld.

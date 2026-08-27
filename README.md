@@ -185,6 +185,8 @@ npm run szerver
 globális állapot problémája, amit egy osztály-alapú átírás szüntet meg).
 
 **Megoldja továbbá**: #96 és #131 (több példány egy oldalon) — az osztály-alapú felülettel.
+Több *interaktív* térkép is működik egy oldalon, mindegyik saját űrlappal
+([`demo/ket-urlap.html`](demo/ket-urlap.html)).
 
 **Nem oldja meg**: a matematikai hibákat (#148, #130, #157) és a funkciókéréseket. Azok külön munkák
 — de a referencia-háló ezeket is biztonságossá teszi.

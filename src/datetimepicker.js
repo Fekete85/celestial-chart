@@ -1,9 +1,13 @@
 import * as d3 from "./d3.js";
-import { aktualis } from "./celestial.js";
-import { $form, testNumber } from "./form.js";
+
+import { testNumber } from "./form.js";
 import { dateDiff, isNumber, osztalyoz, px, stilusok } from "./util.js";
 
-var datetimepicker = function(cfg, callback) {
+// Dátum- és időválasztó egy térképhez. A példányt kapja, mert a mezői annak
+// az űrlapján élnek.
+var datetimepicker = function(egbolt, callback) {
+  var cfg = egbolt.cfg;
+  var $form = egbolt.urlap.$form;
   var date = new Date(), 
       tzFormat = d3.timeFormat("%Z"),
       tz = [{"−12:00":-720}, {"−11:00":-660}, {"−10:00":-600}, {"−09:30":-570}, {"−09:00":-540}, {"−08:00":-480}, {"−07:00":-420}, {"−06:00":-360}, {"−05:00":-300}, {"−04:30":-270}, {"−04:00":-240}, {"−03:30":-210}, {"−03:00":-180}, {"−02:30":-150}, {"−02:00":-120}, {"−01:00":-60}, {"±00:00":0}, {"+01:00":60}, {"+02:00":120}, {"+03:00":180}, {"+03:30":210}, {"+04:00":240}, {"+04:30":270}, {"+05:00":300}, {"+05:30":330}, {"+05:45":345}, {"+06:00":360}, {"+06:30":390}, {"+07:00":420}, {"+08:00":480}, {"+08:30":510}, {"+08:45":525}, {"+09:00":540}, {"+09:30":570}, {"+10:00":600}, {"+10:30":630}, {"+11:00":660}, {"+12:00":720}, {"+12:45":765}, {"+13:00":780}, {"+14:00":840}],
@@ -14,7 +18,7 @@ var datetimepicker = function(cfg, callback) {
       dateParse = d3.timeParse("%Y-%m-%d"),
       dtrange = cfg.daterange || [];
     
-  var picker = d3.select(aktualis.parentElement + " ~ #celestial-form").append("div").attr("id", "celestial-date");
+  var picker = d3.select(egbolt.parentElement + " ~ #celestial-form").append("div").attr("id", "celestial-date");
   nav("left");
   monSel();
   yrSel();
@@ -30,7 +34,7 @@ var datetimepicker = function(cfg, callback) {
   function daySel() {
     var mo = $form("mon").value, yr = $form("yr").value,
         curdt = new Date(yr, mo, 1),
-        cal = d3.select(aktualis.parentElement + " ~ #celestial-form").select("#cal"),
+        cal = d3.select(egbolt.parentElement + " ~ #celestial-form").select("#cal"),
         today = new Date();
     yr = parseInt(yr);   
     mo = parseInt(mo);   
@@ -64,7 +68,7 @@ var datetimepicker = function(cfg, callback) {
   }
 
   function fillYrSel() { 
-    var sel = d3.select(aktualis.parentElement + " ~ #celestial-form").select("select#yr"),
+    var sel = d3.select(egbolt.parentElement + " ~ #celestial-form").select("select#yr"),
         year = date.getFullYear(),
         selected = 0,
         years = getYears(date);
@@ -184,9 +188,9 @@ var datetimepicker = function(cfg, callback) {
       date.setTime(dt.valueOf());
       select("tz", tz);
       set();
-      stilusok(d3.select(aktualis.parentElement + " ~ #celestial-form").select("#celestial-date"),
+      stilusok(d3.select(egbolt.parentElement + " ~ #celestial-form").select("#celestial-date"),
                {"top": px(top), "left": px(left), "opacity": 1});  
-      d3.select(aktualis.parentElement + " ~ #celestial-form").select("#datepick").classed("active", true);
+      d3.select(egbolt.parentElement + " ~ #celestial-form").select("#datepick").classed("active", true);
     } else {
       vanish();
     }
@@ -194,7 +198,7 @@ var datetimepicker = function(cfg, callback) {
   
   this.isVisible = function () {
     if (!document.getElementById("datepick")) return false;
-    return d3.select(aktualis.parentElement + " ~ #celestial-form").select("#datepick").classed("active") === true;
+    return d3.select(egbolt.parentElement + " ~ #celestial-form").select("#datepick").classed("active") === true;
   };
 
   this.hide = function () {
@@ -202,9 +206,9 @@ var datetimepicker = function(cfg, callback) {
   };
   
   function vanish() {
-    d3.select(aktualis.parentElement + " ~ #celestial-form").select("#celestial-date").style("opacity", 0);
+    d3.select(egbolt.parentElement + " ~ #celestial-form").select("#celestial-date").style("opacity", 0);
     stilusok(d3.select("#error"), {top:"-9999px", left:"-9999px", opacity:0}); 
-    d3.select(aktualis.parentElement + " ~ #celestial-form").select("#datepick").classed("active", false);
+    d3.select(egbolt.parentElement + " ~ #celestial-form").select("#datepick").classed("active", false);
     setTimeout(function () { $form("celestial-date").style.top = px(-9999); }, 600);    
   }
   

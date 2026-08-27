@@ -1,8 +1,6 @@
 import * as d3 from "./d3.js";
-import { aktualis } from "./celestial.js";
 import { deg2rad, halfπ, τ } from "./transform.js";
 
-function $(id) { return document.querySelector(aktualis.parentElement + " #" + id); }
 function px(n) { return n + "px"; } 
 function Round(x, dg) { return(Math.round(Math.pow(10,dg)*x)/Math.pow(10,dg)); }
 function sign(x) { return x ? x < 0 ? -1 : 1 : 0; }
@@ -272,4 +270,4 @@ function poligonContains(polygon, point) {
   return (angle < -epsilon || angle < epsilon && sum < -epsilon) ^ (winding & 1);
 }
 
-export { $, Round, Trig, attrok, dateDiff, dateParse, feladatsor, findPos, functor, has, hasParent, interpolateAngle, isArray, isNumber, isObject, isValidDate, loadJson, osztalyoz, pad, px, stilusok };
+export { Round, Trig, attrok, dateDiff, dateParse, feladatsor, findPos, functor, has, hasParent, interpolateAngle, isArray, isNumber, isObject, isValidDate, loadJson, osztalyoz, pad, px, stilusok };

@@ -1,5 +1,5 @@
 import * as d3 from "./d3.js";
-import { aktualis } from "./celestial.js";
+
 import { bvcolor, formats, projections, settings } from "./config.js";
 import { getData, getGridValues, getMwbackground, getPlanet } from "./get.js";
 import { Celestial } from "./mag.js";
@@ -7,11 +7,13 @@ import { poles } from "./projection.js";
 import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
 import { Round, attrok, feladatsor, functor, has, isArray, loadJson } from "./util.js";
 
-function exportSVG(fname) {
+// SVG-export egy térképről. A példányt kapja, hogy a saját konfigurációjából,
+// tárolójából és névtábláiból dolgozzon.
+function exportSVG(egbolt, kesz, fname) {
   var doc = d3.select("body").append("div").attr("id", "d3-celestial-svg").attr("style", "display: none"),
       svg = d3.select("#d3-celestial-svg").append("svg"), //.attr("style", "display: none"),
       m = Celestial.metrics(),
-      cfg = settings.set(),
+      cfg = egbolt.cfg,
       path = cfg.datapath,
       proj = projections[cfg.projection],
       rotation = getAngles(cfg.center),
@@ -73,7 +75,7 @@ function exportSVG(fname) {
       styles.gridLines = svgStyle(cfg.lines.graticule);
     }
     if (has(cfg.lines.graticule, "lon") && cfg.lines.graticule.lon.pos.length > 0) {
-      var jlon = {type: "FeatureCollection", features: getGridValues("lon", cfg.lines.graticule.lon.pos)};      
+      var jlon = {type: "FeatureCollection", features: getGridValues("lon", cfg.lines.graticule.lon.pos, egbolt)};      
       groups.gridvaluesLon.selectAll(".gridvalues_lon")
         .data(jlon.features)
         .enter().append("text")
@@ -83,7 +85,7 @@ function exportSVG(fname) {
       styles.gridvaluesLon = svgTextStyle(cfg.lines.graticule.lon); 
     }
     if (has(cfg.lines.graticule, "lat") && cfg.lines.graticule.lat.pos.length > 0) {
-      var jlat = {type: "FeatureCollection", features: getGridValues("lat", cfg.lines.graticule.lat.pos)};
+      var jlat = {type: "FeatureCollection", features: getGridValues("lat", cfg.lines.graticule.lat.pos, egbolt)};
       groups.gridvaluesLat.selectAll(".gridvalues_lat")
         .data(jlat.features)
         .enter().append("text")
@@ -370,7 +372,7 @@ function exportSVG(fname) {
           o = Celestial.origin(dt).spherical(),
           jp = {type: "FeatureCollection", features: []},
           jlun = {type: "FeatureCollection", features: []};
-      aktualis.container.selectAll(".planet").each(function(d) {
+      egbolt.container.selectAll(".planet").each(function(d) {
         var id = d.id(), r = 12,
             p = d(dt).equatorial(o);
             
@@ -463,7 +465,7 @@ function exportSVG(fname) {
   
   if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && proj.clip) {
     q.defer(function(callback) {
-      var sol = getPlanet("sol");
+      var sol = getPlanet("sol", undefined, egbolt);
       if (sol) {
         var up = Celestial.zenith(),
             solpos = sol.ephemeris.pos,
@@ -638,8 +640,8 @@ function exportSVG(fname) {
   function dsoName(d) {
     //return p[cfg.dsos.namesType]; 
     var lang = cfg.dsos.namesType, id = d.id;
-    if (lang === "desig" || !has(aktualis.dsonames, id)) return d.properties.desig;
-    return has(aktualis.dsonames[id], lang) ? aktualis.dsonames[id][lang] : d.properties.desig; 
+    if (lang === "desig" || !has(egbolt.dsonames, id)) return d.properties.desig;
+    return has(egbolt.dsonames[id], lang) ? egbolt.dsonames[id][lang] : d.properties.desig; 
   }
 
   function dsoColor(p) {
@@ -648,14 +650,14 @@ function exportSVG(fname) {
   }
  
   function starDesignation(id) {
-    if (!has(aktualis.starnames, id)) return "";
-    return aktualis.starnames[id][cfg.stars.designationType]; 
+    if (!has(egbolt.starnames, id)) return "";
+    return egbolt.starnames[id][cfg.stars.designationType]; 
   }
 
   function starPropername(id) {
     var lang = cfg.stars.propernameType;
-    if (!has(aktualis.starnames, id)) return "";
-    return has(aktualis.starnames[id], lang) ? aktualis.starnames[id][lang] : aktualis.starnames[id].name; 
+    if (!has(egbolt.starnames, id)) return "";
+    return has(egbolt.starnames[id], lang) ? egbolt.starnames[id][lang] : egbolt.starnames[id].name; 
   }
 
   function starSize(mag) {
@@ -756,8 +758,8 @@ function exportSVG(fname) {
       a.href = URL.createObjectURL(blob);
       a.click();
       d3.select(a).remove();
-    } else if (exportCallback !== null) {
-      exportCallback(svg.node().outerHTML);
+    } else if (kesz !== null) {
+      kesz(svg.node().outerHTML);
     }
     d3.select("#d3-celestial-svg").remove();
   });
@@ -862,12 +864,14 @@ function customSymbol() {
   return symbol;
 }
 
-var exportCallback = null;
 
+
+// Visszafelé kompatibilis: a globális felület a legutóbbi térképre hat.
+// Példányonként a Celestial.display() által visszaadott objektumon van
+// exportSVG, ami a saját térképét exportálja.
 Celestial.exportSVG = function(callback) {
   if (!callback) return;
-  exportCallback = callback;
-  exportSVG();
+  exportSVG(this && this.cfg ? this : Celestial, callback);
 };
 
 export { customSvgSymbols, exportSVG };
