@@ -6,10 +6,10 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { betolt } from "./betolt.mjs";
+import { horizontal } from "../src/horizontal.js";
+import { Celestial } from "../src/mag.js";
 
-const { horizontal, Celestial } = betolt(
-  ["src/transform.js", "src/horizontal.js"], ["horizontal"]);
+
 
 const DT = new Date(Date.UTC(2026, 7, 26, 20, 0, 0));
 const BUDAPEST = [47.5196, 19.22];

@@ -1,4 +1,10 @@
-/* global Celestial, settings, globalConfig, formats, formats_all, $, px, has, isNumber, isObject, isArray, findPos, transformDeg, euler, exportSVG, parentElement */
+import * as d3 from "./d3.js";
+import { parentElement } from "./celestial.js";
+import { formats, formats_all, globalConfig, settings } from "./config.js";
+import { Celestial } from "./mag.js";
+import { exportSVG } from "./svg.js";
+import { euler, transformDeg } from "./transform.js";
+import { findPos, has, isArray, isNumber, isObject, px, stilusok } from "./util.js";
 
 //display settings form in div with id "celestial-form"
 function form(cfg) {
@@ -781,6 +787,4 @@ function listConstellations() {
 
 function $form(id) { return document.querySelector(parentElement + " ~ #celestial-form" + " #" + id); }
 
-
-
-
+export { $form, enable, fldEnable, form, listConstellations, setCenter, showAdvanced, testNumber };

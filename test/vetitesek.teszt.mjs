@@ -10,15 +10,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import * as d3 from "d3";
+import * as d3 from "d3-geo";
 import * as gp from "d3-geo-projection";
-import { betolt } from "./betolt.mjs";
+import { Celestial } from "../src/mag.js";
+import "../src/projection.js";   // mellékhatásért: felteszi a Celestial.projection-t
 
 const ref = JSON.parse(fs.readFileSync(new URL("./vetites-referencia-d3v3.json", import.meta.url)));
 const D3 = Object.assign({}, d3, gp);
-
-const { Celestial } = betolt(
-  ["src/transform.js", "src/util.js", "src/config.js", "src/projection.js"], [], { d3: D3 });
 
 const TURES = 1e-10;
 const rad = f => f * Math.PI / 180;

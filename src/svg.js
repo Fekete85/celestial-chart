@@ -1,4 +1,12 @@
-/* global d3, Celestial, projections, poles, getData, getPlanet, getMwbackground, getAngles, getWidth, getGridValues, has, isArray, halfπ, symbols, starnames, dsonames, bvcolor, settings, formats, transformDeg, euler, Round */
+import * as d3 from "./d3.js";
+import { dsonames, starnames } from "./celestial.js";
+import { bvcolor, formats, projections, settings } from "./config.js";
+import { getData, getGridValues, getMwbackground, getPlanet } from "./get.js";
+import { Celestial } from "./mag.js";
+import { poles } from "./projection.js";
+import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
+import { Round, attrok, feladatsor, functor, has, isArray, loadJson } from "./util.js";
+
 function exportSVG(fname) {
   var doc = d3.select("body").append("div").attr("id", "d3-celestial-svg").attr("style", "display: none"),
       svg = d3.select("#d3-celestial-svg").append("svg"), //.attr("style", "display: none"),
@@ -855,3 +863,5 @@ Celestial.exportSVG = function(callback) {
   exportCallback = callback;
   exportSVG();
 };
+
+export { customSvgSymbols, exportSVG };

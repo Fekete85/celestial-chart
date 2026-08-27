@@ -1,4 +1,11 @@
-/* global Celestial, projections, has */
+// A vetítések nyers függvényeit névből oldjuk fel, ezért itt névtérként kell a
+// két csomag — ez az egyetlen hely a könyvtárban, ahol dinamikus a hozzáférés.
+import * as d3geo from "d3-geo";
+import * as d3geoproj from "d3-geo-projection";
+import * as d3 from "./d3.js";
+import { projections } from "./config.js";
+import { Celestial } from "./mag.js";
+import { has } from "./util.js";
 
 // A d3 v3 a `d3.geo.<nev>.raw` alakot használta; a v7-ben ez `d3.geo<Nev>Raw`,
 // és néhány vetítés át is lett nevezve. A kivételek itt vannak felsorolva —
@@ -51,7 +58,7 @@ var POTOLT_RAW = {
 function rawVetites(nev) {
   if (has(POTOLT_RAW, nev)) { return POTOLT_RAW[nev]; }
   var kulcs = RAW_ATNEVEZES[nev] || ("geo" + nev.charAt(0).toUpperCase() + nev.slice(1) + "Raw");
-  return d3[kulcs];
+  return d3geoproj[kulcs] || d3geo[kulcs];
 }
 
 //Flipped projection generated on the fly
@@ -120,3 +127,5 @@ var poles = {
 
 Celestial.eulerAngles = function () { return eulerAngles; };
 Celestial.poles = function () { return poles; };
+
+export { eulerAngles, poles, projectionTween };

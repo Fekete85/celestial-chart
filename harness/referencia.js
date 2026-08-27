@@ -129,7 +129,10 @@
     var referencia = {
       generalva: new Date().toISOString(),
       forras: "ofrohn/d3-celestial @ 7e720a3 (2022-07-05)",
-      d3: (typeof d3 !== "undefined" && d3.version) ? d3.version : "?",
+      // A modulosított build magában hordozza a D3-at, tehát nincs globális d3 —
+      // ilyenkor a könyvtár saját verziója azonosítja a mérést.
+      d3: (typeof d3 !== "undefined" && d3.version) ? d3.version : "beépítve (nincs globális d3)",
+      celestial: Celestial.version,
       config: { width: config.width, transform: config.transform },
       pontok_szama: PONTOK.length,
       forgatasok: FORGATASOK,
@@ -206,7 +209,7 @@
     window.REFERENCIA = referencia;
     allapot.innerHTML = '<span class="ok">Kész.</span> ' + sikeres + "/" +
       VETITESEK.length + " vetítés, " + referencia.osszegzes.ossz_pont +
-      " mért pont. D3 verzió: " + referencia.d3;
+      " mért pont. Celestial " + referencia.celestial + ", D3: " + referencia.d3;
     // Letöltés: a referencia-fájl a repóba kerül, és ehhez méri magát a
     // migrált verzió. Böngészőből mentjük, mert a generálás is böngészőben
     // fut — a d3-celestial DOM-ot és canvas-t igényel.

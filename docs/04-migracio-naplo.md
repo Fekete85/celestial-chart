@@ -355,7 +355,93 @@ mind a hatot, és ki is váltotta.
 
 ---
 
-## 8. Hol tart a lépéssorrend
+## 8. ES-modulok és tree-shaking (5. lépés)
+
+### Miért volt ez a legkockázatosabb lépés
+
+A forrásfájlok addig sima szkriptek voltak: felső szintű `var`-okat és
+függvényeket deklaráltak, amiket a build egyetlen closure-be fűzött. Minden
+kereszthivatkozás **implicit** volt — a `svg.js` látta a `celestial.js`
+változóit, mert ugyanabban a hatókörben futottak. A modulosítás ezt az egészet
+explicitté teszi: 17 fájl, ~6000 sor, mintegy 90 megosztott név.
+
+Ezért nem kézzel történt: `acorn`-nal hatókör-elemzés készült minden fájlra
+(felső szintű deklarációk vs. szabad változók), és a kapott gráfból generálódtak
+az `import`/`export` blokkok. A kód törzse egyetlen sorral sem változott.
+
+Az elemzés két dolgot azonnal kimutatott:
+
+- **Névütközés**: a `cartesian` kétszer volt deklarálva — a `util.js`-ben
+  **radiánt** vár, a `lib/geo-zoom.js`-ben **fokot**. Az összefűzött buildben az
+  utóbbi írta felül az előbbit, tehát a `util.js` `poligonContains()` függvénye
+  rossz egységű `cartesian`-t hívott volna. Lappangó hiba: a `poligonContains`-t
+  semmi nem hívja. A modulosítás magától megszünteti.
+- **A `timezones()` elérhetetlen**: semmi nem hívja, és a `Celestial` objektumra
+  sem kerül fel. Emiatt a `topojson` függőség is feleslegesen került volna a
+  csomagba. A fájl a helyén maradt, kommenttel; a csomagoló egyszerűen kihagyja.
+
+### A körkörös importok
+
+A gráf körkörös (`celestial ↔ config ↔ form ↔ svg`), és körben az számít, mi
+értékelődik ki előbb. Több modul már **betöltéskor** hozzányúl a központi
+objektumhoz (`Celestial.settings = …`, `Celestial.projection = …`), tehát ha az
+a `celestial.js`-ben maradt volna, egyesek még inicializálatlanul látnák.
+
+Megoldás: a `Celestial` objektum saját, importmentes modulba került
+(`src/mag.js`). Így mindig elsőként fut le. A többi kereszthivatkozás
+futásidejű, ott az ES-modulok élő kötései pontosan a megfelelő viselkedést
+adják — a `cfg`, `parentElement`, `starnames`, `dsonames` a `display()`-ben
+kap értéket, és az importálók a friss értéket látják.
+
+### A D3 becsomagolása
+
+A `src/d3.js` egyetlen helyen sorolja fel, mire van szükség:
+
+```js
+export { select, selectAll, pointer } from "d3-selection";
+export { geoPath, geoProjection, geoCircle, … } from "d3-geo";
+…
+import "d3-transition";   // mellékhatásért: a selection .transition() metódusa
+```
+
+A hívási helyek `d3.geoPath()` alakban maradtak (`import * as d3 from "./d3.js"`),
+tehát a diff kicsi maradt — a csomagoló mégis pontosan ezt a listát húzza be.
+A vetítések nyers függvényeit névből kell feloldani, ez az egyetlen dinamikus
+hozzáférés, és a `projection.js`-be van bezárva.
+
+### Eredmény
+
+| | fájlok | méret |
+|---|---:|---:|
+| upstream v3 (d3 + plugin + celestial) | 3 | 316 KB |
+| migrált, modulosítás előtt (d3 v7 + plugin + celestial) | 3 | 463 KB |
+| **modulosítás után** | **1** | **291 KB** |
+
+A böngészőnek egyetlen fájl kell, és **nincs szükség globális `d3`-ra** — ez az
+upstream #134 („d3 is not defined"). A build négy alakot ad:
+
+| | |
+|---|---|
+| `build/celestial.js` / `.min.js` | IIFE, globális `Celestial` — a régi használat változatlanul |
+| `build/celestial.mjs` | ES-modul: `import Celestial from "…"` (#141, #115, #86) |
+| `build/celestial.cjs` | CommonJS: `require(…)` (#81) |
+
+### Ellenőrzés
+
+- **A referencia-háló bitre azonos** — nemcsak a v3-as alapvonallal, hanem a
+  modulosítás ELŐTTI v7-es buildel is: 25/25 vetítés, max eltérés 0,000 px.
+  A modulosítás tehát numerikusan semmit nem változtatott.
+- A harness oldala már csak a buildet tölti be; a lapon `typeof d3 === "undefined"`,
+  és a mérés így is lefut.
+- 44 teszt, valódi ESM-importokkal (a korábbi `vm`-alapú betöltő megszűnt) —
+  a tesztek most a tényleges modulgráfot futtatják.
+- `demo/modul.html`: `<script type="module">`-lal, globális `Celestial` és `d3`
+  nélkül — 5044 csillag, 0 hiba.
+- `demo/teljes.html`: a teljes felület globális alakban — zoom, húzásos forgatás,
+  vetítésváltás, SVG-export, 0 hiba.
+- Node-ban `import` és `require` alakban is betölthető.
+
+## 9. Hol tart a lépéssorrend
 
 | # | Lépés | Állapot |
 |---|---|---|
@@ -363,7 +449,7 @@ mind a hatot, és ki is váltotta.
 | 2 | Referencia-háló rögzítése | **kész**, és a háló maga is javítva |
 | 3 | Mechanikus D3-csere | **kész** |
 | 4 | `d3.geo.*` → `d3-geo` + `d3-geo-projection` | **kész**, 25/25 bitre azonos |
-| 5 | ES-modulok, tree-shaking | nincs elkezdve |
+| 5 | ES-modulok, tree-shaking | **kész**, 463 KB / 3 fájl → 291 KB / 1 fájl |
 | 6 | `form.js` / `svg.js` — migrálás vagy elhagyás | migrálva, működik |
 
 Vetítések: **67/69 működik, ugyanannyi, mint az upstreamben.** Tesztek: 44, mind zöld.

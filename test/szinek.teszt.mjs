@@ -9,10 +9,9 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as d3 from "d3";
-import { betolt } from "./betolt.mjs";
+import { bvcolor } from "../src/config.js";
 
-const { bvcolor } = betolt(["src/config.js"], ["bvcolor"], { d3 });
+
 
 const rgb = bv => {
   const c = bvcolor(bv);

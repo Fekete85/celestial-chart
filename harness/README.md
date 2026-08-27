@@ -127,7 +127,7 @@ Eredmény: az eredeti kód a horizont fölötti pontok **50%-át** rosszul adja 
 | | |
 |---|---|
 | `referencia.html` + `referencia.js` | a generátor |
-| `referencia-uj.html` | ugyanaz a generátor a migrált buildre |
+| `referencia-uj.html` | ugyanaz a generátor a migrált buildre — **csak a buildet tölti be**, külső D3 nélkül |
 | `referencia-d3v3.json` | **a rögzített referencia** — ehhez méri magát a migrált verzió (712 KB) |
 | `referencia-d3v7.json` | a migrált build kimenete |
 | `referencia-minta.json` | a formátum bemutatása, olvasható méretben |

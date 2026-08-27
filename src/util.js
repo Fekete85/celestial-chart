@@ -1,4 +1,7 @@
-/* global τ, halfπ, deg2rad, parentElement */
+import * as d3 from "./d3.js";
+import { parentElement } from "./celestial.js";
+import { deg2rad, halfπ, τ } from "./transform.js";
+
 function $(id) { return document.querySelector(parentElement + " #" + id); }
 function px(n) { return n + "px"; } 
 function Round(x, dg) { return(Math.round(Math.pow(10,dg)*x)/Math.pow(10,dg)); }
@@ -6,8 +9,11 @@ function sign(x) { return x ? x < 0 ? -1 : 1 : 0; }
 function pad(n) { return n < 10 ? '0' + n : n; }
 
 
-function has(o, key) { return o !== null && hasOwnProperty.call(o, key); }
-function when(o, key, val) { return o !== null && hasOwnProperty.call(o, key) ? o[key] : val; }
+// A csupasz `hasOwnProperty` a globális objektumon keresztül oldódott fel; modulban
+// ez félrevezető, ezért explicit.
+var sajatja = Object.prototype.hasOwnProperty;
+function has(o, key) { return o !== null && sajatja.call(o, key); }
+function when(o, key, val) { return o !== null && sajatja.call(o, key) ? o[key] : val; }
 function isNumber(n) { return n !== null && !isNaN(parseFloat(n)) && isFinite(n); }
 function isArray(o) { return o !== null && Object.prototype.toString.call(o) === "[object Array]"; }
 function isObject(o) { var type = typeof o;  return type === 'function' || type === 'object' && !!o; }
@@ -254,3 +260,5 @@ function poligonContains(polygon, point) {
 
   return (angle < -epsilon || angle < epsilon && sum < -epsilon) ^ (winding & 1);
 }
+
+export { $, Round, Trig, attrok, dateDiff, dateParse, feladatsor, findPos, functor, has, hasParent, interpolateAngle, isArray, isNumber, isObject, isValidDate, loadJson, osztalyoz, pad, px, stilusok };

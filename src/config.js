@@ -1,4 +1,6 @@
-/* global d3, Celestial, has, isArray */
+import * as d3 from "./d3.js";
+import { Celestial } from "./mag.js";
+import { has, isArray } from "./util.js";
 
 // Central configuration object
 var globalConfig = {};
@@ -517,3 +519,5 @@ var formats_all = {
   "iau": Object.keys(formats.constellations.iau.names).concat(Object.keys(formats.planets.iau.names)).filter( function(value, index, self) { return self.indexOf(value) === index; } ),
   "cn":  Object.keys(formats.constellations.cn.names).concat(Object.keys(formats.starnames.cn.propername)).filter( function(value, index, self) { return self.indexOf(value) === index; } )
 };
+
+export { arrayfy, bvcolor, formats, formats_all, globalConfig, projections, settings };

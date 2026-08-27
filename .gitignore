@@ -2,7 +2,5 @@ upstream/
 node_modules/
 harness/referencia-*.json.tmp
 .DS_Store
-node_modules/
 build/
-vendor/
 demo/export-proba.svg

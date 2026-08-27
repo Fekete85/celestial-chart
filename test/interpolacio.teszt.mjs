@@ -19,21 +19,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { geoInterpolate, geoDistance } from "d3";
-import { betolt } from "./betolt.mjs";
+import { geoInterpolate, geoDistance } from "d3-geo";
+import { Round, interpolateAngle } from "../src/util.js";
 
 const GYOKER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-/* Valós forrás. A transform.js a τ / deg2rad konstansok miatt kell. */
-const { Round, interpolateAngle } = betolt(
-  ["src/transform.js", "src/util.js"], ["Round", "interpolateAngle"]);
-
-/* Az interpolateAngle a d3.interpolateNumber-t hívja. A betolt() vm-kontextusa
- * nem ismer d3-at, ezért a vm SAJÁT Function konstruktorán keresztül teszünk be
- * egy minimális pótlékot — így a tesztelt függvénytörzs a valódi forrás marad. */
-new interpolateAngle.constructor("v", "d3 = v;")({
-  interpolateNumber: (a, b) => t => a * (1 - t) + b * t
-});
 
 const rad2fok = r => r * 180 / Math.PI;
 

@@ -102,10 +102,29 @@ Az első két lépésnek **önmagában is van értéke**, függetlenül attól, 
 | 2 | ~~**Referencia-háló rögzítése** a jelenlegi verzióra~~ **kész** | Ezután bármihez hozzá lehet nyúlni félelem nélkül | nincs |
 | 3 | ~~Mechanikus D3-csere~~ **kész** | Gépies, a háló azonnal visszajelez | alacsony |
 | 4 | ~~`d3.geo.*` → `d3-geo` + `d3-geo-projection`~~ **kész** | **Ez az érdemi rész**, vetítésenként mérve | **magas** |
-| 5 | ES-modulok, tree-shaking | Ez oldja meg a #86, #81, #115, #141 issue-kat | közepes |
+| 5 | ~~ES-modulok, tree-shaking~~ **kész** | Ez oldja meg a #86, #81, #115, #141 issue-kat | közepes |
 | 6 | ~~`form.js` / `svg.js`~~ **migrálva, működik** | Külön döntés, nem blokkoló | – |
 
-Az 1–4. lépés elkészült. Az eredmény és a közben talált hibák: [`docs/04-migracio-naplo.md`](docs/04-migracio-naplo.md).
+Az 1–6. lépés elkészült. Az eredmény és a közben talált hibák: [`docs/04-migracio-naplo.md`](docs/04-migracio-naplo.md).
+
+### Használat
+
+```js
+import Celestial from "d3-celestial-modern";     // ES-modul
+const { Celestial } = require("d3-celestial-modern");  // CommonJS
+```
+
+vagy böngészőben, a régi módon — de már **egyetlen fájlból, külső D3 nélkül**:
+
+```html
+<script src="build/celestial.min.js"></script>
+```
+
+| | fájlok | méret |
+|---|---:|---:|
+| upstream v3 (d3 + plugin + celestial) | 3 | 316 KB |
+| migrált, modulosítás előtt | 3 | 463 KB |
+| **most** | **1** | **291 KB** |
 
 ### A migráció mérlege
 

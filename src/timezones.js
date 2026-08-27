@@ -1,4 +1,13 @@
-/* global d3, topojson, Celestial, settings, container */
+/* NEM RÉSZE A BUILDNEK.
+ *
+ * A `timezones()` függvényt a könyvtárban semmi nem hívja, és a `Celestial`
+ * objektumra sem kerül fel — az upstreamben is elérhetetlen volt. A modulosítás
+ * után ez láthatóvá vált: egyetlen modul sem importálja, ezért a csomagoló ki
+ * is hagyja. A `topojson` függősége is csak emiatt maradt volna a csomagban.
+ *
+ * Nem töröltük: ha az időzóna-keresésre szükség lesz, innen indulhat. Akkor
+ * ES-modullá kell alakítani, és a topojson-client-et függőségként felvenni.
+ */
 function timezones() {
   var cfg = settings.set(),
        world, timezone;

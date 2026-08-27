@@ -1,4 +1,8 @@
-/* global dateDiff, $, $form, px, testNumber, isNumber, parentElement */
+import * as d3 from "./d3.js";
+import { parentElement } from "./celestial.js";
+import { $form, testNumber } from "./form.js";
+import { dateDiff, isNumber, osztalyoz, px, stilusok } from "./util.js";
+
 var datetimepicker = function(cfg, callback) {
   var date = new Date(), 
       tzFormat = d3.timeFormat("%Z"),
@@ -221,3 +225,5 @@ var datetimepicker = function(cfg, callback) {
   
   
 };
+
+export { datetimepicker };

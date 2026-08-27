@@ -1,4 +1,6 @@
-/* global Celestial, deg2rad */
+import { Celestial } from "./mag.js";
+import { deg2rad } from "./transform.js";
+
 var horizontal = function(dt, pos, loc) {
   //dt: datetime, pos: celestial coordinates [lat,lng], loc: location [lat,lng]  
   var ha = getMST(dt, loc[1]) - pos[0];
@@ -84,3 +86,5 @@ Celestial.ha = function(dt, lng, ra) {
   if (ha < 180) ha = ha + 360;
   return ha;
 };
+
+export { horizontal };

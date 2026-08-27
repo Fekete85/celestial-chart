@@ -1,4 +1,6 @@
-/* global Celestial */
+import { Celestial } from "./mag.js";
+import { functor } from "./util.js";
+
 var Canvas = {}; 
 
 Canvas.symbol = function () {
@@ -262,3 +264,5 @@ canvas.text = function () {
   
 
 */
+
+export { Canvas };

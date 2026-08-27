@@ -1,4 +1,6 @@
-/* global Celestial, has */
+import { Celestial } from "./mag.js";
+import { has } from "./util.js";
+
 //Add more JSON data to the map
 var hasCallback = false;
 
@@ -40,3 +42,5 @@ Celestial.runCallback = function(dat) {
   Celestial.callback();
   hasCallback = true;
 };
+
+export { hasCallback };

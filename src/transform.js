@@ -1,4 +1,6 @@
-/* global Celestial, poles, eulerAngles */
+import { Celestial } from "./mag.js";
+import { eulerAngles } from "./projection.js";
+
 var τ = Math.PI*2,
     halfπ = Math.PI/2,
     deg2rad = Math.PI/180;
@@ -88,3 +90,5 @@ var euler = {
 
 euler.init();
 Celestial.euler = function () { return euler; };
+
+export { deg2rad, euler, getAngles, halfπ, transformDeg, τ };

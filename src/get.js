@@ -1,4 +1,9 @@
-/* global Celestial, Kepler, euler, transformDeg, isArray, isNumber, has, cfg */
+import { cfg } from "./celestial.js";
+import { Kepler } from "./kepler.js";
+import { Celestial } from "./mag.js";
+import { euler, transformDeg } from "./transform.js";
+import { has, isArray, isNumber } from "./util.js";
+
 //load data and transform coordinates
 
 
@@ -199,3 +204,5 @@ function transMultiLine(c, leo) {
 Celestial.getData = getData;
 Celestial.getPoint = getPoint;
 Celestial.getPlanet = getPlanet;
+
+export { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets };

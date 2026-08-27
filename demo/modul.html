@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>d3-celestial — ES-modulként</title>
+<link rel="stylesheet" href="../celestial.css">
+<style>body { font: 14px sans-serif; margin: 16px } code { background:#f2f2f2; padding:1px 4px; border-radius:3px }</style>
+</head>
+<body>
+<h1>ES-modulként</h1>
+<p>
+  Ez az oldal <strong>nem</strong> globális <code>Celestial</code>-t használ, hanem
+  <code>import</code>-tal tölti be a <code>build/celestial.mjs</code>-t. Ugyanez az alak megy
+  bundlerbe (webpack, Vite, Rollup) és Node-ba is — ezt oldja meg az upstream #141, #115, #86 és #81.
+</p>
+<pre><code>import Celestial from "../build/celestial.mjs";
+Celestial.display({ container: "celestial-map", ... });</code></pre>
+<div id="celestial-map"></div>
+<p id="allapot">Betöltés…</p>
+
+<script type="module">
+import Celestial from "../build/celestial.mjs";
+
+Celestial.display({
+  container: "celestial-map",
+  width: 700,
+  projection: "aitoff",
+  datapath: "../harness/data/",
+  interactive: false,
+  form: false,
+  controls: false,
+  location: false,
+  follow: "center",
+  stars: { limit: 6 },
+  mw: { show: true }
+});
+
+document.getElementById("allapot").textContent =
+  "Betöltve modulként. Celestial verzió: " + Celestial.version +
+  " · globális Celestial: " + (typeof window.Celestial) +
+  " · globális d3: " + (typeof window.d3);
+</script>
+</body>
+</html>

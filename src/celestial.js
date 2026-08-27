@@ -1,9 +1,15 @@
-/* global module, require, topojson, settings, bvcolor, projections, projectionTween, poles, eulerAngles, euler, getAngles, transformDeg, getData, getPlanets, getPlanet, listConstellations, getConstellationList, getMwbackground, getGridValues, Canvas, halfπ, $, px, Round, has, hasCallback, isArray, isNumber, arrayfy, form, geo, fldEnable, setCenter, interpolateAngle, formats */
-var Celestial = {
-  version: '0.7.35',
-  container: null,
-  data: []
-};
+import * as d3 from "./d3.js";
+import { geoZoom } from "../lib/geo-zoom.js";
+import { hasCallback } from "./add.js";
+import { Canvas } from "./canvas.js";
+import { arrayfy, bvcolor, formats, projections, settings } from "./config.js";
+import { fldEnable, form, listConstellations, setCenter } from "./form.js";
+import { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets } from "./get.js";
+import { geo } from "./location.js";
+import { Celestial } from "./mag.js";
+import { poles, projectionTween } from "./projection.js";
+import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
+import { $, Round, has, interpolateAngle, isArray, isNumber, loadJson, px } from "./util.js";
 
 var ANIMDISTANCE = 0.035,  // Rotation animation threshold, ~2deg in radians
     ANIMSCALE = 1.4,       // Zoom animation threshold, scale factor
@@ -1052,9 +1058,7 @@ Celestial.display = function(config) {
   load();
 };
  
-//Export entire object if invoked by require
-if (typeof module === "object" && module.exports) {
-  // A d3 és a d3-geo-projection már nem a repóból jön, hanem npm-ről; a
-  // beágyazó dönti el, hogyan tölti be. Csak a Celestialt adjuk ki.
-  module.exports = { Celestial: function() { return Celestial; } };
-}
+// A CommonJS-export helyét a build vette át: a build/celestial.cjs és a
+// build/celestial.mjs a beágyazó igénye szerinti alakban adja ki a Celestialt.
+
+export { Celestial, cfg, dsonames, parentElement, starnames };

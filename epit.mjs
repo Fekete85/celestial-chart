@@ -1,59 +1,35 @@
-/* Build: a forrásfájlokat egyetlen closure-be fűzi, ahogy az upstream make.js.
+/* Build: a forrás ES-modulokból három kimenet.
  *
- * A modernizálás első fázisában a szerkezet szándékosan marad a régi: globális
- * `d3`, egy összefűzött fájl. Így a referencia-háló ugyanazon a felületen méri
- * az új kódot, mint a régit — a D3-csere hatása elkülöníthető a
- * modulosítás hatásától.
+ * Az első fázisban a szerkezet szándékosan maradt a régi (globális d3, egyetlen
+ * összefűzött fájl), hogy a referencia-háló ugyanazon a felületen mérje az új
+ * kódot, mint a régit. Innentől viszont a modulhatárok explicitek, a csomagoló
+ * pedig csak azt húzza be, amire tényleg szükség van — és a D3 benne van a
+ * csomagban, tehát nem kell globális `d3` (upstream #134, #141, #115, #81, #86).
  */
 import fs from "node:fs";
-import path from "node:path";
 import * as esbuild from "esbuild";
-
-const FAJLOK = [
-  "src/celestial.js",
-  "src/projection.js",
-  "src/transform.js",
-  "src/horizontal.js",
-  "src/add.js",
-  "src/get.js",
-  "src/config.js",
-  "src/canvas.js",
-  "src/util.js",
-  "src/form.js",
-  "src/location.js",
-  "src/kepler.js",
-  "src/moon.js",
-  "src/svg.js",
-  "src/datetimepicker.js",
-  "lib/geo-zoom.js"
-];
 
 const FEJLEC = "// d3-celestial modernizált fork — BSD-3-Clause, lásd LICENSE\n" +
                "// Eredeti: Copyright 2015-2020 Olaf Frohn https://github.com/ofrohn\n";
 
-const test = FAJLOK
-  .map(f => fs.readFileSync(f, "utf8").replace(/\/\* global.*/g, ""))
-  .join("\n");
-
-const kod = FEJLEC + "!(function() {\n" + test + "\nthis.Celestial = Celestial;\n})();\n";
+const KOZOS = {
+  bundle: true,
+  target: ["es2018"],
+  banner: { js: FEJLEC },
+  logLevel: "warning"
+};
 
 fs.mkdirSync("build", { recursive: true });
-fs.writeFileSync("build/celestial.js", kod);
 
-const kicsi = await esbuild.transform(kod, { minify: true, target: "es2018" });
-fs.writeFileSync("build/celestial.min.js", FEJLEC + kicsi.code);
+const kimenetek = [
+  { entryPoints: ["src/globalis.js"], outfile: "build/celestial.js",     format: "iife" },
+  { entryPoints: ["src/globalis.js"], outfile: "build/celestial.min.js", format: "iife", minify: true },
+  { entryPoints: ["src/index.js"],    outfile: "build/celestial.mjs",    format: "esm" },
+  { entryPoints: ["src/index.js"],    outfile: "build/celestial.cjs",    format: "cjs", platform: "node" }
+];
 
-// A d3 v7 és a d3-geo-projection az npm-ről jön; a harness oldalai
-// vendor/-ból töltik. A régi (v3-as) pinelt másolat ettől külön él a
-// harness/vendor/ alatt — az a referencia reprodukálhatóságát biztosítja.
-fs.mkdirSync("vendor", { recursive: true });
-for (const [honnan, hova] of [
-  ["node_modules/d3/dist/d3.min.js", "vendor/d3.min.js"],
-  ["node_modules/d3-geo-projection/dist/d3-geo-projection.min.js", "vendor/d3-geo-projection.min.js"],
-  ["harness/vendor/topojson.min.js", "vendor/topojson.min.js"]
-]) {
-  fs.copyFileSync(honnan, hova);
+for (const k of kimenetek) {
+  await esbuild.build(Object.assign({}, KOZOS, k));
+  const meret = fs.statSync(k.outfile).size / 1024;
+  console.log(`${k.outfile.padEnd(24)} ${meret.toFixed(0).padStart(4)} KB  (${k.format})`);
 }
-
-console.log(`build/celestial.js      ${(kod.length / 1024).toFixed(0)} KB`);
-console.log(`build/celestial.min.js  ${(kicsi.code.length / 1024).toFixed(0)} KB`);

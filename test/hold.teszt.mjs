@@ -15,10 +15,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { betolt } from "./betolt.mjs";
-
-const { Kepler } = betolt(
-  ["src/transform.js", "src/util.js", "src/moon.js", "src/kepler.js"], ["Kepler"]);
+import { Kepler } from "../src/kepler.js";
 
 const FOK = Math.PI / 180;
 

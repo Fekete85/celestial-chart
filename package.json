@@ -13,10 +13,37 @@
     "szerver": "python3 -m http.server 8877"
   },
   "dependencies": {
-    "d3": "^7.9.0",
-    "d3-geo-projection": "^4.0.0"
+    "d3-dispatch": "^3.0.1",
+    "d3-fetch": "^3.0.1",
+    "d3-geo": "^3.1.1",
+    "d3-geo-projection": "^4.0.0",
+    "d3-interpolate": "^3.0.1",
+    "d3-scale": "^4.0.2",
+    "d3-selection": "^3.0.0",
+    "d3-shape": "^3.2.0",
+    "d3-time-format": "^4.1.0",
+    "d3-transition": "^3.0.1",
+    "d3-zoom": "^3.0.0"
   },
   "devDependencies": {
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
     "esbuild": "^0.25.0"
-  }
+  },
+  "main": "build/celestial.cjs",
+  "module": "build/celestial.mjs",
+  "exports": {
+    ".": {
+      "import": "./build/celestial.mjs",
+      "require": "./build/celestial.cjs"
+    }
+  },
+  "files": [
+    "build",
+    "src",
+    "lib",
+    "celestial.css",
+    "LICENSE",
+    "README.md"
+  ]
 }

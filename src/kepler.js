@@ -1,3 +1,7 @@
+import { Moon } from "./moon.js";
+import { deg2rad, halfπ, τ } from "./transform.js";
+import { Trig, dateParse, has } from "./util.js";
+
 ﻿/* global transform, Trig, Moon, deg2rad, dateParse, has, halfπ, τ */
 var gmdat = {
   "sol": 0.0002959122082855911025,  // AU^3/d^2
@@ -473,3 +477,5 @@ var Kepler = function () {
 
   return kepler;  
 };
+
+export { Kepler };

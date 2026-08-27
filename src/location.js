@@ -1,4 +1,11 @@
-/* global Celestial, settings, horizontal, datetimepicker, config, formats, $, $form, pad, testNumber, isArray, isNumber, isValidDate, showAdvanced, enable, Round, has, hasParent, parentElement */
+import * as d3 from "./d3.js";
+import { parentElement } from "./celestial.js";
+import { formats, settings } from "./config.js";
+import { datetimepicker } from "./datetimepicker.js";
+import { $form, enable, showAdvanced, testNumber } from "./form.js";
+import { horizontal } from "./horizontal.js";
+import { Celestial } from "./mag.js";
+import { Round, has, hasParent, isArray, isNumber, isValidDate, loadJson, pad, stilusok } from "./util.js";
 
 var geoInfo = null;
 
@@ -304,3 +311,5 @@ function geo(cfg) {
     setTimeout(go, 1000); 
  
 }
+
+export { geo };

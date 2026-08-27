@@ -11,10 +11,10 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { betolt } from "./betolt.mjs";
+import { customSvgSymbols } from "../src/svg.js";
+import { Canvas } from "../src/canvas.js";
 
-const svg = betolt(["src/svg.js"], ["customSvgSymbols"]);
-const canvas = betolt(["src/canvas.js", "src/util.js", "src/transform.js"], ["Canvas"]);
+
 
 const TURES = 0.02;   // a kódban lévő +0.01 elfajulás-védelem miatt
 
@@ -28,7 +28,7 @@ const KOROK = [0, 0.5, 1.0, Math.PI / 2, 2.0, 2.6, Math.PI, 3.7, 4.5, 3 * Math.P
 /* Az SVG-útvonal két ellipszisívet tartalmaz: az elsőt a korong pereme
  * (r,r), a másodikat a terminátor (r·e, r). A kettő hányadosa az e. */
 function svgE(ag, meret) {
-  const d = svg.customSvgSymbols.get("crescent")(meret, ag);
+  const d = customSvgSymbols.get("crescent")(meret, ag);
   const ivek = [...d.matchAll(/a([\d.eE+-]+),([\d.eE+-]+)\s/g)].map(m => [+m[1], +m[2]]);
   assert.equal(ivek.length, 2, "két ellipszisívet vártunk: " + d);
   const r = ivek[0][0], rx = ivek[1][0];
@@ -45,7 +45,7 @@ function canvasE(ag, meret) {
     moveTo() {}, lineTo() {}, arc() {},
     scale(x) { e = x; }
   };
-  canvas.Canvas.symbol().type("crescent").size(meret).age(ag).position([0, 0])(ctx);
+  Canvas.symbol().type("crescent").size(meret).age(ag).position([0, 0])(ctx);
   assert.ok(e !== null, "a rajzoló nem hívott scale()-t");
   return e;
 }
