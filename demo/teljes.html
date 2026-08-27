@@ -7,6 +7,14 @@
 <style>body { font: 14px sans-serif; margin: 12px; } #naplo { font: 12px monospace; white-space: pre-wrap; background:#f4f4f4; padding:8px; margin-top:8px; }</style>
 </head>
 <body>
+<noscript>Ehhez az oldalhoz JavaScript kell.</noscript>
+<p id="figyelmeztetes" style="display:none; background:#fee; border:1px solid #c00; padding:10px 14px; border-radius:6px">
+  <strong>Ez az oldal HTTP-n keresztül működik, <code>file://</code>-ról nem.</strong>
+  A csillagadatokat a <code>d3.json</code> tölti be, ami a v7-ben <code>fetch</code>-et használ — azt a
+  böngésző file-protokollon blokkolja. Indítsd a repó gyökeréből:
+  <code>npm run szerver</code>, majd nyisd meg:
+  <code>http://127.0.0.1:8877/demo/teljes.html</code>
+</p>
 <div id="celestial-form"></div>
 <div id="celestial-map"></div>
 <div id="naplo"></div>
@@ -19,6 +27,10 @@
 /* Az interaktív felület füstpróbája: zoom, űrlap, helymeghatározás,
  * dátumválasztó, SVG-export. Ezeket a referencia-háló nem méri — ott
  * interactive:false, form:false —, tehát külön kell megnézni őket. */
+if (location.protocol === "file:") {
+  document.getElementById("figyelmeztetes").style.display = "block";
+}
+
 window.__hibak = [];
 window.onerror = function (uz, f, s, o, e) { window.__hibak.push(String(uz) + " @" + s); };
 var eredetiHiba = console.error;
@@ -29,7 +41,9 @@ Celestial.display({
   width: 700,
   projection: "airy",
   transform: "equatorial",
-  datapath: "../upstream/data/",
+  // A repóban lévő minimális adatkészlet. A teljes (43 MB) az upstreamé; ha az
+  // is kell, állítsd át ../upstream/data/-ra.
+  datapath: "../harness/data/",
   interactive: true,
   form: true,
   controls: true,
