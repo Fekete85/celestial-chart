@@ -51,7 +51,7 @@ A vetítés viszont determinisztikus függvény: `(RA, Dec, vetítés, forgatás
 rögzíthető. A [`harness/`](harness/) mappában **működő referencia-generátor** van:
 
 ```
-25 vetítés × 4 forgatás × 413 égi pont = 41 300 mért pont
+67 vetítés × 4 forgatás × 413 égi pont = 110 684 mért pont
 ```
 
 Rögzíti a vetített pixelkoordinátákat **és a clipping állapotát** is. A migrált verziónak — adott
@@ -137,10 +137,11 @@ vagy böngészőben, a régi módon — de már **egyetlen fájlból, külső D3
 ### A migráció mérlege
 
 ```
-41 300 mért pont — 25/25 vetítés max eltérés 0.000 px, 0 clipping-eltérés
+110 684 mért pont — 67/67 vetítés max eltérés 0.000 px, 0 clipping-eltérés
 ```
 
-A vetítési kimenet **bitre azonos** a D3 v3-as verzióval. Három pontban a régi kód NaN-t adott
+A vetítési kimenet **bitre azonos** a D3 v3-as verzióval. (A 69 konfigurált
+vetítésből kettő az upstream szállított buildjében sincs benne — ott is hibát dob.) Három pontban a régi kód NaN-t adott
 (a vetítés antipódusa), az új definiált értéket — ez javulás.
 
 A migráció közben **nyolc hiba** került elő, amiből hatot a numerikus háló nem is fogott volna meg
@@ -158,10 +159,15 @@ Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.m
 
 ```bash
 npm install
-npm run ellenoriz     # build + 44 teszt + a háló öntesztje + a két referencia diffje
+npm run ellenoriz     # build + 49 teszt + a háló öntesztje + 23 böngészős állítás
 ```
 
-Böngészős ellenőrzéshez:
+Az `ellenoriz` headless Chromiumban végigméri a teljes vizsgálatot (~2 perc):
+mindkét referencia újragenerálása és összevetése, 12 kép + pixeldiff, interaktív
+füstpróba (zoom, forgatás, vetítésváltás, űrlap, SVG-export, két független
+térkép), konzolhiba-figyelés. Ugyanez fut CI-ben minden pusholásnál.
+
+Kézi vizsgálódáshoz:
 
 ```bash
 npm run szerver

@@ -19,13 +19,10 @@
   // A vizsgált vetítések. A d3-celestial ezeket a d3.geo.projection (v3) API-ra
   // építi; a v7-ben ez d3.geoProjection + d3-geo-projection, más névvel és
   // helyenként más viselkedéssel — pont ezért kell mérni.
-  var VETITESEK = [
-    "airy", "aitoff", "armadillo", "august", "azimuthalEqualArea",
-    "azimuthalEquidistant", "collignon", "cylindricalEqualArea", "eckert1",
-    "equirectangular", "hammer", "kavrayskiy7", "lagrange", "mercator",
-    "miller", "mollweide", "naturalEarth", "orthographic", "patterson",
-    "polyconic", "robinson", "sinusoidal", "stereographic", "wagner6", "winkel3"
-  ];
+  // MINDEN konfigurált vetítés, nem egy válogatás. A háló csak arra véd, amit
+  // mér: 25 vetítéssel a maradék 44-ben egy elrontott képlet észrevétlen
+  // maradna. A listát a config.js-ből vesszük, hogy ne csússzon el tőle.
+  var VETITESEK = Object.keys(Celestial.projections());
 
   // Rácspontok az égen: 15 fokonként RA, 10 fokonként Dec.
   // Ez 24 x 17 = 408 pont vetítésenként — elég sűrű ahhoz, hogy egy elrontott
@@ -139,6 +136,8 @@
       vetitesek: []
     };
 
+    // Két vetítés (cassini, quincuncial) a szállított upstream buildben sincs
+    // benne — ott is hibát dob. Ezeket számon tartjuk, de nem tekintjük bukásnak.
     var sikeres = 0, sikertelen = [];
     for (var i = 0; i < VETITESEK.length; i++) {
       var nev = VETITESEK[i];

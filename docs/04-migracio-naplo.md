@@ -523,12 +523,62 @@ Egy oldalon egy űrlap van, tehát ez a régi viselkedés — de ha valaki két
 *interaktív* térképet akar saját űrlappal, ezeket is át kell adni példányonként.
 A rajzolás viszont már teljesen példány-alapú.
 
-## 10. Hol tart a lépéssorrend
+## 10. A háló kiterjesztése minden vetítésre
+
+A referencia addig **25 vetítést** mért a 69-ből — egy jól megválasztott
+válogatást, de válogatást. A háló viszont csak arra véd, amit mér: a maradék
+44-ben egy elrontott képlet észrevétlen maradt volna.
+
+A listát most a `config.js`-ből vesszük, hogy ne csússzon el tőle:
+**110 684 mért pont** vetítésenként 4 forgatással.
+
+### Amit azonnal talált
+
+Három vetítés tért el a v3-tól, mindhárom más okból.
+
+**`wiechel` — 1125 px.** A képlet v3-ban és v4-ben **azonos**; a különbség a
+tükrözésben volt. Az égboltot kívülről befelé nézzük, ezt a v3 a raw függvény
+becsomagolásával oldotta meg (`raw(-λ, φ)`), mi viszont a v7 `reflectX(true)`-ját
+használtuk. A kettő **65 vetítésre pontosan ugyanazt adja** — de nem mindre: a
+wiechelnél a λ előjele a képlet BELSEJÉBEN is számít
+(`atan2(sin λ · cos φ, −sin φ)`), nem csak a végeredmény x-koordinátájában.
+
+Visszaálltunk a v3-hű becsomagolásra. Tanulság: az „ez a kettő egyenértékű"
+állítást azon a halmazon kell bizonyítani, amelyen használjuk — az eredeti
+mérés 24 vetítésre szólt, és pont a kivétel nem volt köztük.
+
+**`twoPointEquidistant` — 555 px.** A v4-es raw első dolga `z0 *= 2`; a v3
+közvetlenül használta a paramétert. A `config.js` értékei a v3-hoz vannak
+kalibrálva, ezért egy átváltó tábla felezi. (Az oda-vissza út ~1e-9
+lebegőpontos zajt hagy; pixelben 0,000.)
+
+**`healpix` — 114 px.** A v4 átskálázta a vetítést: a v3 `point[0] /= 2`-t
+csinált, a v4 `point[0] *= 4/τ` és `point[1] /= h` — x-re és y-ra
+**különbözőképp**, tehát az oldalarány is más. A `config.js` `scale`/`ratio`
+értékei így hibás méretű térképet adnának. A v3-as változatot vittük tovább,
+a Collignon és a hengeres egyenlő területű vetítés a v4-ből jön.
+
+### Eredmény
+
+```
+67/69 vetítés, 110 684 mért pont, max eltérés 0,000 px
+```
+
+A hiányzó kettő (`cassini`, `quincuncial`) a **szállított upstream buildben
+sincs benne** — ott is `TypeError`. A háló ezt is méri: mindkét oldal 67
+sikeres vetítést jelent.
+
+A `test/vetitesek.teszt.mjs` hat vetítést mér a pinelt v3-as build 162 pontos
+táblájához (`hatano`, `wagner7`, `healpix`, `wiechel`, `twoPointEquidistant`,
+és `mercator` kontrollként), és külön teszt szól, ha egy jövőbeli
+d3-geo-projection feleslegessé teszi valamelyik saját másolatot.
+
+## 11. Hol tart a lépéssorrend
 
 | # | Lépés | Állapot |
 |---|---|---|
 | 1 | Matematikai hibák (#148, #130, #157) | **kész**, 38 teszt |
-| 2 | Referencia-háló rögzítése | **kész**, és a háló maga is javítva |
+| 2 | Referencia-háló rögzítése | **kész** — 67/69 vetítés, 110 684 pont, automatizálva |
 | 3 | Mechanikus D3-csere | **kész** |
 | 4 | `d3.geo.*` → `d3-geo` + `d3-geo-projection` | **kész**, 25/25 bitre azonos |
 | 5 | ES-modulok, tree-shaking | **kész**, 463 KB / 3 fájl → 291 KB / 1 fájl |

@@ -14,6 +14,14 @@ var RAW_ATNEVEZES = {
   "naturalEarth": "geoNaturalEarth1Raw"   // a v3 plugin Natural Earth I-et adott
 };
 
+// Néhány vetítés raw függvénye másképp értelmezi a paraméterét a v4-ben.
+// A config.js értékei a v3-hoz vannak kalibrálva, ezért itt igazítjuk őket.
+var ARG_ATVALTAS = {
+  // A v4-es twoPointEquidistantRaw első dolga: `z0 *= 2`. A v3 közvetlenül
+  // használta, tehát felezni kell, hogy ugyanaz a vetítés jöjjön ki.
+  "twoPointEquidistant": function (z) { return z / 2; }
+};
+
 // A d3-geo-projection v4-ből két vetítés raw függvénye kimaradt, pedig a v3-as
 // pluginban megvolt. A képletek innen származnak, változtatás nélkül — a
 // test/vetitesek.teszt.mjs a v3-as kimenethez méri őket, 1e-10 tűréssel.
@@ -37,6 +45,56 @@ var POTOLT_RAW = {
     };
     return hatano;
   })(),
+  // A v4-es healpixRaw ÁTSKÁLÁZTA a vetítést (a v3 `point[0] /= 2`-t csinált,
+  // a v4 `point[0] *= 4/τ` és `point[1] /= h`), ráadásul x-re és y-ra
+  // különbözőképp — vagyis az oldalarány is más. A config.js scale/ratio
+  // értékei a v3-hoz vannak kalibrálva, ezért a v3-as változatot visszük
+  // tovább. A Collignon és a hengeres egyenlő területű vetítés a v4-ből jön.
+  "healpix": function (h) {
+    var lambert = d3geoproj.geoCylindricalEqualAreaRaw(0),
+        collignon = d3geoproj.geoCollignonRaw,
+        pi = Math.PI, halfPi = pi / 2,
+        healpixParallel = 41 + 48 / 36 + 37 / 3600,
+        f0 = healpixParallel * pi / 180,
+        dx0 = 2 * pi,
+        dx1 = collignon(pi, f0)[0] - collignon(-pi, f0)[0],
+        y0 = lambert(0, f0)[1],
+        y1 = collignon(0, f0)[1],
+        dy1 = collignon(0, halfPi)[1] - y1,
+        k = 2 * pi / h;
+
+    function forward(l, f) {
+      var point, f2 = Math.abs(f);
+      if (f2 > f0) {
+        var i = Math.min(h - 1, Math.max(0, Math.floor((l + pi) / k)));
+        l += pi * (h - 1) / h - i * k;
+        point = collignon(l, f2);
+        point[0] = point[0] * dx0 / dx1 - dx0 * (h - 1) / (2 * h) + i * dx0 / h;
+        point[1] = y0 + (point[1] - y1) * 4 * dy1 / dx0;
+        if (f < 0) point[1] = -point[1];
+      } else {
+        point = lambert(l, f);
+      }
+      point[0] /= 2;
+      return point;
+    }
+
+    forward.invert = function (x, y) {
+      x *= 2;
+      var y2 = Math.abs(y);
+      if (y2 > y0) {
+        var i = Math.min(h - 1, Math.max(0, Math.floor((x + pi) / k)));
+        x = (x + pi * (h - 1) / h - i * k) * dx1 / dx0;
+        var point = collignon.invert(x, 0.25 * (y2 - y0) * dx0 / dy1 + y1);
+        point[0] -= pi * (h - 1) / h - i * k;
+        if (y < 0) point[1] = -point[1];
+        return point;
+      }
+      return lambert.invert(x, y);
+    };
+
+    return forward;
+  },
   "wagner7": (function () {
     function wagner7(l, f) {
       var s = 0.90631 * Math.sin(f),
@@ -55,30 +113,43 @@ var POTOLT_RAW = {
   })()
 };
 
-function rawVetites(nev) {
-  if (has(POTOLT_RAW, nev)) { return POTOLT_RAW[nev]; }
-  var kulcs = RAW_ATNEVEZES[nev] || ("geo" + nev.charAt(0).toUpperCase() + nev.slice(1) + "Raw");
-  return d3geoproj[kulcs] || d3geo[kulcs];
+// A vetítés nyers függvényének feloldása névből, a paraméter-átváltással
+// együtt. Kiadva, mert a tesztek a pinelt v3-as kimenethez ehhez mérnek.
+function rawVetites(nev, arg) {
+  var raw = has(POTOLT_RAW, nev) ? POTOLT_RAW[nev]
+          : (function () {
+              var kulcs = RAW_ATNEVEZES[nev] || ("geo" + nev.charAt(0).toUpperCase() + nev.slice(1) + "Raw");
+              return d3geoproj[kulcs] || d3geo[kulcs];
+            })();
+  if (!raw || arg === undefined || arg === null) return raw;
+  return raw(has(ARG_ATVALTAS, nev) ? ARG_ATVALTAS[nev](arg) : arg);
 }
 
 //Flipped projection generated on the fly
 Celestial.projection = function(projection) {
-  var p, raw;
+  var p, raw, forward;
 
   if (!has(projections, projection)) { throw new Error("Projection not supported: " + projection); }
   p = projections[projection];
 
-  raw = rawVetites(projection);
+  raw = rawVetites(projection, p.arg);
   if (!raw) { throw new Error("Projection not supported: " + projection); }
 
-  if (p.arg !== null) raw = raw(p.arg);
-
-  // Az égboltot tükrözve nézzük: kívülről befelé, nem belülről kifelé. A v3-as
-  // kód ezt a raw függvény becsomagolásával oldotta meg — `raw(-λ, φ)` —, a
-  // v7-ben erre való a reflectX. A kettő számszerűen azonos (a harness minden
-  // vetítésen 1e-9 alatti eltérést mért), de a reflectX az invert irányt is
-  // magától kezeli, nem kell kézzel visszatükrözni.
-  return d3.geoProjection(raw).reflectX(true);
+  // Az égboltot tükrözve nézzük: kívülről befelé, nem belülről kifelé. Ezt a
+  // v3-as kód a raw függvény becsomagolásával oldotta meg — `raw(-λ, φ)` —, és
+  // ezt tartjuk meg.
+  //
+  // A v7 reflectX(true)-ja kézenfekvőbb volna, és 65 vetítésre pontosan ugyanazt
+  // adja. De nem mindre: a `wiechel`-nél 795 pixellel tér el, mert ott a λ
+  // előjele a képlet BELSEJÉBEN is számít (`atan2(sin λ · cos φ, −sin φ)`), nem
+  // csak a végeredmény x-koordinátájában. A becsomagolás ettől független.
+  forward = function (l, f) { return raw(-l, f); };
+  forward.invert = function (x, y) {
+    var koord = raw.invert && raw.invert(x, y);
+    if (koord) koord[0] = -koord[0];
+    return koord;
+  };
+  return d3.geoProjection(forward);
 };
 
 
@@ -128,4 +199,4 @@ var poles = {
 Celestial.eulerAngles = function () { return eulerAngles; };
 Celestial.poles = function () { return poles; };
 
-export { eulerAngles, poles, projectionTween };
+export { eulerAngles, poles, projectionTween, rawVetites };
