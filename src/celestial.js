@@ -481,10 +481,18 @@ Celestial.display = function(config) {
     
     //Draw all types of objects on the canvas
     if (cfg.mw.show) { 
-      container.selectAll(parentElement + " .mw").each(function(d) { setStyle(cfg.mw.style); map(helyesIranyu(d)); context.fill(); });
+      container.selectAll(parentElement + " .mw").each(function(d) {
+        setStyle(cfg.mw.style); map(d);
+        if (rosszIranyu(false)) { setStyle(cfg.mw.style); map(megforditva(d)); }
+        context.fill();
+      });
       // paint mw-outside in background color
       if (cfg.transform !== "supergalactic" && cfg.background.opacity > 0.95)
-        container.selectAll(parentElement + " .mwbg").each(function(d) { setStyle(cfg.background); map(helyesIranyu(d)); context.fill(); });
+        container.selectAll(parentElement + " .mwbg").each(function(d) {
+          setStyle(cfg.background); map(d);
+          if (rosszIranyu(true)) { setStyle(cfg.background); map(megforditva(d)); }
+          context.fill();
+        });
     }
     
     for (var key in cfg.lines) {
@@ -711,42 +719,41 @@ Celestial.display = function(config) {
     return projectionSetting.clip && d3.geoDistance(cfg.center, coords) > halfπ ? 0 : 1;
   }
 
-  // A Tejút körvonalai vékony gömbi héjak: nagy külső gyűrű, majdnem ugyanakkora
-  // lyukkal. Bizonyos forgatásoknál az egyik gyűrű pólust kerül meg, és a d3-geo
-  // ilyenkor a komplementert tölti ki — a térkép beszürkül, a Tejút pedig feketén
-  // látszik. (A szerző is tudott róla: a getMwbackground() kommentje szerint az a
-  // réteg azért van, hogy "megakadályozza a teljes térkép beszürkülését bizonyos
-  // tájolásokban".)
+  // A d3-geo bizonyos forgatásoknál a Tejút poligonjának KOMPLEMENTERÉT tölti ki:
+  // a térkép beszürkül, a Tejút feketén látszik. Jellemzően akkor, amikor a sáv a
+  // korong pereme felé kerül. A gömbi poligon belsejének eldöntése ott numerikusan
+  // törékeny — az ol1 körvonal vékony héj: 1,697π területű külső gyűrű, benne egy
+  // 1,623π-s lyuk, a kettő különbsége a 0,069π-nyi Tejút-sáv.
   //
-  // A jelenség mérhető: a forgatás területtartó, tehát ha a forgatott poligon
-  // gömbi területe egy teljes gömbbel eltér az eredetitől, a kitöltés fordított.
-  // A döntés topologikus, ezért elég minden 20. pontot megnézni — a mért eltérés
-  // így is 4,00π, a költség viszont 6,7 ms helyett 0,4 ms.
-  function korulfordult(d) {
-    if (!d || !d.geometry || !isArray(d.geometry.coordinates)) return false;
-    if (d.eredetiTerulet === undefined) d.eredetiTerulet = d3.geoArea(d);
-    var forgat = d3.geoRotation(mapProjection.rotate());
-    var minta = { type: d.geometry.type, coordinates: d.geometry.coordinates.map(function (pol) {
-      return pol.map(function (gyuru) {
-        if (gyuru.length <= 8) return gyuru.map(forgat);
-        var ritka = [];
-        for (var i = 0; i < gyuru.length - 1; i += 20) { ritka.push(forgat(gyuru[i])); }
-        ritka.push(forgat(gyuru[0]));
-        return ritka;
-      });
-    })};
-    return Math.abs(d3.geoArea(minta) - d.eredetiTerulet) > τ;
+  // Van viszont egy pont, amelyről biztosan tudjuk a helyes választ: a galaktikus
+  // pólus. A Tejút körvonalai a galaktikus egyenlítő körüli sávok, a pólus
+  // mindegyiken KÍVÜL esik — a komplementerükön (mwbg) pedig BELÜL. A két pólus
+  // antipodális, tehát vágott vetítésnél is pontosan az egyik látszik.
+  //
+  // A már felépített útvonalat kérdezzük meg (isPointInPath), és ha az ítélet
+  // ellentmond a tudottnak, a megfordított gyűrűkkel rajzoljuk újra.
+  function galaktikusPolus() {
+    var p = transformDeg(poles.galactic, euler[cfg.transform]);
+    if (!clip(p)) p = [p[0] + 180, -p[1]];   // a másik pólus látszik
+    return mapProjection(p);
   }
 
-  function helyesIranyu(d) {
-    if (!korulfordult(d)) return d;
-    if (!d.megforditva) {
-      d.megforditva = { type: d.type, geometry: { type: d.geometry.type,
+  function rosszIranyu(vart) {
+    var pt = galaktikusPolus();
+    if (!pt || !isFinite(pt[0]) || !isFinite(pt[1])) return false;
+    // Az isPointInPath eszközkoordinátában várja a pontot, a kontextuson viszont
+    // setTransform(pixelRatio, ...) van — ezért kell a szorzás.
+    return context.isPointInPath(pt[0] * pixelRatio, pt[1] * pixelRatio) !== vart;
+  }
+
+  function megforditva(d) {
+    if (!d.megforditottMasolat) {
+      d.megforditottMasolat = { type: d.type, geometry: { type: d.geometry.type,
         coordinates: d.geometry.coordinates.map(function (pol) {
           return pol.map(function (gyuru) { return gyuru.slice().reverse(); });
         })}};
     }
-    return d.megforditva;
+    return d.megforditottMasolat;
   }
 
   function setStyle(s) {

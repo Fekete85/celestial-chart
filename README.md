@@ -121,8 +121,8 @@ A migráció közben **nyolc hiba** került elő, amiből hatot a numerikus hál
 Egyik sem dobott kivételt — mind kézi végigpróbálásból jött elő.
 
 Vizuálisan hat nézetben mérve az eltérés **0,04–0,70%** a csillagok és feliratok peremén, azaz
-élsimítás. Egy tájolásnál (a 14 vizsgáltból) marad ismert eltérés a Tejút kitöltésében — részletes
-diagnózis a naplóban.
+élsimítás. **44 tájolásra ellenőrizve a Tejút kitöltése is megegyezik** a v3-éval — nincs ismert
+vizuális regresszió.
 
 Részletek: [`docs/01-kodbazis.md`](docs/01-kodbazis.md) · [`docs/02-migracio.md`](docs/02-migracio.md) ·
 [`docs/03-issuek.md`](docs/03-issuek.md)

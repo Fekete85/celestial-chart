@@ -278,93 +278,69 @@ előtt az orthographic nézet **68,1%** volt; lásd lentebb.)
 
 ## 7. Nyitott kérdések
 
-### A Tejút kitöltése egy vizsgált tájolásnál invertálódik
+### A Tejút kitöltése bizonyos tájolásoknál invertálódott — javítva
 
-**Ez az egyetlen ismert vizuális regresszió**, és a négy talált esetből három
-javítva. 14 tájolásra megmérve
-(orthographic, csak a Tejút-réteg, a korongon belüli világos pixelek aránya):
+**Ez volt az egyetlen ismert vizuális regresszió; megoldva.** A tünet: a térkép
+beszürkült, a Tejút feketén látszott — jellemzően akkor, amikor a sáv a korong
+pereme felé került.
 
-| középpont | v3 | v7 | |
-|---|---:|---:|---|
-| [0,0], [60,0], [120,0], [180,0], [240,0], [300,0] | 11–24% | ugyanaz | rendben |
-| [0,45], [90,45], [180,−45], [0,85] | 15–20% | ugyanaz | rendben |
-| **[180,45]** | 6% | **85%** | invertált |
-| **[180,55]** | 8% | **83%** | invertált |
-| **[270,45]** | 19% | **72%** | invertált |
-| **[0,−45]** | 9% | **82%** | invertált |
+#### Az ok
 
-Tehát 10/14 tájolásnál azonos, 4-nél **csak a v7** tölti ki a komplementert.
+A `mw.json` `ol1` körvonala **vékony gömbi héj**: 1,697π területű külső gyűrű,
+benne egy 1,623π-s lyuk; a kettő különbsége a 0,069π-nyi Tejút-sáv. Két majdnem
+főkör között 0,07π-nyi rés — a gömbi poligon belsejének eldöntése itt numerikusan
+törékeny. Árulkodó, hogy a **d3-geo saját két függvénye is ellentmond egymásnak**:
+a `geoArea` és a `geoContains` a sávot mondja, a `geoPath` viszont a
+komplementert tölti ki.
 
-Amit a diagnózis kizárt (mind mérve, [180,55]-nél):
+A szerző is tudott a jelenségről: a `getMwbackground()` kommentje szerint az a
+réteg azért van, hogy „megakadályozza a teljes térkép beszürkülését bizonyos
+tájolásokban".
+
+Amit a diagnózis kizárt (mind mérve):
 
 | feltevés | eredmény |
 |---|---|
-| a `reflectX` okozza | nem — a régi `raw(-λ,φ)` becsomagolással ugyanaz a 84% |
-| a `clipAngle(90)` okozza | nem — vágás nélkül 87% |
-| az adaptív újramintavételezés | nem — `precision(0)` és `precision(10)` mellett is 84% |
+| a `reflectX` okozza | nem — a régi `raw(-λ,φ)` becsomagolással ugyanaz |
+| a `clipAngle(90)` okozza | nem — vágás nélkül is |
+| az adaptív újramintavételezés | nem — `precision(0)` és `precision(10)` mellett is |
 | a kitöltési szabály | nem — `nonzero` és `evenodd` egyaránt |
-| rossz körüljárás a lyukaknál | nem — bármelyik gyűrűt megfordítva 84% |
+| rossz körüljárás a lyukaknál | nem — bármelyik gyűrűt megfordítva ugyanaz |
 | antimeridiánnál elvágott poligon | nem — a `d3.geoStitch` semmit nem változtat |
 
-A tényleges ok az adat szerkezete: az `ol1` egy **vékony gömbi héj** — a külső
-gyűrű 1,697π területű, a benne lévő nagy lyuk 1,623π, a kettő különbsége a
-0,069π-nyi Tejút-sáv. Két majdnem főkör között 0,07π-nyi rés: a gömbi poligon
-belsejének eldöntése itt numerikusan törékeny. Árulkodó, hogy a **d3-geo saját
-két függvénye is ellentmond egymásnak**: a `geoArea` 0,0689π-t mond (a sávot),
-a `geoPath` viszont a komplementert tölti ki.
+#### A javítás: a galaktikus pólus mint ellenőrző pont
 
-A szerző maga is tudott a jelenségről: a `getMwbackground()` kommentje szerint
-az a réteg azért van, hogy „megakadályozza a teljes térkép beszürkülését
-bizonyos tájolásokban".
+Van egy pont, amelyről **biztosan tudjuk a helyes választ**: a galaktikus pólus.
+A Tejút körvonalai a galaktikus egyenlítő körüli sávok, a pólus mindegyiken
+kívül esik — a komplementerükön (`mwbg`) pedig belül. A két pólus antipodális,
+tehát vágott vetítésnél is pontosan az egyik látszik.
 
-#### A javítás: területmegmaradás
+A már felépített canvas-útvonalat kérdezzük meg `context.isPointInPath()`-tal, és
+ha az ítélet ellentmond a tudottnak, a megfordított gyűrűkkel rajzolunk újra
+(`celestial.js`, `galaktikusPolus()` / `rosszIranyu()` / `megforditva()`).
 
-A forgatás területtartó. Ha tehát a **forgatott** poligon gömbi területe eltér az
-eredetiétől, valami elromlott a forgatás közben. Mérve `[180,55]`-nél:
+Két apróság, ami mérésből derült ki:
 
-```
-mw0   : eredeti 0,069π   forgatott 4,070π   különbség +4,001π
-mwbg0 : eredeti 3,931π   forgatott −0,070π  különbség −4,001π
-mw1..4: a különbség 0,01π alatt
-```
+- Az `isPointInPath` **eszközkoordinátában** várja a pontot, a kontextuson viszont
+  `setTransform(pixelRatio, …)` van — ezért kell a szorzás. (Retina kijelzőn
+  enélkül némán rossz oldalra döntene.)
+- A detektor **O(1)**, szemben a korábban kipróbált megközelítésekkel: a
+  forgatott poligon `geoArea`-ja 6,7 ms (ritkítva 0,4 ms), a `geoContains` a
+  teljes felbontású poligonon 4,3 ms — mindkettő túl drága képkockánként.
 
-A különbség **pontosan egy teljes gömb** — ez annak a jele, hogy a forgatás után
-az egyik gyűrű pólust kerül meg, és a körüljárás összege egy fordulattal
-eltolódik. Ilyenkor a megfordított gyűrűkkel rajzolunk (`celestial.js`,
-`korulfordult()` / `helyesIranyu()`).
+#### Ellenőrzés
 
-A döntés topologikus, ezért elég minden 20. pontot megnézni: a mért eltérés így
-is 4,00π, a költség viszont 6,7 ms helyett **0,4 ms**.
+| | |
+|---|---|
+| 44 tájolás (20 széles + 24 sűrű a kritikus tartományban) | **mind megegyezik a v3-mal** |
+| korábban invertálódó esetek | `[180,45]`, `[180,55]`, `[270,45]`, `[0,−45]`, `[250,30]`, `[280,60]` — mind javítva |
+| 12 egymás utáni húzásos forgatás a demólapon | a szürke arány végig 18–24% (45% fölött lenne inverzió), 0 konzolhiba |
+| orthographic Nagy Medve pixeldiff | 68,1% → 0,70% |
 
-Eredmény: a 14 vizsgált tájolásból **13 megegyezik a v3-mal**, a `[180,45]`,
-`[180,55]` és `[0,−45]` esetek megjavultak.
+Egy korábbi, területmegmaradáson alapuló javítás (a forgatott poligon `geoArea`-ja
+egy teljes gömbbel eltért) a hat esetből hármat oldott meg; a pólus-alapú detektor
+mind a hatot, és ki is váltotta.
 
-#### Ami megmaradt: `[270,45]`
-
-Itt a terület **nem** ugrik (a különbség 0,001π), a kitöltés mégis fordított
-(v3 19%, v7 72%). Egy második mérés megmutatja, miért nehéz:
-
-| | vetített előjeles terület | pixelben mért kitöltés |
-|---|---:|---:|
-| `[180,55]` (a javított eset) | 0,871 | 0,837 |
-| `[270,45]` (a megmaradt eset) | 0,472 | **0,726** |
-
-A kettőnek egyeznie kellene. Hogy nem egyezik, azt jelenti, hogy a kirajzolt
-útvonal **önátfedő**: a nem-nulla körüljárási szabály többet tölt ki, mint az
-előjeles terület. Ez arra utal, hogy a d3-geo vágása ebben a tájolásban hibás
-útvonalat állít elő, nem csak fordított irányút — ezért nem segít a gyűrűk
-megfordítása sem.
-
-Teljes detektor létezik: a kirajzolt útvonalon `context.isPointInPath()` a
-középpontban, összevetve a `d3.geoContains()` ítéletével (ez utóbbi megbízható —
-`[180,55]`-nél helyesen mondja, hogy a középpont a poligonon kívül van, miközben
-a `geoPath` kitölti). Csakhogy a `geoContains` a teljes felbontású poligonon
-**4,3 ms**, ami képkockánként túl drága, ritkított poligonon pedig a
-határközeli pontoknál megbízhatatlan.
-
-Az érdemi javítás ezért a Tejút-adat gyűrűszerkezetének rendbetétele lenne (a
-különálló foltokat külön poligonokba, a lyukakat a saját poligonjukba), nem a
-rajzoló további foltozása. Ez adatmunka, nem migráció — külön lépés.
 - **`cassini` és `quincuncial`** — a `config.js` felsorolja őket, de a
   `d3.geo.projection` **pinelt upstream buildjében sincsenek benne**: az
   upstream is `TypeError`-t dob rájuk. Nem migrációs regresszió, hanem meglévő
