@@ -76,6 +76,19 @@ Every change below is measured against the pinned upstream build: 67 projections
 - The spherical zoom plugin now uses [`versor`](https://github.com/d3/versor)
   (ISC) for the quaternion mathematics instead of a vendored copy.
 
+### Privacy
+
+- **No API key is shipped any more.** Upstream's defaults carried the author's
+  TimeZoneDB account id, and `settimezone: true` was also a default — so any page
+  embedding the library sent its visitors' coordinates to a third party, unasked,
+  on a quota shared with every other d3-celestial site, over plain HTTP whenever
+  the page itself was served over HTTP. A key in a client-side bundle cannot be
+  kept secret, so the fix is no key rather than a different one.
+- New `timezoneResolver(lat, lon, whenSeconds) => number | Promise<number>`
+  config option: resolve the offset from your own service. It takes precedence
+  over `timezoneid`, which still works with a key of your own.
+- A test now fails the build if a credential-looking literal reappears in `src/`.
+
 ### Breaking changes
 
 Behaviour that differs from upstream — all of them consequences of the fixes above:
@@ -85,5 +98,8 @@ Behaviour that differs from upstream — all of them consequences of the fixes a
 - `Celestial.ha()` returns `[0, 360)`.
 - SVG export clips paths to the output size.
 - `Celestial.display()` additionally returns the created instance.
+- With no `timezoneid` and no `timezoneResolver`, the UTC offset of a position is
+  estimated from longitude instead of being looked up remotely. Configure one of
+  the two to get exact offsets back.
 
 A global `d3` is no longer required, or used, by the bundle.

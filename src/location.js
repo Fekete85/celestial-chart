@@ -211,35 +211,73 @@ function geo(sky) {
   }
 
   
+  // Longitude-based estimate: 15 degrees per hour. This is what the code has
+  // always fallen back to when the lookup failed ("location at sea"); now it is
+  // also what happens when no lookup is configured at all.
+  function estimateZone(p, timestamp) {
+    timeZone = Math.round(p[1] / 15) * 60;
+    geoInfo = { gmtOffset: timeZone * 60, message: "Estimated from longitude", timestamp: timestamp };
+  }
+
+  function applyZone() {
+    $form("datetime").value = dateFormat(date, timeZone);
+    go();
+  }
+
+  // Resolving the UTC offset of a position needs a time zone database, which is
+  // not something a browser exposes for an arbitrary point on Earth — only for
+  // the viewer's own zone. So it takes an outside source.
+  //
+  // The library ships neither an API key nor an endpoint. Upstream baked in the
+  // author's TimeZoneDB account id, which meant every page using the library
+  // sent its visitors' coordinates to a third party, by default, on a shared
+  // quota. Configure one of these instead:
+  //
+  //   timezoneResolver: (lat, lon, whenSeconds) => Promise<offsetInMinutes>
+  //   timezoneid: "<your own TimeZoneDB key>"   (the upstream route, unchanged)
+  //
+  // With neither, no request is made and the offset is estimated from longitude.
   function setPosition(p, settime) {
     if (!p || !has(config, "settimezone") || config.settimezone === false) return;
-    var timestamp = Math.floor(date.getTime() / 1000),
-        protocol = window && window.location.protocol === "https:" ? "https" : "http",
-        url = protocol + "://api.timezonedb.com/v2.1/get-time-zone?key=" + config.timezoneid + "&format=json&by=position" + 
-              "&lat=" + p[0] + "&lng=" + p[1] + "&time=" + timestamp;
-       // oldZone = timeZone;
+    var timestamp = Math.floor(date.getTime() / 1000);
 
-    loadJson(url, function(error, json) { 
+    if (typeof config.timezoneResolver === "function") {
+      Promise.resolve(config.timezoneResolver(p[0], p[1], timestamp)).then(function (offset) {
+        if (Number.isFinite(offset)) {
+          timeZone = offset;
+          geoInfo = { gmtOffset: offset * 60, message: "From timezoneResolver", timestamp: timestamp };
+        } else {
+          estimateZone(p, timestamp);
+        }
+        applyZone();
+      }, function (err) {
+        console.warn("timezoneResolver failed, estimating from longitude:", err);
+        estimateZone(p, timestamp);
+        applyZone();
+      });
+      return;
+    }
+
+    if (!config.timezoneid) {
+      estimateZone(p, timestamp);
+      applyZone();
+      return;
+    }
+
+    var protocol = window && window.location.protocol === "https:" ? "https" : "http",
+        url = protocol + "://api.timezonedb.com/v2.1/get-time-zone?key=" + config.timezoneid + "&format=json&by=position" +
+              "&lat=" + p[0] + "&lng=" + p[1] + "&time=" + timestamp;
+
+    loadJson(url, function(error, json) {
       if (error) return console.warn(error);
       if (json.status === "FAILED") {
-        // Location at sea inferred from longitude
-        timeZone = Math.round(p[1] / 15) * 60;
-        geoInfo = {
-          gmtOffset: timeZone * 60,
-          message: "Sea locatation inferred",
-          timestamp: timestamp
-        };
+        estimateZone(p, timestamp);
       } else {
         timeZone = json.gmtOffset / 60;
         geoInfo = json;
       }
-      //if (settime) {
-        //date.setTime(timestamp * 1000); // - (timeZone - oldZone) * 60000);
-        //console.log(date.toUTCString());
-      //}
-      $form("datetime").value = dateFormat(date, timeZone);
-      go();
-    }); 
+      applyZone();
+    });
   }
 
   sky.dateFormat = dateFormat;

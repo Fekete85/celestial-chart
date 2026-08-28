@@ -29,7 +29,11 @@ var settings = {
   daterange: [],      // Calender date range; null: displaydate-+10; [n<100]: displaydate-+n; [yr]: yr-+10; 
                       // [yr, n<100]: [yr-n, yr+n]; [yr0, yr1]
   settimezone: true,  // Automatcally set time zone when geolocation changes
-  timezoneid: "AEFXZPQ3FDPF", // Account ID for TimeZoneDB service, please get your own
+  timezoneid: "",     // Your own TimeZoneDB account id. Empty: no request is made,
+                      // the offset is estimated from longitude. See timezoneResolver.
+  timezoneResolver: null, // (lat, lon, whenSeconds) => Promise<offsetInMinutes>, or null.
+                      // Takes precedence over timezoneid; lets you point at your own
+                      // service instead of sending visitor coordinates to a third party.
   controls: true,     // Display zoom controls
   lang: "",           // Global language override for names, any name setting that has the chosen language available
                       // Default: desig or empty string for designations, other languages as used anywhere else

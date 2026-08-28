@@ -79,6 +79,42 @@ the user's zoom; the settings form was appended again on every `display()` call;
 `Celestial.ha()` returned hour angles outside any sane range; and the map failed
 to render at all when given neither a container element nor a width.
 
+## Time zones, and the key that is not here
+
+The settings form shows the observer's local time, which means turning a
+position into a UTC offset. A browser cannot do that for an arbitrary point on
+Earth — only for the viewer's own zone — so it takes an outside source.
+
+Upstream shipped the author's TimeZoneDB account id as a default, with
+`settimezone: true` also being a default. Every page embedding the library
+therefore sent its visitors' coordinates to a third party, unasked, on a quota
+shared with every other d3-celestial site — and over plain HTTP whenever the
+page itself was served over HTTP.
+
+**This fork ships no key and no endpoint.** With nothing configured, no request
+is made and the offset is estimated from longitude (15° per hour) — the fallback
+the code always had for failed lookups. Accurate enough for most places, wrong
+by up to an hour or two where zones follow politics rather than meridians.
+
+To get exact offsets, configure one of these:
+
+```js
+// Your own service — nothing leaves your infrastructure.
+Celestial.display({
+  timezoneResolver: (lat, lon, when) =>
+    fetch(`https://example.org/timezone?lat=${lat}&lon=${lon}&t=${when}`)
+      .then(r => r.json())
+      .then(j => j.offsetMinutes)
+});
+
+// Or the upstream route, with a key of your own.
+Celestial.display({ timezoneid: "YOUR_OWN_TIMEZONEDB_KEY" });
+```
+
+`timezoneResolver` wins over `timezoneid`; if it rejects, the longitude estimate
+takes over. A key in a client-side bundle is readable by anyone who loads the
+page, so treat `timezoneid` as public, and prefer a resolver you control.
+
 ## Backwards compatibility
 
 `Celestial.display(config)` behaves as before, including how successive calls
@@ -108,7 +144,7 @@ itself too: it fails if two projections — or two rotations — produce the sam
 output, because a net that measures nothing passes everything.
 
 ```bash
-npm run verify    # build + 66 unit tests + types + 28 browser assertions, ~2 min
+npm run verify    # build + 71 unit tests + types + 28 browser assertions, ~2 min
 ```
 
 The browser run regenerates both references, compares them, captures 12 screenshots

@@ -120,7 +120,14 @@ export interface Config {
   advanced?: boolean;
   daterange?: Date[];
   settimezone?: boolean;
+  /** Your own TimeZoneDB account id. Empty (the default) means no request is
+   *  made and the UTC offset is estimated from longitude. */
   timezoneid?: string;
+  /** Resolve the UTC offset of a position yourself — point it at your own
+   *  service instead of sending visitor coordinates to a third party.
+   *  Takes precedence over `timezoneid`. Returns offset in MINUTES. */
+  timezoneResolver?: ((lat: number, lon: number, whenSeconds: number)
+    => number | Promise<number>) | null;
   controls?: boolean;
   lang?: string;
   culture?: string;
