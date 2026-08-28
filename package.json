@@ -39,7 +39,8 @@
       "types": "./types/celestial.d.ts",
       "import": "./build/celestial.mjs",
       "require": "./build/celestial.cjs"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "CHANGELOG.md",
@@ -55,14 +56,14 @@
   ],
   "scripts": {
     "build": "node build.mjs",
+    "prepare": "node build.mjs",
     "test": "node --test test/*.test.mjs",
     "types": "tsc -p types/check/tsconfig.json",
     "selftest": "node harness/compare.mjs --selftest harness/reference-d3v3.json",
     "check": "node harness/verify.mjs",
     "check:all": "node harness/verify.mjs --all",
     "verify": "npm run build && npm run test && npm run types && npm run selftest && npm run check:all",
-    "serve": "node harness/server.mjs",
-    "site": "npm run build && node site/assemble.mjs"
+    "serve": "node harness/server.mjs"
   },
   "dependencies": {
     "d3-dispatch": "^3.0.1",

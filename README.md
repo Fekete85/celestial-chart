@@ -169,10 +169,10 @@ npm run serve       # then open http://127.0.0.1:8877/demo/full.html
 | [`demo/two-maps.html`](demo/two-maps.html) | two independent maps on one page |
 | [`demo/two-forms.html`](demo/two-forms.html) | two maps, each with its own settings form |
 
-[`site/`](site/) is the landing page behind the live demo: the page itself, an
-nginx container and its Traefik labels. `node site/assemble.mjs` copies the
-built bundle, the stylesheet and the catalogues next to it, so the published
-page can never drift from what was actually built.
+The landing page behind the live demo lives in its own repository,
+[celestial-demo](https://github.com/Fekete85/celestial-demo) — it consumes this
+package as a dependency, so it is also a standing check that installing and
+using the published library actually works.
 
 ## Documentation
 
