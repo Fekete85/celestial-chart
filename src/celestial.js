@@ -61,6 +61,19 @@ export class SkyMap {
   // change. A getter always exposes the current internal state.
   var instance = this;
 
+  // Layers added with Celestial.add() draw through the GLOBAL Celestial object
+  // (Celestial.container, .context, .mapProjection …) — that is how upstream's
+  // examples are written, and the interface upstream had from the start, because
+  // there `this` inside display() WAS the global object.
+  //
+  // Here the global only receives that interface once display() has copied it
+  // off the finished instance. A redraw that runs while this constructor is
+  // still executing — the zoom behaviour triggers one — would therefore call
+  // user layers against a global whose container is still null. So they stay
+  // switched off until the constructor is done; display() draws them right
+  // after it has published the interface.
+  var layersEnabled = false;
+
   // Element lookup inside this map's own parent element. This used to live in
   // util.js, reached through a shared "current map" pointer — so two maps would
   // have found each other's elements.
@@ -724,7 +737,7 @@ export class SkyMap {
       });
     }
     
-    if (Celestial.data.length > 0) { 
+    if (layersEnabled && Celestial.data.length > 0) { 
       Celestial.data.forEach( function(d) {
         d.redraw();
       });
@@ -1134,6 +1147,7 @@ export class SkyMap {
     this.date = function() { console.log("Celestial.date() needs config.location = true to work." ); };
   */
   load();
+  layersEnabled = true;
   }
 }
 
@@ -1168,6 +1182,8 @@ Celestial.display = function (config) {
     if (key_ === "constructor" || key_ === "constellations" || key_ === "constellation") continue;
     Object.defineProperty(Celestial, key_, descriptors[key_]);
   }
+  // Now that the global interface exists, the layers can be drawn.
+  instance.redraw();
   return instance;
 };
  

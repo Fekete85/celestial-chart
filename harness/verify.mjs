@@ -173,6 +173,29 @@ async function smokeTest(page) {
     startState.form + " → " + afterProjection.form);
   check("exactly one container remains", afterProjection.containers === 1, afterProjection.containers + " containers");
 
+  // A layer added with Celestial.add() draws through the global Celestial
+  // object, exactly as upstream's examples do. The zoom behaviour triggers a
+  // redraw while the constructor is still running, so without the deferral
+  // those layers would meet a global whose container is still null — and the
+  // exception would abort display() itself.
+  const layer = await page.evaluate(([a]) => new Promise(ok => {
+    const state = { drawn: 0, containerMissing: false, error: null };
+    Celestial.clear();
+    Celestial.add({
+      type: "raw",
+      callback: function () { Celestial.redraw(); },
+      redraw: function () {
+        state.drawn++;
+        if (!Celestial.container || !Celestial.context) state.containerMissing = true;
+      }
+    });
+    try { Celestial.display(Object.assign({}, a, { projection: "airy" })); }
+    catch (e) { state.error = String(e.message); }
+    setTimeout(() => { Celestial.clear(); ok(state); }, 4000);
+  }), [ALAP]);
+  check("Celestial.add() layers draw through the global interface",
+    layer.drawn > 0 && !layer.containerMissing && !layer.error, JSON.stringify(layer));
+
   const svg = await page.evaluate(() => new Promise(ok => {
     const t = setTimeout(() => ok(null), 40000);
     try { Celestial.exportSVG(s => { clearTimeout(t); ok(s); }); }

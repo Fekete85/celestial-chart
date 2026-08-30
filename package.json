@@ -1,6 +1,6 @@
 {
   "name": "celestial-chart",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Interactive celestial map for the browser — a modernised fork of d3-celestial (D3 v7, ES modules, TypeScript types, multiple maps per page)",
   "keywords": [
     "astronomy",

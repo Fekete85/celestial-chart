@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.1
+
+### Fixed
+
+- Layers added with `Celestial.add()` could not draw. They reach the map through
+  the global `Celestial` object — `Celestial.container`, `.context`,
+  `.mapProjection` — which is how upstream's examples are written, and which
+  worked upstream because `this` inside `display()` *was* the global object.
+  In this fork the global receives that interface only after the constructor has
+  finished, while the zoom behaviour already triggers a redraw inside it. A
+  layer's `redraw` handler therefore ran against `Celestial.container === null`,
+  and the resulting exception aborted `display()` itself: the map was left
+  without its zoom, rotation and export interface. User layers are now held back
+  until the interface is published, and drawn immediately afterwards. Covered by
+  a browser assertion in `harness/verify.mjs`.
+
 ## 0.8.0 — first release of the fork
 
 Forked from [d3-celestial](https://github.com/ofrohn/d3-celestial) `0.7.35`

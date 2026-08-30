@@ -8,7 +8,7 @@
 // first, and by the time anyone touches the object it already exists.
 export var Celestial = {
   // Must match the package version — guarded by test/package.test.mjs.
-  version: '0.8.0',
+  version: '0.8.1',
   container: null,
   data: []
 };
