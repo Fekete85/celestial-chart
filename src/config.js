@@ -284,6 +284,32 @@ var settings = {
   }
 };
 
+// A deep copy of plain objects and arrays. Anything else — functions (the
+// timezoneResolver, set/applyDefaults), dates — is carried over as it is.
+function clonePlain(o) {
+  if (isArray(o)) return o.map(clonePlain);
+  if (o === null || typeof o !== "object" || o.constructor !== Object) return o;
+  var res = {};
+  for (var key in o) {
+    if (has(o, key)) res[key] = clonePlain(o[key]);
+  }
+  return res;
+}
+
+// The settings a map's form and location panel work from. A standalone map
+// (new SkyMap(cfg, {standalone: true})) keeps them to itself: they come from
+// its own configuration, and nothing is written to the shared globalConfig.
+// Through globalConfig, one map's form, location panel or rotate() used to
+// take over the settings of whichever map was created last. Every other map
+// keeps the original, global behaviour.
+function settingsOf(sky) {
+  return sky.standalone ? settings.set(null, sky.cfg) : settings.set();
+}
+
+function storeSettings(sky, cfg) {
+  if (!sky.standalone) settings.set(cfg);
+}
+
 function arrayfy(o) {
   var res;
   if (!isArray(o)) return [o, o, o];  //It saves some work later, OK?
@@ -534,4 +560,4 @@ var formats_all = {
   "cn":  Object.keys(formats.constellations.cn.names).concat(Object.keys(formats.starnames.cn.propername)).filter( function(value, index, self) { return self.indexOf(value) === index; } )
 };
 
-export { arrayfy, bvcolor, formats, formats_all, globalConfig, projections, settings };
+export { arrayfy, bvcolor, clonePlain, formats, formats_all, globalConfig, projections, settings, settingsOf, storeSettings };

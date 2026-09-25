@@ -374,9 +374,9 @@ function exportSVG(sky, done, fname) {
   }
 
   //Planets
-  if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin) {
+  if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin && sky.date) {
     q.defer(function(callback) {
-      var dt = Celestial.date(),
+      var dt = sky.date(),
           o = Celestial.origin(dt).spherical(),
           jp = {type: "FeatureCollection", features: []},
           jlun = {type: "FeatureCollection", features: []};
@@ -471,11 +471,11 @@ function exportSVG(sky, done, fname) {
     });  
   }
   
-  if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && proj.clip) {
+  if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && proj.clip && sky.zenith) {
     q.defer(function(callback) {
       var sol = getPlanet("sol", undefined, sky);
       if (sol) {
-        var up = Celestial.zenith(),
+        var up = sky.zenith(),
             solpos = sol.ephemeris.pos,
             dist = d3.geoDistance(up, solpos),
             pt = projection(solpos),
@@ -499,9 +499,9 @@ function exportSVG(sky, done, fname) {
     });  
   }
 
-  if ((cfg.location || cfg.formFields.location) && cfg.horizon.show && !proj.clip) {
+  if ((cfg.location || cfg.formFields.location) && cfg.horizon.show && !proj.clip && sky.nadir) {
     q.defer(function(callback) {
-      var horizon = d3.geoCircle().radius(90).center(Celestial.nadir());
+      var horizon = d3.geoCircle().radius(90).center(sky.nadir());
      
       groups.horizon.append("path").datum(horizon)
        .attr("class", "horizon")

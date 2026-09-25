@@ -84,14 +84,15 @@ function getMST(dt, lng)
 Celestial.horizontal = horizontal;
 // Hour angle in degrees, in the range [0, 360).
 //
-// The condition was originally `ha < 180`, which is a typo: getMST returns
-// [0, 360) and so does ra, so the difference lies in (-360, 360) — it is values
-// below zero that need wrapping. With `180`, an hour angle of 100 degrees came
-// out as 460. Two lines above, horizontal() has the same normalisation written
-// correctly.
+// The condition was originally `ha < 180`, which is a typo: with it, an hour
+// angle of 100 degrees came out as 460. But wrapping only the negative values
+// is not enough either: getMST returns [0, 360), while right ascensions in the
+// library's own data run from -180 to 180 (GeoJSON longitudes), so the
+// difference can be anywhere in (-360, 540).
 Celestial.ha = function(dt, lng, ra) {
-  var ha = getMST(dt, lng) - ra;
-  if (ha < 0) ha = ha + 360;
+  var ha = (getMST(dt, lng) - ra) % 360;
+  if (ha < 0) ha += 360;
+  if (ha >= 360) ha -= 360;   // -1e-15 + 360 rounds to 360
   return ha;
 };
 

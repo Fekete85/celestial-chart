@@ -1,6 +1,6 @@
 import * as d3 from "./d3.js";
 
-import { formats, settings } from "./config.js";
+import { formats, settings, settingsOf } from "./config.js";
 import { datetimepicker } from "./datetimepicker.js";
 import { testNumber } from "./form.js";
 import { horizontal } from "./horizontal.js";
@@ -24,7 +24,7 @@ function geo(sky) {
       date = new Date(),
       localZone = -date.getTimezoneOffset(),
       timeZone = localZone,
-      config = settings.set(cfg),
+      config = sky.standalone ? settings.set(null, cfg) : settings.set(cfg),
       frm = d3.select(sky.parentElement + " ~ #celestial-form form").insert("div", "div#general").attr("id", "loc");
 
   var dtpick = new datetimepicker(sky, function(date, tz) { 
@@ -115,7 +115,10 @@ function geo(sky) {
   showAdvanced(config.advanced);
   
 
-  d3.select(document).on("mousedown", function (event_) { 
+  // Named after the map's container, like the window resize listener: without
+  // a name, each map replaced the previous one's, and only the last map's
+  // picker closed on an outside click.
+  d3.select(document).on("mousedown." + sky.parentElement, function (event_) { 
     if (!hasParent(event_.target, "celestial-date") && dtpick.isVisible()) dtpick.hide(); 
   });
   
@@ -166,7 +169,7 @@ function geo(sky) {
   }
   
   function apply() {
-    Object.assign(config, settings.set());
+    Object.assign(config, settingsOf(sky));
     config.horizon.show = !!$form("horizon-show").checked;
     config.daylight.show = !!$form("daylight-show").checked;
     config.planets.show = !!$form("planets-show").checked;    
@@ -183,7 +186,7 @@ function geo(sky) {
         lat = parseFloat($form("lat").value),
         tz;
     //Get current configuration
-    Object.assign(config, settings.set());
+    Object.assign(config, settingsOf(sky));
 
     date = dtParse($form("datetime").value.slice(0,-6));
 
@@ -242,7 +245,13 @@ function geo(sky) {
     var timestamp = Math.floor(date.getTime() / 1000);
 
     if (typeof config.timezoneResolver === "function") {
-      Promise.resolve(config.timezoneResolver(p[0], p[1], timestamp)).then(function (offset) {
+      // Called inside the executor, so a resolver that throws synchronously
+      // ends up in the rejection branch too — with Promise.resolve(call) the
+      // exception escaped before any promise existed, and the documented
+      // fallback never ran.
+      new Promise(function (ok) {
+        ok(config.timezoneResolver(p[0], p[1], timestamp));
+      }).then(function (offset) {
         if (Number.isFinite(offset)) {
           timeZone = offset;
           geoInfo = { gmtOffset: offset * 60, message: "From timezoneResolver", timestamp: timestamp };
@@ -285,7 +294,7 @@ function geo(sky) {
   sky.date = function (dt, tz) { 
     if (!dt) return date;  
     if (isValidTimezone(tz)) timeZone = tz;
-    Object.assign(config, settings.set());
+    Object.assign(config, settingsOf(sky));
     if (dtpick.isVisible()) dtpick.hide();
     date.setTime(dt.valueOf());
     $form("datetime").value = dateFormat(dt, timeZone); 
@@ -294,7 +303,7 @@ function geo(sky) {
   sky.timezone = function (tz) { 
     if (!tz) return timeZone;  
     if (isValidTimezone(tz)) timeZone = tz;
-    Object.assign(config, settings.set());
+    Object.assign(config, settingsOf(sky));
     if (dtpick.isVisible()) dtpick.hide();
     $form("datetime").value = dateFormat(date, timeZone); 
     go();

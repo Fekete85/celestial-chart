@@ -44,9 +44,14 @@ function getPlanets(d, sky) {
 }
 
 
+// `sky` is the map whose date is meant. Called without one — the upstream
+// form, Celestial.getPlanet(id, date) — it is the global interface, i.e. the
+// most recently displayed map.
 function getPlanet(id, dt, sky) {
-  dt = dt || Celestial.date();
-  if (!Celestial.origin) return;
+  sky = sky || Celestial;
+  if (!Celestial.origin || !sky.container) return;
+  dt = dt || (sky.date && sky.date());
+  if (!dt) return;
 
   var o = Celestial.origin(dt).spherical(), res;
      

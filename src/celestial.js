@@ -2,7 +2,7 @@ import * as d3 from "./d3.js";
 import { geoZoom } from "../lib/geo-zoom.js";
 import { hasCallback } from "./add.js";
 import { Canvas } from "./canvas.js";
-import { arrayfy, bvcolor, formats, projections, settings } from "./config.js";
+import { arrayfy, bvcolor, clonePlain, formats, projections, settings } from "./config.js";
 import { form } from "./form.js";
 import { exportSVG } from "./svg.js";
 import { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets, reversedFeature } from "./get.js";
@@ -102,8 +102,18 @@ export class SkyMap {
   current = this;
 
 
+  // Whether this map keeps its settings to itself. The settings form and the
+  // location panel read it too: a standalone map's settings are merged onto
+  // its own configuration and never written to the shared globalConfig.
+  this.standalone = !!base;
+
   //Mash config with default settings, todo: if globalConfig exists, make another one
-  cfg = settings.set(config, base).applyDefaults(config, base);
+  cfg = settings.set(config, base);
+  // set() copies two levels deep; the style objects below that were still the
+  // defaults' own, shared with every other map — one map's form changing a
+  // colour changed it everywhere. A standalone map gets a copy of its own.
+  if (base) cfg = clonePlain(cfg);
+  cfg = cfg.applyDefaults(config, base);
   if (isNumber(cfg.zoomextend)) zoomextent = cfg.zoomextend;
   if (isNumber(cfg.zoomlevel)) zoomlevel = cfg.zoomlevel;
   //if (cfg.disableAnimations) ANIMDISTANCE = Infinity;
@@ -191,7 +201,11 @@ export class SkyMap {
   // datum (undefined here). Passed straight through, the "nothing changed, do
   // nothing" guard in resize(set) would never fire, and every resize event
   // would reset the user's zoom level.
-  d3.select(window).on('resize', function () { resize(); });
+  //
+  // The listener is named after the container: a second map on the page used
+  // to replace the first one's, so only the last map followed the window.
+  // Displaying into the same container again still replaces its own.
+  d3.select(window).on('resize.' + parentElement, function () { resize(); });
 
   if (cfg.interactive === true && cfg.controls === true && $("celestial-zoomin") === null) {
     d3.select(parentElement).append("input").attr("type", "button").attr("id", "celestial-zoomin").attr("value", "\u002b").on("click", function () { zoomBy(1.25); return false; });
@@ -205,7 +219,7 @@ export class SkyMap {
   if ($("error") === null) d3.select("body").append("div").attr("id", "error");
 
   if ($("loc") === null) geo(this);
-  else if (cfg.location === true && cfg.follow === "zenith") rotate({center: Celestial.zenith()});
+  else if (cfg.location === true && cfg.follow === "zenith" && instance.zenith) rotate({center: instance.zenith()});
 
   if (cfg.location === true || cfg.formFields.location === true) {
     d3.select(parentElement + " #location").style("display", "inline-block");
@@ -368,7 +382,7 @@ export class SkyMap {
       }, this);
     }
   
-    if (cfg.lang && cfg.lang != "") apply(Celestial.setLanguage(cfg.lang));
+    if (cfg.lang && cfg.lang != "") apply(instance.setLanguage(cfg.lang));
     //redraw();
   }
   
@@ -402,8 +416,16 @@ export class SkyMap {
     return interval;
   }  
   
+  // New settings merged onto the current ones. For a standalone map that is
+  // its own configuration; otherwise the shared globalConfig, as upstream did.
+  // (Merging a standalone map through globalConfig handed it the settings of
+  // whichever map was created last — container and projection included.)
+  function merged(config) {
+    return base ? settings.set(config, cfg) : settings.set(config);
+  }
+
   function apply(config) {
-    cfg = settings.set(config); 
+    cfg = merged(config); 
     redraw();
   }
 
@@ -418,7 +440,7 @@ export class SkyMap {
         oof = cfg.orientationfixed;
     
     if (Round(rot[1], 1) === -Round(config.center[1], 1)) keep = true; //keep lat fixed if equal
-    cfg = cfg.set(config);
+    cfg = merged(config);
     var d = Round(d3.geoDistance(cFrom, cfg.center), 2);
     var o = d3.geoDistance([cFrom[2],0], [cfg.center[2],0]);
     if ((d < ANIMDISTANCE && o < ANIMDISTANCE) || cfg.disableAnimations === true) { 
@@ -699,8 +721,8 @@ export class SkyMap {
       });
     }
 
-    if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin) { 
-      var dt = Celestial.date(),
+    if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin && instance.date) { 
+      var dt = instance.date(),
           o = Celestial.origin(dt).spherical();
       container.selectAll(parentElement + " .planet").each(function(d) {
         var id = d.id(), r = 12 * adapt,
@@ -746,10 +768,10 @@ export class SkyMap {
       });
     }
     
-    if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && projectionSetting.clip) {
+    if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && projectionSetting.clip && instance.zenith) {
       var sol = getPlanet("sol", undefined, instance);
       if (sol) {
-        var up = Celestial.zenith(),
+        var up = instance.zenith(),
             solpos = sol.ephemeris.pos,
             dist = d3.geoDistance(up, solpos),
             pt = mapProjection(solpos);
@@ -768,8 +790,8 @@ export class SkyMap {
       }
     }
 
-    if ((cfg.location || cfg.formFields.location) && cfg.horizon.show && !projectionSetting.clip) {
-      circle.center(Celestial.nadir());
+    if ((cfg.location || cfg.formFields.location) && cfg.horizon.show && !projectionSetting.clip && instance.nadir) {
+      circle.center(instance.nadir());
       setStyle(cfg.horizon);
       container.selectAll(parentElement + " .horizon").datum(circle).attr("d", map);  
       context.fill(); 
@@ -790,8 +812,7 @@ export class SkyMap {
     
 
   function drawOutline(stroke) {
-    var rot = mapProjection.rotate(),
-        prj = getProjection(cfg.projection, config.projectionRatio);
+    var rot = mapProjection.rotate();
     
     mapProjection.rotate([0,0]);
     setStyle(cfg.background);
@@ -1039,7 +1060,10 @@ export class SkyMap {
   
   function getProjection(p, ratioOverride) {
     if (!has(projections, p)) return;
-    var res = projections[p];
+    // A copy: the table is shared by every map, and the ratio override (and the
+    // outline adjustment in the constructor) used to be written into it — one
+    // map's projectionRatio then reshaped every later map with that projection.
+    var res = Object.assign({}, projections[p]);
     if (!has(res, "ratio")) res.ratio = 2;  // Default w/h ratio 2:1    
     res.ratio = ratioOverride ? ratioOverride : res.ratio;
     return res;
@@ -1106,11 +1130,11 @@ export class SkyMap {
     var ctr;
     //if (!config || !has(config, "transform")) return;
     //cfg.transform = config.transform; 
-    if (config) Object.assign(cfg, settings.set(config));
+    if (config) Object.assign(cfg, merged(config));
     if (cfg.follow === "center" && has(cfg, "center")) {
       ctr = getAngles(cfg.center);
-    } else if (cfg.follow === "zenith") {
-      ctr = getAngles(Celestial.zenith());
+    } else if (cfg.follow === "zenith" && instance.zenith) {
+      ctr = getAngles(instance.zenith());
     } 
     if (ctr) mapProjection.rotate(ctr);
     container.selectAll(parentElement + " *").remove(); 

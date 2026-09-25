@@ -127,6 +127,20 @@ test("Celestial.ha returns an hour angle in the [0,360) range", () => {
   assert.deepEqual(bad.slice(0, 5), [], `${bad.length} values fall outside the range`);
 });
 
+test("Celestial.ha stays in [0,360) for the library's own right ascensions too", () => {
+  // The data files are GeoJSON: right ascension runs from -180 to 180, not 0
+  // to 360. Wrapping only negative differences let 464.3 through here.
+  const bad = [];
+  for (let ra = -180; ra <= 180; ra += 5) {
+    const ha = Celestial.ha(DT, BUDAPEST[1], ra);
+    if (!(ha >= 0 && ha < 360)) bad.push(`RA ${ra}° → ${ha.toFixed(1)}°`);
+    // the same direction on the sky gives the same hour angle
+    const same = Celestial.ha(DT, BUDAPEST[1], ra + 360);
+    if (angleDiff(ha, same) > 1e-9) bad.push(`RA ${ra}° and ${ra + 360}° differ`);
+  }
+  assert.deepEqual(bad.slice(0, 5), [], `${bad.length} values fall outside the range`);
+});
+
 test("the hour angle is zero when the object is on the meridian", () => {
   // We look for the RA that is on the meridian right now: there the azimuth is 0° or 180°.
   let meridianRa = null, best = 1e9;
