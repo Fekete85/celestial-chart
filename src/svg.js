@@ -62,7 +62,9 @@ function exportSVG(sky, done, fname) {
     styles[groupNames[i]] = {};
   }
 
-  var graticule = d3.geoGraticule().stepMinor([15,10]);
+  // The grid of whatever coordinate system the map is in — the data is already
+  // transformed, so this is the same graticule the canvas draws.
+  var graticule = d3.geoGraticule().stepMinor(cfg.transform === "equatorial" ? [15,10] : [10,10]);
   
   var map = d3.geoPath().projection(projection);
 
@@ -72,15 +74,12 @@ function exportSVG(sky, done, fname) {
   styles.background.fill = cfg.background.fill;
 
   if (cfg.lines.graticule.show) {
-    if (cfg.transform === "equatorial") {
-      groups.gridLines.append("path").datum(graticule)
-       .attr("class", "gridLines")
-       .attr("d", map);
-      styles.gridLines = svgStyle(cfg.lines.graticule);
-    } else {
-      Celestial.graticule(groups.gridLines, map, cfg.transform);
-      styles.gridLines = svgStyle(cfg.lines.graticule);
-    }
+    // Non-equatorial maps used to call Celestial.graticule(), which exists
+    // neither here nor upstream: the export threw.
+    groups.gridLines.append("path").datum(graticule)
+     .attr("class", "gridLines")
+     .attr("d", map);
+    styles.gridLines = svgStyle(cfg.lines.graticule);
     if (has(cfg.lines.graticule, "lon") && cfg.lines.graticule.lon.pos.length > 0) {
       var jlon = {type: "FeatureCollection", features: getGridValues("lon", cfg.lines.graticule.lon.pos, sky)};      
       groups.gridvaluesLon.selectAll(".gridvalues_lon")
@@ -108,7 +107,7 @@ function exportSVG(sky, done, fname) {
     if (has(cfg.lines, key) && key != "graticule" && cfg.lines[key].show !== false) { 
       id = "planes" + key;
       groups[id].append("path")
-         .datum(d3.geoCircle().radius(90).center(poles[key]) )
+         .datum(d3.geoCircle().radius(90).center(transformDeg(poles[key], euler[cfg.transform])) )
          .attr("class", id)
          .attr("d", map);
       styles[id] = svgStyle(cfg.lines[key]);
@@ -475,8 +474,9 @@ function exportSVG(sky, done, fname) {
     q.defer(function(callback) {
       var sol = getPlanet("sol", undefined, sky);
       if (sol) {
+        // In the map's coordinate system, like the zenith (see redraw()).
         var up = sky.zenith(),
-            solpos = sol.ephemeris.pos,
+            solpos = transformDeg(sol.ephemeris.pos, euler[cfg.transform]),
             dist = d3.geoDistance(up, solpos),
             pt = projection(solpos),
             daylight = d3.geoCircle().radius(179.95).center(solpos);

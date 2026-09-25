@@ -771,8 +771,11 @@ export class SkyMap {
     if ((cfg.location || cfg.formFields.location) && cfg.daylight.show && projectionSetting.clip && instance.zenith) {
       var sol = getPlanet("sol", undefined, instance);
       if (sol) {
+        // The zenith is in the map's coordinate system; the Sun's position has
+        // to be brought there too (the planets above already are). Left
+        // equatorial, the daylight sky landed up to 95° off in galactic maps.
         var up = instance.zenith(),
-            solpos = sol.ephemeris.pos,
+            solpos = transformDeg(sol.ephemeris.pos, euler[cfg.transform]),
             dist = d3.geoDistance(up, solpos),
             pt = mapProjection(solpos);
 

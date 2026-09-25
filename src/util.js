@@ -137,13 +137,14 @@ function dateParse(s) {
   if (!s) return; 
   var t = s.split(".");
   if (t.length < 1) return; 
+  // A fraction of a day, as epochs are often written: "2015-06-27.5" is noon.
+  var frac = t.length > 1 && /^\d+$/.test(t[1]) ? parseFloat("0." + t[1]) : 0;
   t = t[0].split("-");
   t[0] = t[0].replace(/\D/g, "");
   if (!t[0]) return; 
   t[1] = t[1] ? t[1].replace(/\D/g, "") : "1";
   t[2] = t[2] ? t[2].replace(/\D/g, "") : "1";
-  //Fraction -> h:m:s
-  return new Date(Date.UTC(t[0], t[1]-1, t[2]));
+  return new Date(Date.UTC(t[0], t[1]-1, t[2]) + frac * 864e5);
 }
 
 
