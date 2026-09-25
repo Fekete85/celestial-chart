@@ -5,7 +5,7 @@ import { Canvas } from "./canvas.js";
 import { arrayfy, bvcolor, formats, projections, settings } from "./config.js";
 import { form } from "./form.js";
 import { exportSVG } from "./svg.js";
-import { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets } from "./get.js";
+import { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets, reversedFeature } from "./get.js";
 import { geo } from "./location.js";
 import { Celestial } from "./core.js";
 import { poles, projectionTween } from "./projection.js";
@@ -42,7 +42,7 @@ export class SkyMap {
   var animationID,
       container = null,
       animations = [], 
-      current = 0, 
+      animIndex = 0,   // index of the next animation step — NOT the module-level `current`
       repeat = false,
       zoomextent = 10,       // Default maximum extent of zoom (max/min)
       zoomlevel = 1;         // Default zoom level, 1 = 100%
@@ -96,6 +96,9 @@ export class SkyMap {
       });
     });
 
+  // The module-level pointer, behind Celestial.constellation(s). Until 0.8.1
+  // the animation counter above was also called `current`, so this assignment
+  // went to the local variable and the global accessors always saw null.
   current = this;
 
 
@@ -617,8 +620,8 @@ export class SkyMap {
     if (cfg.constellations.bounds) { 
       container.selectAll(parentElement + " .boundaryline").each(function(d) { 
         setStyle(cfg.constellations.boundStyle); 
-        if (Celestial.constellation) {
-          var re = new RegExp("\\b" + Celestial.constellation + "\\b");
+        if (instance.constellation) {
+          var re = new RegExp("\\b" + instance.constellation + "\\b");
           if (d.ids.search(re) !== -1) {
             context.lineWidth *= 1.5;
             context.globalAlpha = 1;
@@ -838,12 +841,7 @@ export class SkyMap {
   }
 
   function reversed(d) {
-    if (!d.reversedCopy) {
-      d.reversedCopy = { type: d.type, geometry: { type: d.geometry.type,
-        coordinates: d.geometry.coordinates.map(function (pol) {
-          return pol.map(function (ring) { return ring.slice().reverse(); });
-        })}};
-    }
+    if (!d.reversedCopy) d.reversedCopy = reversedFeature(d);
     return d.reversedCopy;
   }
 
@@ -1051,7 +1049,7 @@ export class SkyMap {
   function animate() {
     if (!animations || animations.length < 1) return;
 
-    var d, a = animations[current];
+    var d, a = animations[animIndex];
     
     switch (a.param) {
       case "projection": d = reproject({projection:a.value}); break;
@@ -1059,15 +1057,15 @@ export class SkyMap {
       case "zoom": d = zoomBy(a.value);
     }
     if (a.callback) setTimeout(a.callback, d);
-    current++;
-    if (repeat === true && current === animations.length) current = 0;
+    animIndex++;
+    if (repeat === true && animIndex === animations.length) animIndex = 0;
     d = a.duration === 0 || a.duration < d ? d : a.duration;
-    if (current < animations.length) animationID = setTimeout(animate, d);
+    if (animIndex < animations.length) animationID = setTimeout(animate, d);
   }
   
   function stop() {
     clearTimeout(animationID);
-    //current = 0;
+    //animIndex = 0;
     //repeat = false;
   }
 
@@ -1079,7 +1077,10 @@ export class SkyMap {
   // Exports this map. It calls the module function directly rather than
   // Celestial.exportSVG: the backwards-compatible interface copies this very
   // method onto itself, so going through it would recurse.
-  this.exportSVG = function (callback) { return exportSVG(instance, callback); };
+  this.exportSVG = function (callback) {
+    if (typeof callback !== "function") return;
+    return exportSVG(instance, callback);
+  };
   this.metrics = function() {
     return {"width": width, "height": height, "margin": margin, "scale": mapProjection.scale()};
   };
@@ -1128,7 +1129,7 @@ export class SkyMap {
   this.animate = function(anims, dorepeat) { 
     if (!anims) return; 
     animations = anims; 
-    current = 0; 
+    animIndex = 0; 
     repeat = dorepeat ? true : false; 
     animate(); 
   };
@@ -1138,7 +1139,7 @@ export class SkyMap {
   };
   this.go = function(index) {
     if (animations.length < 1) return;
-    if (index && index < animations.length) current = index;
+    if (index && index < animations.length) animIndex = index;
     animate(); 
   };
 

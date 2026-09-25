@@ -519,7 +519,9 @@ function form(sky) {
   });
 
   col.append("input").attr("type", "button").attr("id", "download-svg").attr("value", "SVG File").on("click", function() {
-    exportSVG(getFilename(".svg")); 
+    // exportSVG takes the map first; called with just the file name, the name
+    // arrived as the map and the export threw before it started.
+    exportSVG(sky, null, getFilename(".svg")); 
     return false;
   });
 

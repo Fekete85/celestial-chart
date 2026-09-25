@@ -212,11 +212,14 @@ var datetimepicker = function(sky, callback) {
     setTimeout(function () { $form("celestial-date").style.top = px(-9999); }, 600);    
   }
   
+  // `this` is the clicked day cell or the time zone select. The hour, minute
+  // and second fields call pick() plainly, and in module (strict) code `this`
+  // is then undefined, not the global object — hence the guard.
   function pick() {
     var h = $form("hr").value, m = $form("min").value,
-        s = $form("sec").value, tz = $form("tz").value;
+        s = $form("sec").value, tz = +$form("tz").value;
         
-    if (this.id && this.id.search(/^\d/) !== -1) {
+    if (this && this.id && this.id.search(/^\d/) !== -1) {
       date = dateParse(this.id); 
     }
     fillYrSel();
