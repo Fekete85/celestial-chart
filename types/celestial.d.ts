@@ -467,13 +467,14 @@ export declare class SkyMap {
   color(type_?: string): string;
   starColor(star: unknown): string;
   symbol: unknown;
-  dsoSymbol(dso: unknown): string;
+  /** Draws a deep-sky symbol at `point`; returns its radius in pixels. */
+  dsoSymbol(dso: unknown, point: ScreenPoint): number;
   setStyle(style_: Record<string, unknown>): void;
   setTextStyle(style_: Record<string, unknown>): void;
   setStyleA(rank: number, style_: Record<string, unknown>): void;
   setConstStyle(rank: number, font: string | string[]): void;
 
-  /** Csak `location: true` mellett. */
+  /** Only with `location: true`. */
   date?(date_?: Date, tz?: number): Date;
   dateFormat?(date_: Date, tz: number): string;
   zenith?(): Center;
@@ -526,7 +527,8 @@ export interface CelestialGlobal extends SkyMap {
 
   /** Add a custom data layer. */
   add(data_: { type?: string; file?: string; callback: () => void; redraw?: () => void }): void;
-  remove(): void;
+  /** Remove the layer at `index`; returns the removed entry, as upstream did. */
+  remove(index: number): unknown[] | undefined;
   clear(): void;
   addCallback(fv: () => void): void;
   runCallback(): void;

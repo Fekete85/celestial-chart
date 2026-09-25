@@ -12,7 +12,7 @@ import { has } from "./util.js";
 // a few projections were renamed as well. The exceptions are listed here —
 // anything not in the table follows the naming convention.
 var RAW_RENAMES = {
-  "naturalEarth": "geoNaturalEarth1Raw"   // a v3 plugin Natural Earth I-et adott
+  "naturalEarth": "geoNaturalEarth1Raw"   // the v3 plugin's naturalEarth was Natural Earth I
 };
 
 // A few projections' raw functions interpret their argument differently in v4.
@@ -153,7 +153,7 @@ function skyProjection(projection, finite) {
 
   // We look at the sky mirrored: from the outside in, not from the inside out.
   // The v3 code did this by wrapping the raw function — `raw(-lambda, phi)` — and
-  // ezt tartjuk meg.
+  // that is what is kept here.
   //
   // v7's reflectX(true) would be the obvious choice, and for 65 projections it
   // gives exactly the same result. But not for all of them: for `wiechel` it
