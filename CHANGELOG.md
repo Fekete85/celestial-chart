@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-09-25
 
 A review of the whole fork turned up the defects below. Every one was
 reproduced in a browser or measured before it was fixed, and each has a
