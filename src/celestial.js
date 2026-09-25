@@ -721,8 +721,8 @@ export class SkyMap {
       });
     }
 
-    if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin && instance.date) { 
-      var dt = instance.date(),
+    if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin && instance.instant) { 
+      var dt = instance.instant(),
           o = Celestial.origin(dt).spherical();
       container.selectAll(parentElement + " .planet").each(function(d) {
         var id = d.id(), r = 12 * adapt,

@@ -375,9 +375,9 @@ function exportSVG(sky, done, fname) {
   }
 
   //Planets
-  if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin && sky.date) {
+  if ((cfg.location || cfg.formFields.location) && cfg.planets.show && Celestial.origin && sky.instant) {
     q.defer(function(callback) {
-      var dt = sky.date(),
+      var dt = sky.instant(),
           o = Celestial.origin(dt).spherical(),
           jp = {type: "FeatureCollection", features: []},
           jlun = {type: "FeatureCollection", features: []};

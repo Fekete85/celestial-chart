@@ -201,11 +201,7 @@ function geo(sky) {
       //if (!tz) tz = date.getTimezoneOffset();
       $form("datetime").value = dateFormat(date, timeZone); 
 
-      // `date` holds the entered wall-clock time read as the browser's local
-      // time, so the browser's offset AT THAT DATE has to come off — not the
-      // offset of the day the page was loaded, which is an hour out across a
-      // daylight saving change.
-      var dtc = new Date(date.valueOf() - (timeZone + date.getTimezoneOffset()) * 60000);
+      var dtc = instant();
 
       zenith = Celestial.getPoint(horizontal.inverse(dtc, [90, 0], geopos), config.transform);
       zenith[2] = 0;
@@ -363,6 +359,20 @@ function geo(sky) {
   };  
   sky.dtLoc = sky.skyview;
   sky.zenith = function () { return zenith; };
+
+  // The moment the map shows. `date` holds the entered wall-clock time read
+  // as the browser's local time, so the browser's offset AT THAT DATE comes
+  // off (not that of the day the page was loaded — an hour out across a
+  // daylight saving change) and the entered zone's offset goes on.
+  //
+  // date() keeps returning the wall-clock value, as upstream did. The Sun,
+  // the Moon and the planets used to be computed from it, while the zenith
+  // used this instant: viewing Tokyo from a browser in Budapest put them
+  // seven hours out — the Moon by some 3.5 degrees.
+  function instant() {
+    return new Date(date.valueOf() - (timeZone + date.getTimezoneOffset()) * 60000);
+  }
+  sky.instant = instant;
   sky.nadir = function () {
     var b = -zenith[1],
         l = zenith[0] + 180;

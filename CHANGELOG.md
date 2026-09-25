@@ -59,6 +59,12 @@ check in `harness/verify.mjs` or a unit test that fails on the old code.
 - **SVG export** of a non-equatorial map with the graticule on threw
   (`Celestial.graticule` exists neither here nor upstream); the planes'
   poles were not transformed either.
+- **The Sun, the Moon and the planets were computed for the wrong moment**
+  whenever the observer's time zone differed from the browser's: from
+  `date()`'s wall-clock time, while the zenith used the real instant. Tokyo
+  seen from a browser in Budapest put the Moon 4.5° out of place. They are now
+  computed for the new `instant()`; `date()` still returns the wall-clock
+  value, as upstream did.
 - `Celestial.display({ location: true, daylight: { show: true } })` threw on
   the first call.
 - Location panel: `timezone(0)` could not set UTC; an invalid offset was
@@ -82,7 +88,7 @@ check in `harness/verify.mjs` or a unit test that fails on the old code.
 - The #130 test's bound for 2022-03-18 is 99% illumination, not 99.5%: the
   Moon itself is at 99.49% by 23:00 UTC (PyEphem: 99.37%). The old code met
   the stricter bound only because two of its errors partly cancelled.
-- `SkyMap` instances expose `standalone`.
+- `SkyMap` instances expose `standalone`, and with a location `instant()`.
 - Removed `site/html/`, a stale 0.8.0 build and data left behind when the demo
   page moved to its own repository.
 

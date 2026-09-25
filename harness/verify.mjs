@@ -477,7 +477,29 @@ async function moduleChecks(page) {
     const expected = C.horizontal.inverse(when, [90, 0], [47.5, 19.04]);
     return [C.zenith()[0], expected[0]];
   }, DATA);
+  // The Sun, the Moon and the planets are computed for the same moment as the
+  // zenith. They used date()'s wall-clock time: Tokyo seen from a browser in
+  // Budapest put the Moon seven hours — some 3.5° — out of place.
+  await bp.goto(blank, { waitUntil: "load" });
+  const tokyo = await bp.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="celestial-map"></div>';
+    const C = (await import("/build/celestial.mjs")).default;
+    C.display({ container: "celestial-map", width: 500, datapath: DATA, location: true, form: true,
+      formFields: { location: true }, geopos: [35.68, 139.69], follow: "zenith", disableAnimations: true,
+      planets: { show: true } });
+    await new Promise(r => setTimeout(r, 3000));
+    const wall = new Date(2026, 0, 15, 22, 0, 0);          // 22:00 on the clock in Tokyo
+    C.skyview({ date: wall, location: [35.68, 139.69], timezone: 540 });
+    await new Promise(r => setTimeout(r, 1000));
+    const moment = new Date(Date.UTC(2026, 0, 15, 13, 0, 0));   // = 13:00 UTC
+    const shown = C.getPlanet("lun").ephemeris.pos.slice(),
+          expected = C.getPlanet("lun", moment).ephemeris.pos.slice();
+    return { instant: C.instant ? C.instant().toISOString() : "no instant()", dRa: Math.abs(shown[0] - expected[0]), dDec: Math.abs(shown[1] - expected[1]) };
+  }, DATA);
   await ctx.close();
+  check("the Moon is computed for the observer's moment, not the browser's clock",
+    tokyo.instant === "2026-01-15T13:00:00.000Z" && tokyo.dRa < 1e-6 && tokyo.dDec < 1e-6,
+    tokyo.instant + ", Moon off by " + tokyo.dRa.toFixed(3) + "° RA");
   check("the zenith is right across a daylight saving change",
     Math.abs(((dst[0] - dst[1]) % 360 + 540) % 360 - 180) < 0.05 && bpErrors.length === 0,
     "zenith RA " + dst[0].toFixed(2) + "°, expected " + dst[1].toFixed(2) + "°" + (bpErrors.length ? ", " + bpErrors[0] : ""));

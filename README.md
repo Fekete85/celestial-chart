@@ -146,7 +146,7 @@ itself too: it fails if two projections — or two rotations — produce the sam
 output, because a net that measures nothing passes everything.
 
 ```bash
-npm run verify    # build + 75 unit tests + types + 40 browser assertions, ~4 min
+npm run verify    # build + 75 unit tests + types + 41 browser assertions, ~4 min
 ```
 
 The browser run regenerates both references, compares them, captures 12 screenshots
