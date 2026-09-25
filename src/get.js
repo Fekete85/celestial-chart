@@ -50,7 +50,7 @@ function getPlanets(d, sky) {
 function getPlanet(id, dt, sky) {
   sky = sky || Celestial;
   if (!Celestial.origin || !sky.container) return;
-  dt = dt || (sky.date && sky.date());
+  dt = dt || (sky.instant && sky.instant());   // the moment shown, not the wall clock
   if (!dt) return;
 
   var o = Celestial.origin(dt).spherical(), res;

@@ -478,6 +478,11 @@ export declare class SkyMap {
   date?(date_?: Date, tz?: number): Date;
   dateFormat?(date_: Date, tz: number): string;
   zenith?(): Center;
+  /**
+   * The moment the map shows: `date()`'s wall-clock time taken in the
+   * observer's time zone. The Sun, the Moon and the planets are computed for it.
+   */
+  instant?(): Date;
   nadir?(): Center;
   position?(): [number, number];
   location?(be: boolean): void;
