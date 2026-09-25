@@ -173,6 +173,28 @@ async function smokeTest(page) {
     startState.form + " → " + afterProjection.form);
   check("exactly one container remains", afterProjection.containers === 1, afterProjection.containers + " containers");
 
+  // The settings form's own "SVG File" button. It passed the file name where
+  // exportSVG expects the map, and threw before exporting anything.
+  const download = page.waitForEvent("download", { timeout: 40000 }).catch(() => null);
+  await page.evaluate(() => document.querySelector("#celestial-form #download-svg").click());
+  const file_ = await download;
+  const leftover = await page.evaluate(() => document.querySelectorAll("#d3-celestial-svg").length);
+  check("the form's SVG button downloads the map",
+    !!file_ && /\.svg$/.test(file_.suggestedFilename()) && leftover === 0,
+    file_ ? file_.suggestedFilename() + ", " + leftover + " working divs left" : "no download");
+
+  // Picking a constellation in the form highlights its boundary. The module
+  // pointer behind Celestial.constellation(s) was shadowed by the animation
+  // counter, so both were always undefined and nothing was highlighted.
+  await page.evaluate(() => {
+    const s = document.querySelector("#celestial-form #constellation");
+    s.value = "Ori"; s.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForTimeout(3000);
+  const con = await page.evaluate(() => ({ list: typeof Celestial.constellations, selected: Celestial.constellation }));
+  check("a constellation picked in the form reaches Celestial.constellation(s)",
+    con.list === "object" && con.selected === "Ori", JSON.stringify(con));
+
   // A layer added with Celestial.add() draws through the global Celestial
   // object, exactly as upstream's examples do. The zoom behaviour triggers a
   // redraw while the constructor is still running, so without the deferral
@@ -255,6 +277,24 @@ async function smokeTest(page) {
     after[0] === "hammer" && after[1] === before[1],
     `A: ${before[0]} → ${after[0]}, B: ${before[1]} → ${after[1]}`);
 
+  // Every other form change, and rotate(), went through the shared
+  // globalConfig: A took over B's container and projection. And a colour set
+  // on A reached B through a style object the two configurations shared.
+  await page.evaluate(() => {
+    const f = document.querySelector("#map-a ~ #celestial-form #constellations-lines");
+    f.checked = !f.checked; f.dispatchEvent(new Event("change", { bubbles: true }));
+    const c = document.querySelector("#map-a ~ #celestial-form #stars-style-fill");
+    c.value = "#ff0000"; c.dispatchEvent(new Event("change", { bubbles: true }));
+    window.__a.rotate({ center: [150, 40, 0] });
+  });
+  await page.waitForTimeout(1500);
+  const own = await page.evaluate(() => [window.__a, window.__b].map(m =>
+    [m.cfg.container, m.cfg.projection, m.cfg.stars.style.fill]));
+  check("form changes and rotate() keep each map's own settings",
+    own[0][0] === "map-a" && own[0][1] === "hammer" && own[0][2] === "#ff0000" &&
+      own[1][0] === "map-b" && own[1][1] === before[1] && own[1][2] !== "#ff0000",
+    JSON.stringify(own));
+
   // With no container element and no given width: the map goes into the body,
   // and it has to work out the width for itself. This branch used to blow up
   // with an exception.
@@ -269,7 +309,178 @@ async function smokeTest(page) {
     !base.error_ && base.widthPx > 200 && base.csillagok > 1000,
     base.error_ || base.widthPx + " px, " + base.csillagok + " stars");
 
+  await moduleChecks(page);
+
   check("no console errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+}
+
+/* The ES module build on an empty page, one map at a time: the independent
+ * SkyMap interface, and the SVG export measured against the canvas. */
+async function moduleChecks(page) {
+  const blank = `http://127.0.0.1:${PORT}/harness/blank.html`;
+  const DATA = "../harness/data/";
+
+  // A SkyMap with a location, and nothing global behind it: the drawing and
+  // the export read Celestial.date(), .zenith() and .metrics(), which only
+  // Celestial.display() provides. The daylight sky threw on the first
+  // display() as well.
+  await page.goto(blank, { waitUntil: "load" });
+  const alone = await page.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="m1"></div>';
+    const { SkyMap } = await import("/build/celestial.mjs");
+    try {
+      const m = new SkyMap({ container: "m1", width: 600, datapath: DATA, projection: "stereographic",
+        location: true, geopos: [47.5, 19.04], planets: { show: true }, daylight: { show: true },
+        form: false, disableAnimations: true }, { standalone: true });
+      await new Promise(r => setTimeout(r, 4000));
+      const svg = await new Promise(ok => { m.exportSVG(ok); setTimeout(() => ok(null), 30000); });
+      return svg && svg.indexOf("<svg") === 0 ? "ok, " + Math.round(svg.length / 1024) + " KB" : "no SVG";
+    } catch (e) { return "EXCEPTION: " + e.message; }
+  }, DATA);
+  check("a SkyMap with a location draws and exports on its own", /^ok/.test(alone), alone);
+
+  // Grid value labels: getLine() read a `sky` that was not in its scope.
+  // (A fresh page for every map: a location map's pending timers would
+  // otherwise reach into a form that is no longer there.)
+  await page.goto(blank, { waitUntil: "load" });
+  const grid = await page.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="g1"></div>';
+    const { SkyMap } = await import("/build/celestial.mjs");
+    try {
+      new SkyMap({ container: "g1", width: 400, datapath: DATA, form: false, location: false,
+        lines: { graticule: { show: true, lon: { pos: ["center"] }, lat: { pos: ["outline"] } } } }, { standalone: true });
+      return "ok";
+    } catch (e) { return "EXCEPTION: " + e.message; }
+  }, DATA);
+  check("grid value labels render", grid === "ok", grid);
+
+  // One map's projectionRatio was written into the shared projection table.
+  await page.goto(blank, { waitUntil: "load" });
+  const ratio = await page.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="x"></div><div id="y"></div>';
+    const { SkyMap } = await import("/build/celestial.mjs");
+    const opt = { width: 400, datapath: DATA, projection: "aitoff", interactive: false, form: false, location: false };
+    new SkyMap(Object.assign({ container: "x", projectionRatio: 1 }, opt), { standalone: true });
+    new SkyMap(Object.assign({ container: "y" }, opt), { standalone: true });
+    return [document.querySelector("#x canvas").height, document.querySelector("#y canvas").height];
+  }, DATA);
+  check("a ratio override stays with its own map", ratio[0] === 402 && ratio[1] === 201, ratio.join(" / ") + " px");
+
+  // Window resize: the listener had no name, so each map replaced the
+  // previous one's and only the last map followed the window.
+  await page.goto(blank, { waitUntil: "load" });
+  await page.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="r1" style="width:40%"></div><div id="r2" style="width:40%"></div>';
+    const { SkyMap } = await import("/build/celestial.mjs");
+    const opt = { datapath: DATA, projection: "aitoff", form: false, controls: false, location: false };
+    new SkyMap(Object.assign({ container: "r1" }, opt), { standalone: true });
+    new SkyMap(Object.assign({ container: "r2" }, opt), { standalone: true });
+  }, DATA);
+  const wide = await page.evaluate(() => ["r1", "r2"].map(id => document.querySelector("#" + id + " canvas").width));
+  await page.setViewportSize({ width: 800, height: VIEWPORT.height });
+  await page.waitForTimeout(1000);
+  const narrow = await page.evaluate(() => ["r1", "r2"].map(id => document.querySelector("#" + id + " canvas").width));
+  await page.setViewportSize({ width: VIEWPORT.width, height: VIEWPORT.height });
+  check("both maps follow a window resize", narrow[0] < wide[0] && narrow[1] < wide[1],
+    wide.join("/") + " → " + narrow.join("/") + " px");
+
+  // The export's Milky Way against the canvas. At [180,55] orthographic the
+  // export used to fill the complement (the canvas had the correction, the
+  // export not); in mercator the south pole's -Infinity inverted the
+  // background as well.
+  for (const [prj, center] of [["orthographic", [180, 55, 0]], ["mercator", [0, 0, 0]]]) {
+    await page.goto(blank, { waitUntil: "load" });
+    const lum = await page.evaluate(async ([DATA, prj, center]) => {
+      document.body.innerHTML = '<div id="celestial-map"></div>';
+      const C = (await import("/build/celestial.mjs")).default;
+      C.display({ container: "celestial-map", width: 600, datapath: DATA, projection: prj, center,
+        interactive: false, form: false, controls: false, location: false, follow: "center",
+        disableAnimations: true, orientationfixed: false,
+        stars: { show: false }, dsos: { show: false }, planets: { show: false },
+        constellations: { names: false, lines: false, bounds: false },
+        lines: { graticule: { show: false }, equatorial: { show: false }, ecliptic: { show: false },
+                 galactic: { show: false }, supergalactic: { show: false } },
+        mw: { show: true }, background: { fill: "#000000", stroke: "#000000", opacity: 1 } });
+      await new Promise(r => setTimeout(r, 4000));
+      const mean = (ctx, w, h) => { const d = ctx.getImageData(0, 0, w, h).data; let s = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3]) { s += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
+        return s / Math.max(n, 1); };
+      const cv = document.querySelector("#celestial-map canvas");
+      const svg = await new Promise(ok => C.exportSVG(ok));
+      const img = new Image();
+      await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko;
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+      const c2 = document.createElement("canvas"); c2.width = img.width; c2.height = img.height;
+      c2.getContext("2d").drawImage(img, 0, 0);
+      return [mean(cv.getContext("2d"), cv.width, cv.height), mean(c2.getContext("2d"), c2.width, c2.height)];
+    }, [DATA, prj, center]);
+    check(`SVG export: ${prj} Milky Way matches the canvas`, Math.abs(lum[0] - lum[1]) < 3,
+      "mean brightness, canvas " + lum[0].toFixed(1) + ", SVG " + lum[1].toFixed(1));
+  }
+
+  // The date picker's hour field in the module build: in strict code a plain
+  // pick() call has `this === undefined`, and `this.id` threw.
+  await page.goto(blank, { waitUntil: "load" });
+  const picked = await page.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="celestial-map"></div>';
+    const C = (await import("/build/celestial.mjs")).default;
+    C.display({ container: "celestial-map", width: 500, datapath: DATA, location: true, form: true,
+      formFields: { location: true }, geopos: [47.5, 19.04], disableAnimations: true });
+    await new Promise(r => setTimeout(r, 2500));
+    const before = C.date().getHours();
+    document.querySelector("#celestial-form #datetime").click();
+    await new Promise(r => setTimeout(r, 700));
+    const h = document.querySelector("#celestial-form #hr");
+    h.value = String((before + 1) % 24); h.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise(r => setTimeout(r, 700));
+    return [before, C.date().getHours()];
+  }, DATA);
+  check("the module build's date picker takes a new hour", picked[1] === (picked[0] + 1) % 24, picked.join(" → "));
+
+  // A timezoneResolver that throws synchronously falls back to the estimate
+  // from longitude, like one that rejects.
+  await page.goto(blank, { waitUntil: "load" });
+  const fallback = await page.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="celestial-map"></div>';
+    const C = (await import("/build/celestial.mjs")).default;
+    C.display({ container: "celestial-map", width: 500, datapath: DATA, location: true, form: true,
+      formFields: { location: true }, geopos: [47.5, 19.04], disableAnimations: true,
+      timezoneResolver: () => { throw new Error("offline"); } });
+    await new Promise(r => setTimeout(r, 2000));
+    try { C.location([35.68, 139.69]); } catch (e) { return "EXCEPTION: " + e.message; }
+    await new Promise(r => setTimeout(r, 1000));
+    return C.timezone();
+  }, DATA);
+  check("a resolver that throws falls back to the longitude estimate", fallback === 540,
+    typeof fallback === "number" ? "offset " + fallback : fallback);
+
+  // Daylight saving time: the browser's offset has to be the one of the
+  // entered date, not of the day the page was loaded. Budapest, with a date
+  // on the other side of the DST change from today, so the check bites in
+  // any season.
+  const ctx = await page.context().browser().newContext({ viewport: VIEWPORT, timezoneId: "Europe/Budapest" });
+  const bp = await ctx.newPage();
+  const bpErrors = [];
+  bp.on("pageerror", e => bpErrors.push(String(e.message)));
+  await bp.goto(blank, { waitUntil: "load" });
+  const dst = await bp.evaluate(async (DATA) => {
+    document.body.innerHTML = '<div id="celestial-map"></div>';
+    const C = (await import("/build/celestial.mjs")).default;
+    const summerNow = -new Date().getTimezoneOffset() === 120,
+          when = new Date(Date.UTC(2026, summerNow ? 0 : 6, 15, 19, 0, 0)),
+          zone = summerNow ? 60 : 120;
+    C.display({ container: "celestial-map", width: 500, datapath: DATA, location: true, form: true,
+      formFields: { location: true }, geopos: [47.5, 19.04], follow: "zenith", disableAnimations: true });
+    await new Promise(r => setTimeout(r, 2000));
+    C.skyview({ date: when, location: [47.5, 19.04], timezone: zone });
+    await new Promise(r => setTimeout(r, 1000));
+    const expected = C.horizontal.inverse(when, [90, 0], [47.5, 19.04]);
+    return [C.zenith()[0], expected[0]];
+  }, DATA);
+  await ctx.close();
+  check("the zenith is right across a daylight saving change",
+    Math.abs(((dst[0] - dst[1]) % 360 + 540) % 360 - 180) < 0.05 && bpErrors.length === 0,
+    "zenith RA " + dst[0].toFixed(2) + "°, expected " + dst[1].toFixed(2) + "°" + (bpErrors.length ? ", " + bpErrors[0] : ""));
 }
 
 // --- run ---

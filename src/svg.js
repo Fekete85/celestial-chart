@@ -5,7 +5,7 @@ import { getData, getGridValues, getMwbackground, getPlanet, reversedFeature } f
 import { Celestial } from "./core.js";
 import { poles, skyProjection } from "./projection.js";
 import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
-import { Round, attrs, taskQueue, functor, has, isArray, loadJson } from "./util.js";
+import { attrs, taskQueue, functor, has, isArray, loadJson } from "./util.js";
 
 // SVG export of one map. It receives the instance so that it works from that
 // map's own configuration, container and name tables.
@@ -277,8 +277,10 @@ function exportSVG(sky, done, fname) {
         var range = bvcolor.domain(),
             bvMin = Math.min(range[0], range[1]),
             bvMax = Math.max(range[0], range[1]);
-        for (i=Round(bvMin,1); i<=Round(bvMax,1); i+=0.1) {
-          styles["stars" + Math.round(i*10).toString()] = {"fill": bvcolor(i)};
+        // Counted in integer tenths: adding 0.1 repeatedly drifted, the loop
+        // stopped at stars32, and stars of class stars33 came out black.
+        for (i=Math.round(bvMin*10); i<=Math.round(bvMax*10); i++) {
+          styles["stars" + i] = {"fill": bvcolor(i/10)};
         }
           
         if (cfg.stars.designation) { 
@@ -705,9 +707,13 @@ function exportSVG(sky, done, fname) {
     return Math.max(d, 0.1);
   }
   
+  // The class of a star's colour, in tenths of B-V — clamped to the classes
+  // styled above: the scale clamps a B-V beyond its domain, the class did not.
   function starColor(bv) {
     if (!cfg.stars.colors || isNaN(bv)) return ""; 
-    return Math.round(bv*10).toString();
+    var d = bvcolor.domain(),
+        lo = Math.round(Math.min(d[0], d[1])*10), hi = Math.round(Math.max(d[0], d[1])*10);
+    return Math.max(lo, Math.min(hi, Math.round(bv*10))).toString();
   }
   
   function constName(d) { 

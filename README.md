@@ -124,9 +124,11 @@ Behaviour that intentionally differs — all of them bug fixes:
 
 - Moon right ascension and declination move by up to 1.5°; the terminator is drawn wider.
 - `horizontal.inverse()` returns the correct hemisphere.
-- `Celestial.ha()` returns `[0, 360)`.
+- `Celestial.ha()` returns `[0, 360)`, for right ascensions given as −180…180 too.
 - SVG export clips paths to the output size (mercator produced `Infinity` coordinates, which browsers discard).
 - `Trig.normalize` / `normalize0` normalise inputs below −2π correctly.
+- The Sun and the planets move by up to ~0.9°: the catalogue's J2000 epoch is now read as noon, not midnight.
+- A standalone `SkyMap` never reads or writes the shared global settings — not from its form, its location panel, `apply()` or `rotate()` either.
 
 ## How it is verified
 
@@ -144,12 +146,15 @@ itself too: it fails if two projections — or two rotations — produce the sam
 output, because a net that measures nothing passes everything.
 
 ```bash
-npm run verify    # build + 71 unit tests + types + 28 browser assertions, ~2 min
+npm run verify    # build + 75 unit tests + types + 40 browser assertions, ~4 min
 ```
 
 The browser run regenerates both references, compares them, captures 12 screenshots
 with a pixel diff, and drives the real UI (zoom, drag-rotate, projection switching,
 forms, SVG export, two independent maps). It runs in CI on every push.
+
+Locally the browser run uses the system Chrome (`channel: "chrome"`); in CI,
+Playwright's own Chromium.
 
 ## Trying it locally
 
