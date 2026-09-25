@@ -1,25 +1,31 @@
 import * as d3 from "./d3.js";
 
 import { bvcolor, formats, projections, settings } from "./config.js";
-import { getData, getGridValues, getMwbackground, getPlanet } from "./get.js";
+import { getData, getGridValues, getMwbackground, getPlanet, reversedFeature } from "./get.js";
 import { Celestial } from "./core.js";
-import { poles } from "./projection.js";
+import { poles, skyProjection } from "./projection.js";
 import { euler, getAngles, halfπ, transformDeg } from "./transform.js";
 import { Round, attrs, taskQueue, functor, has, isArray, loadJson } from "./util.js";
 
 // SVG export of one map. It receives the instance so that it works from that
 // map's own configuration, container and name tables.
+//
+// The output goes to `done(svgString)`, or — given a file name — straight to a
+// download.
 function exportSVG(sky, done, fname) {
+  // The working element is used through this reference, never looked up by
+  // its id: two exports running at once, or one left behind by an export that
+  // failed, would otherwise find each other's element.
   var doc = d3.select("body").append("div").attr("id", "d3-celestial-svg").attr("style", "display: none"),
-      svg = d3.select("#d3-celestial-svg").append("svg"), //.attr("style", "display: none"),
-      m = Celestial.metrics(),
+      svg = doc.append("svg"),
+      m = sky.metrics(),
       cfg = sky.cfg,
       path = cfg.datapath,
       proj = projections[cfg.projection],
       rotation = getAngles(cfg.center),
       center = [-rotation[0], -rotation[1]],
       scale0 = proj.scale * m.width/1024,
-      projection = Celestial.projection(cfg.projection).rotate(rotation).translate([m.width/2, m.height/2]).scale([m.scale]),
+      projection = skyProjection(cfg.projection, true).rotate(rotation).translate([m.width/2, m.height/2]).scale([m.scale]),
       adapt = cfg.adaptable ? Math.sqrt(m.scale/scale0) : 1,
       culture = (cfg.culture !== "" && cfg.culture !== "iau") ? cfg.culture : "",
       circle, id;
@@ -113,7 +119,7 @@ function exportSVG(sky, done, fname) {
   if (cfg.mw.show) {
     q.defer(function(callback) { 
       loadJson(path + "mw.json", function(error, json) {
-        if (error) callback(error);
+        if (error) return callback(error);
         var mw = getData(json, cfg.transform);
         var mw_back = getMwbackground(mw);
         
@@ -121,7 +127,7 @@ function exportSVG(sky, done, fname) {
          .data(mw.features)
          .enter().append("path")
          .attr("class", "milkyWay")
-         .attr("d", map);
+         .attr("d", function (d) { return mwPath(d, false); });
         styles.milkyWay = svgStyle(cfg.mw.style);
         
         if (!has(cfg.background, "opacity") || cfg.background.opacity > 0.95) {
@@ -129,7 +135,7 @@ function exportSVG(sky, done, fname) {
            .data(mw_back.features)
            .enter().append("path")
            .attr("class", "milkyWayBg")
-           .attr("d", map);
+           .attr("d", function (d) { return mwPath(d, true); });
           styles.milkyWayBg = {"fill": cfg.background.fill, 
                    "fill-opacity": cfg.background.opacity };
         }
@@ -142,17 +148,18 @@ function exportSVG(sky, done, fname) {
   if (cfg.constellations.bounds) { 
     q.defer(function(callback) { 
       loadJson(path + filename("constellations", "borders"), function(error, json) {
-        if (error) callback(error);
+        if (error) return callback(error);
 
-        var conb = getData(json, cfg.transform);
-        if (Celestial.constellation) {
-          var re = new RegExp("\\b" + Celestial.constellation + "\\b");
+        var conb = getData(json, cfg.transform),
+            selected = sky.constellation;
+        if (selected) {
+          var re = new RegExp("\\b" + selected + "\\b");
         }
 
         groups.constBoundaries.selectAll(".bounds")
          .data(conb.features)
          .enter().append("path")
-         .attr("class", function(d) { return (Celestial.constellation && d.ids.search(re) !== -1) ? "constBoundariesSel" : "constBoundaries"; }) 
+         .attr("class", function(d) { return (selected && d.ids.search(re) !== -1) ? "constBoundariesSel" : "constBoundaries"; }) 
          .attr("d", map);
 
         styles.constBoundaries = svgStyle(cfg.constellations.boundStyle);
@@ -171,7 +178,7 @@ function exportSVG(sky, done, fname) {
   if (cfg.constellations.lines) { 
     q.defer(function(callback) { 
       loadJson(path + filename("constellations", "lines"), function(error, json) {
-        if (error) callback(error);
+        if (error) return callback(error);
 
         var conl = getData(json, cfg.transform);
         groups.constLines.selectAll(".lines")
@@ -218,7 +225,7 @@ function exportSVG(sky, done, fname) {
   if (cfg.constellations.names) { 
     q.defer(function(callback) { 
       loadJson(path + filename("constellations"), function(error, json) {
-        if (error) callback(error);
+        if (error) return callback(error);
 
         var conn = getData(json, cfg.transform);
         groups.constNames.selectAll(".constnames")
@@ -251,7 +258,7 @@ function exportSVG(sky, done, fname) {
   if (cfg.stars.show) { 
     q.defer(function(callback) { 
       loadJson(path +  cfg.stars.data, function(error, json) {
-        if (error) callback(error);
+        if (error) return callback(error);
 
         var cons = getData(json, cfg.transform);
         
@@ -307,7 +314,7 @@ function exportSVG(sky, done, fname) {
   if (cfg.dsos.show) { 
     q.defer(function(callback) { 
       loadJson(path +  cfg.dsos.data, function(error, json) {
-        if (error) callback(error);
+        if (error) return callback(error);
 
         var cond = getData(json, cfg.transform);
         
@@ -521,6 +528,37 @@ function exportSVG(sky, done, fname) {
     return proj.clip && d3.geoDistance(center, coords) > halfπ ? 0 : 1;
   }
 
+  // The canvas's Milky Way correction (wrongWinding in celestial.js), applied
+  // to the export. At some orientations d3-geo fills the COMPLEMENT of a Milky
+  // Way contour, which greys out the whole map. The galactic pole lies outside
+  // every contour and inside every background ring, so when the built path
+  // says otherwise, the rings are reversed.
+  //
+  // The question is put to a projection without the page clip: a pole beyond
+  // the edge of the page can then still be asked about. The answer is about
+  // the spherical polygon, so it holds for the clipped output as well.
+  var hitTest = null;
+  function mwPath(d, poleInside) {
+    var pt, s_;
+    if (typeof Path2D !== "undefined") {
+      if (!hitTest) {
+        var unclipped = skyProjection(cfg.projection, true).rotate(rotation).translate([m.width/2, m.height/2]).scale([m.scale]);
+        if (proj.clip) unclipped.clipAngle(90);
+        hitTest = { path: d3.geoPath().projection(unclipped), projection: unclipped,
+                    context: document.createElement("canvas").getContext("2d") };
+      }
+      pt = transformDeg(poles.galactic, euler[cfg.transform]);
+      if (!clip(pt)) pt = [pt[0] + 180, -pt[1]];   // the other pole is the visible one
+      pt = hitTest.projection(pt);
+      s_ = hitTest.path(d);
+      if (s_ && pt && isFinite(pt[0]) && isFinite(pt[1]) && !/NaN|Infinity/.test(s_) &&
+          hitTest.context.isPointInPath(new Path2D(s_), pt[0], pt[1]) !== poleInside) {
+        d = reversedFeature(d);
+      }
+    }
+    return map(d);
+  }
+
   function point(coords) {
     return "translate(" + projection(coords) + ")";
   }
@@ -732,8 +770,8 @@ function exportSVG(sky, done, fname) {
   }
 
   q.await(function(error) {
-    if (error) throw error;
-    var svg = d3.select("#d3-celestial-svg svg")
+    if (error) { doc.remove(); throw error; }
+    svg
       .attr("title", "D3-Celestial")
       .attr("version", 1.1)
       .attr("encoding", "UTF-8")
@@ -759,10 +797,10 @@ function exportSVG(sky, done, fname) {
       a.href = URL.createObjectURL(blob);
       a.click();
       d3.select(a).remove();
-    } else if (done !== null) {
+    } else if (typeof done === "function") {
       done(svg.node().outerHTML);
     }
-    d3.select("#d3-celestial-svg").remove();
+    doc.remove();
   });
 
 }

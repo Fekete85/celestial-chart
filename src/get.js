@@ -87,6 +87,17 @@ function getMwbackground(d) {
   return res;
 }
 
+// The same feature with every ring reversed, which turns a polygon into its
+// complement on the sphere. Used where d3-geo fills the wrong side of a Milky
+// Way contour (wrongWinding in celestial.js, mwPath in svg.js).
+function reversedFeature(d) {
+  var g = d.geometry,
+      ring = function (r) { return r.slice().reverse(); },
+      polygon = function (pol) { return pol.map(ring); };
+  return { type: d.type, properties: d.properties, geometry: { type: g.type,
+    coordinates: g.type === "Polygon" ? polygon(g.coordinates) : g.coordinates.map(polygon) } };
+}
+
 function getTimezones() {
   
 }
@@ -113,25 +124,25 @@ function getGridValues(type, loc, sky) {
     switch (loc[i]) {
       case "center": 
         if (type === "lat")
-          lines = lines.concat(getLine(type, sky.cfg.center[0], "N"));
+          lines = lines.concat(getLine(type, sky.cfg.center[0], "N", sky.cfg.transform));
         else
-          lines = lines.concat(getLine(type, sky.cfg.center[1], "S")); 
+          lines = lines.concat(getLine(type, sky.cfg.center[1], "S", sky.cfg.transform)); 
         break;
       case "outline": 
         if (type === "lon") { 
-          lines = lines.concat(getLine(type, sky.cfg.center[1]-89.99, "S"));
-          lines = lines.concat(getLine(type, sky.cfg.center[1]+89.99, "N"));
+          lines = lines.concat(getLine(type, sky.cfg.center[1]-89.99, "S", sky.cfg.transform));
+          lines = lines.concat(getLine(type, sky.cfg.center[1]+89.99, "N", sky.cfg.transform));
         } else {
 					// TODO: hemi
-          lines = lines.concat(getLine(type, sky.cfg.center[0]-179.99, "E"));
-          lines = lines.concat(getLine(type, sky.cfg.center[0]+179.99, "W"));
+          lines = lines.concat(getLine(type, sky.cfg.center[0]-179.99, "E", sky.cfg.transform));
+          lines = lines.concat(getLine(type, sky.cfg.center[0]+179.99, "W", sky.cfg.transform));
         }
         break;
       default: if (isNumber(loc[i])) {
         if (type === "lat")
-          lines = lines.concat(getLine(type, loc[i], "N"));
+          lines = lines.concat(getLine(type, loc[i], "N", sky.cfg.transform));
         else
-          lines = lines.concat(getLine(type, loc[i], "S")); 
+          lines = lines.concat(getLine(type, loc[i], "S", sky.cfg.transform)); 
         break;        
       }
     }
@@ -152,12 +163,15 @@ function jsonGridValues(lines) {
   return res;
 }
 
-function getLine(type, loc, orient) {
+// `trans` is the map's coordinate system. It used to be read from a `sky`
+// variable that is not in scope here, so any grid label position threw a
+// ReferenceError — or, on a page with a global `sky`, silently read that.
+function getLine(type, loc, orient, trans) {
   var min, max, step, val, coord,
       tp = type,
       res = [],
       lr = loc;
-  if (sky.cfg.transform === "equatorial" && tp === "lon") tp = "ra";
+  if (trans === "equatorial" && tp === "lon") tp = "ra";
   
   if (tp === "ra") {
     min = 0; max = 23; step = 1;
@@ -207,4 +221,4 @@ Celestial.getData = getData;
 Celestial.getPoint = getPoint;
 Celestial.getPlanet = getPlanet;
 
-export { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets };
+export { getConstellationList, getData, getGridValues, getMwbackground, getPlanet, getPlanets, reversedFeature };

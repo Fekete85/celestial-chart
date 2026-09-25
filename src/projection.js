@@ -127,8 +127,22 @@ function rawProjection(name_, arg) {
   return raw(has(ARG_ADAPT, name_) ? ARG_ADAPT[name_](arg) : arg);
 }
 
+// A pole projected to infinity (mercator's south pole, y = -Infinity) is
+// pulled in to this distance, in raw units: some ten thousand times the width
+// of any map, yet finite.
+var FAR = 1e4;
+
 //Flipped projection generated on the fly
 Celestial.projection = function(projection) {
+  return skyProjection(projection, false);
+};
+
+// `finite`: for output that cannot hold an infinity. A canvas skips such a
+// point, but in an SVG path it is invalid — and d3-geo's rectangle clip cannot
+// tell the inside of a polygon that runs through it, so mercator's exported
+// background and Milky Way came out inverted. Only non-finite coordinates are
+// replaced; every finite point projects exactly as before.
+function skyProjection(projection, finite) {
   var p, raw, forward;
 
   if (!has(projections, projection)) { throw new Error("Projection not supported: " + projection); }
@@ -146,14 +160,20 @@ Celestial.projection = function(projection) {
   // differs by 795 pixels, because there the sign of lambda matters INSIDE the
   // formula too (`atan2(sin lambda * cos phi, -sin phi)`), not only in the
   // x coordinate of the result. Wrapping is unaffected by this.
-  forward = function (l, f) { return raw(-l, f); };
+  forward = finite
+    ? function (l, f) { var xy = raw(-l, f); return [bound(xy[0]), bound(xy[1])]; }
+    : function (l, f) { return raw(-l, f); };
   forward.invert = function (x, y) {
     var coord = raw.invert && raw.invert(x, y);
     if (coord) coord[0] = -coord[0];
     return coord;
   };
   return d3.geoProjection(forward);
-};
+}
+
+function bound(v) {
+  return v === Infinity ? FAR : v === -Infinity ? -FAR : v;
+}
 
 
 function projectionTween(a, b) {
@@ -202,4 +222,4 @@ var poles = {
 Celestial.eulerAngles = function () { return eulerAngles; };
 Celestial.poles = function () { return poles; };
 
-export { eulerAngles, poles, projectionTween, rawProjection };
+export { eulerAngles, poles, projectionTween, rawProjection, skyProjection };
