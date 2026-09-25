@@ -1,5 +1,5 @@
 import * as d3 from "./d3.js";
-import { formats, formats_all, globalConfig, settings } from "./config.js";
+import { formats, formats_all, globalConfig, settings, settingsOf, storeSettings } from "./config.js";
 import { Celestial } from "./core.js";
 import { exportSVG } from "./svg.js";
 import { euler, transformDeg } from "./transform.js";
@@ -14,7 +14,7 @@ import { findPos, has, isArray, isNumber, isObject, px, styles_ } from "./util.j
 // one page would have written each other's fields.
 function form(sky) {
   var cfg = sky.cfg;
-  var config = settings.set(cfg); 
+  var config = sky.standalone ? settings.set(null, cfg) : settings.set(cfg); 
 
   var depends = {
     "stars-show": ["stars-limit", "stars-colors", "stars-style-fill", "stars-designation", "stars-propername", "stars-size", "stars-exponent"],
@@ -115,13 +115,15 @@ function form(sky) {
     
     cy.value = ctr[1].toFixed(1);
     cz.value = ctr[2] !== null ? ctr[2].toFixed(1) : 0;
-    settings.set({center: ctr});
+    storeSettings(sky, {center: ctr});
   }
 
   function setLimits() {
     var t, rx = /\d+(\.\d+)?/g,
         s, d, res = {s:6, d:6},
-        config =  Celestial.settings();
+        // The map's own settings: Celestial.settings() is the defaults, so a map
+        // loading stars.8.json still had its limits capped at magnitude 6.
+        config = sky.cfg;
   
     d = config.dsos.data;
     
@@ -544,7 +546,7 @@ function form(sky) {
         cx = setUnit(trans, config.transform); 
     if (cx !== null) config.center[0] = cx; 
     config.transform = trans;
-    settings.set(config);
+    storeSettings(sky, config);
     sky.reload(config);
   }  
   
@@ -552,7 +554,7 @@ function form(sky) {
     var src = this;
     if (!src) return;
     config.projection = src.value; 
-    settings.set(config);
+    storeSettings(sky, config);
     sky.reproject(config);
   }
   
@@ -597,7 +599,7 @@ function form(sky) {
 
   function showCon(id) {
     var z, anims = [],
-        config = globalConfig;
+        config = sky.standalone ? sky.cfg : globalConfig;
     if (id === "---") { 
       sky.constellation = null;
       z = sky.zoomBy();
@@ -635,7 +637,7 @@ function form(sky) {
   function apply() {
     var value, src = this;
     //Get current configuration
-    Object.assign(config, settings.set());
+    Object.assign(config, settingsOf(sky));
 
     switch (src.type) {
       case "checkbox": value = src.checked; enable(src); break;
@@ -662,7 +664,7 @@ function form(sky) {
     }
 
     getCenter();
-    Object.assign(globalConfig, config);
+    if (!sky.standalone) Object.assign(globalConfig, config);
     sky.apply(config);
   }
 
@@ -678,7 +680,7 @@ function form(sky) {
   
   
   function setLanguage(lang) {
-    Object.assign(config, globalConfig);
+    Object.assign(config, sky.standalone ? sky.cfg : globalConfig);
     config.lang = lang;
     var keys = ["constellations", "planets"]; 
     for (var i=0; i < keys.length; i++) {
@@ -691,7 +693,7 @@ function form(sky) {
     if (has(formats.starnames[config.culture].propername, lang)) config.stars.propernameType = lang;
     else config.stars.propernameType = "desig";
     //update cont. list
-    Object.assign(globalConfig, config);
+    if (!sky.standalone) Object.assign(globalConfig, config);
     update();
     listConstellations();
     return config;
@@ -748,7 +750,7 @@ function form(sky) {
   sky.updateForm  = update;
   sky.showConstellation = showCon;
   sky.setLanguage = function(lang) {
-    var cfg = settings.set();
+    var cfg = settingsOf(sky);
     if (formats_all[config.culture].indexOf(lang) !== -1) cfg = setLanguage(lang);
     return cfg;    
   };

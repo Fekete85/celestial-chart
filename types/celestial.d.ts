@@ -419,6 +419,12 @@ export declare class SkyMap {
 
   /** The map's effective configuration. Updated while drawing. */
   readonly cfg: Config;
+  /**
+   * Created with `{ standalone: true }`: its settings — including those its
+   * form, location panel, `apply()` and `rotate()` change — stay its own and
+   * are never written to the shared global settings.
+   */
+  readonly standalone: boolean;
   /** The d3-geo projection. A new object after a projection change. */
   readonly mapProjection: (coord: Coordinate) => ScreenPoint | null;
   /** The d3-geo path generator. */
