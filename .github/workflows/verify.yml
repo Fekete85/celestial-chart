@@ -46,9 +46,13 @@ jobs:
           node --input-type=module -e 'const m = await import("celestial-chart"); if (typeof m.default !== "object" || typeof m.SkyMap !== "function") { console.error("ESM import failed"); process.exit(1) } console.log("ESM ok, version:", m.default.version)'
           node -e 'const m = require("celestial-chart"); if (!(m.default || m.Celestial)) { console.error("CJS require failed"); process.exit(1) } console.log("CJS ok")'
 
-      # Only the reference net is compared byte for byte. It is a table of
-      # numbers, so it is platform independent — the same (RA, Dec, projection,
-      # rotation) has to give the same (x, y) everywhere.
+      # The fresh reference net is compared with the recorded one number by
+      # number, not byte by byte. The values are rounded to 0.01 px, and a
+      # different Chromium build can round a value lying on the boundary the
+      # other way: one such point (azimuthalEqualArea, 135.12 -> 135.13) turned
+      # up in the v3 and the v7 net alike. That is floating point, not a
+      # regression — so a 0.02 px tolerance, while a missing point, a new NaN
+      # or a changed clipping flag still fails whatever the tolerance.
       #
       # The PNGs are NOT compared against the recorded ones: they are rendered
       # by the machine's own font stack, so a macOS-recorded image never equals
@@ -58,6 +62,8 @@ jobs:
       # THIS environment, which is the invariant that actually matters.
       - name: the measurements must match the recorded ones
         run: |
-          git diff --stat -- harness/reference-*.json
-          git diff --quiet -- harness/reference-*.json \
-            || (echo "The recorded measurements differ from this run — see the uploaded artifact." && exit 1)
+          for net in reference-d3v3 reference-d3v7; do
+            git show "HEAD:harness/$net.json" > "$RUNNER_TEMP/$net.recorded.json"
+            node harness/compare.mjs "$RUNNER_TEMP/$net.recorded.json" "harness/$net.json" --tolerance 0.02 \
+              || { echo "$net: the recorded measurements differ from this run — see the uploaded artifact."; exit 1; }
+          done

@@ -183,7 +183,7 @@ export class SkyMap {
   //parent div with id #celestial-map or body
   // Look for the container inside THIS map's parent. It used to take over the
   // global Celestial.container, so a second map would have drawn into the
-  // rajzolt volna (#96, #131).
+  // first one's (#96, #131).
   container = d3.select(parentElement).select("container");
   if (container.empty()) container = d3.select(parentElement).append("container");
   else container.selectAll(parentElement + " *").remove();
