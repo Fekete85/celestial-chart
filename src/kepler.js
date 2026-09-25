@@ -82,9 +82,17 @@ var Kepler = function () {
     if (!dt) { dt = new Date(); }
     de.jd = JD(dt);
       
-    dt = dateParse(elem.ep);
-    if (!dt) dt = dateParse("2000-01-01");
-    de.jd0 = JD(dt);
+    // "2000-01-01" in the catalogue is the J2000.0 epoch of JPL's approximate
+    // elements — and J2000.0 is noon, JD 2451545.0. Read as a calendar date it
+    // meant midnight, which put every planet, and the Sun through the Earth,
+    // twelve hours ahead: about half a degree for the Sun. Other epochs (the
+    // minor planets' osculating elements) are 0h, as written.
+    if (!elem.ep || elem.ep === "2000-01-01" || elem.ep === "J2000") {
+      de.jd0 = 2451545.0;
+    } else {
+      dt = dateParse(elem.ep);
+      de.jd0 = dt ? JD(dt) : 2451545.0;
+    }
     de.d = de.jd - de.jd0;
     de.cy = de.d / 36525;
   };

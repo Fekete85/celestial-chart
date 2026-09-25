@@ -83,12 +83,17 @@ function form(sky) {
     if (!cx) return null;
     
     if (old) {
+      // Worked on as a number: an input's value is a string, and `+= 24`
+      // appended "24" to it (-90° became "-6.024" instead of 18h).
+      var v = parseFloat(cx.value);
       if (trans === "equatorial" && old !== "equatorial") {
-        cx.value = (cx.value/15).toFixed(1);
-        if (cx.value < 0) cx.value += 24;
+        v /= 15;
+        if (v < 0) v += 24;
+        cx.value = v.toFixed(1);
       } else if (trans !== "equatorial" && old === "equatorial") {
-        cx.value = (cx.value * 15).toFixed(1);
-        if (cx.value > 180) cx.value -= 360;
+        v *= 15;
+        if (v > 180) v -= 360;
+        cx.value = v.toFixed(1);
       }
     }
     if (trans === 'equatorial') {
@@ -378,7 +383,7 @@ function form(sky) {
     col.append("label").attr("title", "Type of DSO name").attr("for", "dsos-" + fld + "Type").attr("class", "advanced").html("");
     sel = col.append("select").attr("id", "dsos-" + fld + "Type").attr("class", "advanced").on("change", apply);
     list = dsoKeys.map(function (key, i) {
-      if (key === config.stars[fld + "Type"]) selected = i;    
+      if (key === config.dsos[fld + "Type"]) selected = i;    
       return {o:key, n:names[fld][key]}; 
     });
     sel.selectAll("option").data(list).enter().append('option')
@@ -544,8 +549,11 @@ function form(sky) {
     var src = this,
         trans = src.value,
         cx = setUnit(trans, config.transform); 
-    if (cx !== null) config.center[0] = cx; 
     config.transform = trans;
+    // setUnit() leaves the field in its display unit — hours on an equatorial
+    // map — while center[0] is in degrees. getCenter() does the conversion;
+    // the field's value used to be stored as it was.
+    if (cx !== null) getCenter();
     storeSettings(sky, config);
     sky.reload(config);
   }  

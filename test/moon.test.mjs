@@ -74,11 +74,34 @@ test("the phase is one at known full moons", () => {
 
 test("#130: on 2022-03-18 the Moon is practically full all day long", () => {
   // According to the reporter the map showed a waning gibbous. The computed
-  // illuminated fraction, however, stays above 99.5% for the whole day.
+  // illuminated fraction, however, stays above 99% for the whole day.
+  //
+  // This bound used to be 99.5%, which the Moon itself does not meet: full
+  // moon was at 07:17 UTC, and by 23:00 the elongation is 188.2°, an
+  // illuminated fraction of 99.49% (PyEphem, which also accounts for the
+  // latitude: 99.37%). The old code passed only because two of its errors
+  // partly cancelled — the planets' J2000 epoch read twelve hours late, and
+  // the Moon's age taken across two reference frames.
   for (let hour = 0; hour < 24; hour++) {
     const e = moonAt(new Date(Date.UTC(2022, 2, 18, hour)));
-    assert.ok(e.phase > 0.995,
+    assert.ok(e.phase > 0.99,
       `2022-03-18 ${hour}:00 UTC: phase ${e.phase.toFixed(4)}`);
+  }
+});
+
+test("the age matches eclipse-anchored syzygies to a tenth of a degree", () => {
+  // The same anchors as above, with a tolerance that means something: the
+  // Moon gains 0.5° on the Sun every hour, and these times are those of
+  // greatest eclipse, within minutes of the syzygy itself. Before the age was
+  // taken in a single reference frame, errors reached a quarter of a degree
+  // here and a degree across 1900-2100.
+  const anchors = [
+    ["2017-08-21T18:30Z", 0], ["2024-04-08T18:21Z", 0], ["2026-02-17T12:01Z", 0], ["2026-08-12T17:46Z", 0],
+    ["2022-03-18T07:17Z", 180], ["2025-03-14T06:55Z", 180], ["2025-09-07T18:09Z", 180], ["2026-03-03T11:38Z", 180]
+  ];
+  for (const [s, expected] of anchors) {
+    const age = inDegrees(moonAt(new Date(s)).age);
+    assert.ok(angleDelta(age, expected) < 0.1, `${s}: age ${age.toFixed(3)}°, expected ${expected}°`);
   }
 });
 

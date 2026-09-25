@@ -511,7 +511,15 @@ var Moon = {
     // case they apply to ecliptic longitude and latitude, not to ra/dec. Added
     // separately they produced a right ascension error of about 1.5 degrees.
 
-    dat.age = Trig.normalize(dat.l - sol.l + Math.PI);
+    // The Moon's longitude comes from a series referred to the equinox of
+    // date; the Earth's, from J2000 elements, to J2000. Precession since J2000
+    // (IAU 2006, general precession in longitude) brings the two into the same
+    // frame. Without it the age was off by up to a degree over 1900–2100 —
+    // 0.36° in 2026, partly masked until the planets' J2000 epoch was read
+    // twelve hours late.
+    var t = (dat.jd - 2451545) / 36525,
+        precession = (5028.796195 * t + 1.1054348 * t * t) / 3600 * deg2rad;
+    dat.age = Trig.normalize(dat.l - (sol.l + precession) + Math.PI);
     dat.phase = 0.5 * (1 - Math.cos(dat.age));
 
     return dat;

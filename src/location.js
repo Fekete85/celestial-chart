@@ -164,7 +164,7 @@ function geo(sky) {
 
   function isValidTimezone(tz) {
     if (tz === undefined || tz === null) return false;
-    if (!isNumber(tz) && Math.abs(tz) > 840) return false;
+    if (!isNumber(tz) || Math.abs(tz) > 840) return false;   // was `&&`: nothing was ever rejected
     return true;    
   }
   
@@ -201,7 +201,11 @@ function geo(sky) {
       //if (!tz) tz = date.getTimezoneOffset();
       $form("datetime").value = dateFormat(date, timeZone); 
 
-      var dtc = new Date(date.valueOf() - (timeZone - localZone) * 60000);
+      // `date` holds the entered wall-clock time read as the browser's local
+      // time, so the browser's offset AT THAT DATE has to come off — not the
+      // offset of the day the page was loaded, which is an hour out across a
+      // daylight saving change.
+      var dtc = new Date(date.valueOf() - (timeZone + date.getTimezoneOffset()) * 60000);
 
       zenith = Celestial.getPoint(horizontal.inverse(dtc, [90, 0], geopos), config.transform);
       zenith[2] = 0;
@@ -241,7 +245,10 @@ function geo(sky) {
   //
   // With neither, no request is made and the offset is estimated from longitude.
   function setPosition(p, settime) {
-    if (!p || !has(config, "settimezone") || config.settimezone === false) return;
+    if (!p) return;
+    // Without a time zone lookup the new position still has to be drawn, in
+    // the zone as it is. This used to return, and the map did not move.
+    if (!has(config, "settimezone") || config.settimezone === false) { applyZone(); return; }
     var timestamp = Math.floor(date.getTime() / 1000);
 
     if (typeof config.timezoneResolver === "function") {
@@ -278,7 +285,14 @@ function geo(sky) {
               "&lat=" + p[0] + "&lng=" + p[1] + "&time=" + timestamp;
 
     loadJson(url, function(error, json) {
-      if (error) return console.warn(error);
+      // A failed request falls back to the estimate, as a failed resolver
+      // does; it used to leave the map where it was.
+      if (error) {
+        console.warn(error);
+        estimateZone(p, timestamp);
+        applyZone();
+        return;
+      }
       if (json.status === "FAILED") {
         estimateZone(p, timestamp);
       } else {
@@ -301,7 +315,7 @@ function geo(sky) {
     go();
   };
   sky.timezone = function (tz) { 
-    if (!tz) return timeZone;  
+    if (tz === undefined || tz === null) return timeZone;   // not `!tz`: 0 is UTC
     if (isValidTimezone(tz)) timeZone = tz;
     Object.assign(config, settingsOf(sky));
     if (dtpick.isVisible()) dtpick.hide();
@@ -315,7 +329,7 @@ function geo(sky) {
       geopos = loc.slice();
       $form("lat").value = geopos[0];
       $form("lon").value = geopos[1];
-      if (isValidTimezone(tz)) timeZone = tz;
+      if (isValidTimezone(tz)) { timeZone = tz; applyZone(); }   // the map used to stay put
       else setPosition(geopos, true);
     }
   };
