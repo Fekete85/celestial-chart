@@ -137,6 +137,8 @@ Result: the original code returns **50% of the points** above the horizon incorr
 | `compare.mjs` | the diff of the two references (`--selftest` for its own validity) |
 | `visual.html` / `visual-new.html` | the pages for the visual comparison |
 | `image-diff.html` | pixel-by-pixel comparison of two PNGs |
+| `blank.html` | an empty page: `verify.mjs` imports the ES module build into it and builds each map it checks |
+| `no-container.html` | a map with neither a container element nor a width |
 | `issue-148-check.mjs` | the numerical investigation of #148 (Node) |
 | `vendor/` | a pinned copy of the version under test — so that the reference is reproducible |
 | `data/` | a minimal data set (`display()` loads even when every layer is hidden) |

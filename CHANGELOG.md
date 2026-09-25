@@ -1,5 +1,91 @@
 # Changelog
 
+## Unreleased
+
+A review of the whole fork turned up the defects below. Every one was
+reproduced in a browser or measured before it was fixed, and each has a
+check in `harness/verify.mjs` or a unit test that fails on the old code.
+
+### Fixed — regressions of the fork
+
+- The settings form's **"SVG File" button** always threw: it passed the file
+  name where `exportSVG` now expects the map.
+- **Selecting a constellation** no longer highlighted it, and
+  `Celestial.constellations` / `Celestial.constellation` were always
+  `undefined`. The translation pass renamed the module-level "current map"
+  pointer to `current` — the name of the constructor's animation counter,
+  which shadowed it.
+- **SVG export, Milky Way:** the canvas's correction for d3-geo filling the
+  complement of a contour was missing from the export, which greyed out the
+  whole map at some orientations (orthographic `[180, 55]`: mean brightness 3
+  on the canvas, 34 in the SVG). In mercator, the south pole's `−Infinity`
+  inverted the exported background as well. Measured over 72 views in four
+  projections, export and canvas now agree.
+- **Grid value labels** (`lines.graticule.lon/lat.pos`) threw a
+  `ReferenceError` in the constructor.
+- **Module build:** changing the hour, minute or second in the date picker
+  threw (`this` is `undefined` in strict code).
+- **Several maps on a page** (`SkyMap`):
+  - A `SkyMap` with `location: true` could not be created without a prior
+    `Celestial.display()`, and its `exportSVG()` threw: drawing and export
+    read `Celestial.date()`, `.zenith()`, `.nadir()` and `.metrics()` from the
+    global object instead of the map.
+  - A standalone map's `apply()`, `rotate()` and `reload()`, and its form and
+    location panel, went through the shared `globalConfig` and took over the
+    settings of the map created last — container and projection included.
+    Style objects were shared between maps below the two levels `settings.set()`
+    copies, so a colour set on one map's form changed the other map too.
+  - Only the last map followed window resizes, and only the last map's date
+    picker closed on an outside click: the listeners had no name.
+  - One map's `projectionRatio` was written into the shared projection table
+    and reshaped every later map with that projection.
+- `Celestial.ha()` could still exceed 360° for the library's own right
+  ascensions, which run from −180° to 180°.
+- A `timezoneResolver` that throws synchronously skipped the longitude
+  fallback.
+
+### Fixed — inherited from upstream
+
+- **The Sun and the planets were computed twelve hours ahead.** The
+  catalogue's `"2000-01-01"` epoch is J2000.0, which is noon; read as
+  midnight it put the Sun 0.49° (one solar diameter) and Mercury up to 0.87°
+  off. Against PyEphem, 1950–2100: Sun and inner planets now within 0.015°.
+- **The Moon's age** mixed two reference frames (Moon: equinox of date;
+  Earth: J2000). Its error, up to a degree over 1900–2100, is now below
+  0.025°. The Moon's position on the map is unchanged — still referred to the
+  equinox of date, 0.36° from J2000 in 2026.
+- In galactic, ecliptic and supergalactic maps the **daylight sky and the Sun**
+  were placed with equatorial coordinates (up to 95° off in galactic).
+- **SVG export** of a non-equatorial map with the graticule on threw
+  (`Celestial.graticule` exists neither here nor upstream); the planes'
+  poles were not transformed either.
+- `Celestial.display({ location: true, daylight: { show: true } })` threw on
+  the first call.
+- Location panel: `timezone(0)` could not set UTC; an invalid offset was
+  accepted and then threw; the map did not move after a location change with
+  `settimezone: false`, after a failed TimeZoneDB request, or on
+  `location(loc, tz)`; across a daylight saving change the entered time was
+  read an hour off.
+- Settings form: switching the coordinate system concatenated strings
+  (`"-6.0" + 24`) and stored hours as degrees; the deep-sky name-type select
+  showed the stars' setting; the magnitude limits ignored the map's own data
+  files.
+- SVG export: a star colour class at the end of the range was never styled.
+
+### Changed
+
+- The CI compares the fresh reference net with the recorded one number by
+  number, with a 0.02 px tolerance, rather than byte for byte: a different
+  Chromium build rounded one boundary value the other way, in the v3 and the
+  v7 net alike. A missing point, a new NaN or a changed clipping flag still
+  fails.
+- The #130 test's bound for 2022-03-18 is 99% illumination, not 99.5%: the
+  Moon itself is at 99.49% by 23:00 UTC (PyEphem: 99.37%). The old code met
+  the stricter bound only because two of its errors partly cancelled.
+- `SkyMap` instances expose `standalone`.
+- Removed `site/html/`, a stale 0.8.0 build and data left behind when the demo
+  page moved to its own repository.
+
 ## 0.8.1
 
 ### Fixed
